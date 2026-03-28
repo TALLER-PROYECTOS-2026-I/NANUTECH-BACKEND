@@ -1,26 +1,26 @@
-name: CI - Tests - Nanutech
-
-on:
-  pull_request:
-    branches:
+trigger:
+  branches:
+    include:
       - develop
 
-jobs:
-  test:
-    name: Ejecutar pruebas
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Descargar código
-        uses: actions/checkout@v3
+pr:
+  branches:
+    include:
+      - develop
 
-      - name: Instalar Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
+pool:
+  vmImage: 'ubuntu-latest'
 
-      - name: Instalar dependencias
-        run: npm install
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '20.x'
+    displayName: 'Instalar Node.js'
 
-      - name: Ejecutar pruebas
-        run: npm test
+  - script: |
+      npm install
+    displayName: 'Instalar dependencias'
+
+  - script: |
+      npm test
+    displayName: 'Ejecutar pruebas'
