@@ -1,3 +1,4 @@
+name: 'NANUTECH-BACKEND - CI Tests'
 trigger:
   branches:
     include:
