@@ -1,0 +1,19 @@
+# Dependencias
+node_modules/
+
+# Build de SAM
+.aws-sam/
+
+# Variables de entorno locales
+env.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
