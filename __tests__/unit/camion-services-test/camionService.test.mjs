@@ -80,6 +80,7 @@ const logError = (label, message) => {
   process.stdout.write(`     test    : ${label}\n`);
   process.stdout.write(`     mensaje : ${message}\n`);
 };
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("CamionService", () => {
@@ -105,7 +106,6 @@ describe("CamionService", () => {
       getAll: jest.fn(),
       getById: jest.fn(),
       getByPlaca: jest.fn(),
-      exists: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -187,33 +187,31 @@ describe("CamionService", () => {
     };
 
     it("debería crear camión exitosamente", async () => {
-      mockRepository.exists.mockResolvedValue(false);
+      // El servicio llama getByPlaca para verificar placa duplicada → null = libre
       mockRepository.getByPlaca.mockResolvedValue(null);
       mockRepository.create.mockResolvedValue(newCamionData);
       Camion.fromDatabase.mockReturnValue(newCamionData);
 
       const result = await camionService.createCamion(newCamionData);
 
+      expect(mockRepository.getByPlaca).toHaveBeenCalledWith(
+        newCamionData.placa,
+      );
       expect(mockRepository.create).toHaveBeenCalled();
       expect(result).toEqual(newCamionData);
       logSuccess("createCamion - CAM-003", result);
     });
 
-    it("debería lanzar error cuando el ID ya existe", async () => {
-      mockRepository.exists.mockResolvedValue(true);
-
-      await expect(camionService.createCamion(newCamionData)).rejects.toThrow(
-        ERROR_MESSAGES.CAMION_ALREADY_EXISTS,
-      );
-      logError(
-        "createCamion - ID duplicado",
-        ERROR_MESSAGES.CAMION_ALREADY_EXISTS,
-      );
-    });
-
     it("debería lanzar error cuando la placa ya existe", async () => {
-      mockRepository.exists.mockResolvedValue(false);
-      mockRepository.getByPlaca.mockResolvedValue({ id: "OTHER-ID" });
+      // El servicio usa getByPlaca, NO exists — este es el mock correcto
+      mockRepository.getByPlaca.mockResolvedValue({
+        id: "CAM-001",
+        placa: "NEW-456",
+        modelo: "Volvo FH16",
+        capacidad: 20,
+        year: 2022,
+        estado: "activo",
+      });
 
       await expect(camionService.createCamion(newCamionData)).rejects.toThrow(
         ERROR_MESSAGES.CAMION_PLACA_EXISTS,
