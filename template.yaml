@@ -25,7 +25,7 @@ Parameters:
   DBPort:
     Type: String
     Default: "5432"
-xs
+
 Globals:
   Function:
     Timeout: 30
