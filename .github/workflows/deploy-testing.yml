@@ -1,0 +1,57 @@
+name: Deploy to AWS (Testing)
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - testing
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1 
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install AWS SAM CLI
+        run: pip install aws-sam-cli
+
+      - name: Build SAM application
+        run: sam build
+
+      - name: Deploy SAM application
+        run: |
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --stack-name nanutech-backend-testing \
+            --capabilities CAPABILITY_IAM \
+            --region us-east-1 \
+            --resolve-s3 \
+            --parameter-overrides \
+              StageName=testing \
+              DBHost=${{ secrets.DB_HOST }} \
+              DBName=${{ secrets.DB_NAME }} \
+              DBUser=${{ secrets.DB_USER }} \
+              DBPassword=${{ secrets.DB_PASSWORD }} \
+              DBPort=${{ secrets.DB_PORT }}
