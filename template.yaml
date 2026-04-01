@@ -47,7 +47,7 @@ Globals:
       LogFormat: JSON
     Tags:
       Environment: !Ref StageName
-      Proyecto: Nanuetch-Backend
+      Proyecto: Nanutech-Backend
     Tracing: Active
 
 Resources:
@@ -63,7 +63,19 @@ Resources:
       TracingEnabled: true
       Tags:
         Environment: !Ref StageName
-        Proyecto: Nanuetch-Backend
+        Proyecto: Nanutech-Backend
+  # 👇 EJEMPLO 1 (YA TIENES)
+  getAllItemsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/functions/camion-services/get-all-items.getAllItemsHandler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /items
+            Method: GET
 
   CamionFunction:
     Type: AWS::Serverless::Function
