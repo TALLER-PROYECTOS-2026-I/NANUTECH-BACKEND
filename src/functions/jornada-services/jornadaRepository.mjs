@@ -1,8 +1,8 @@
-import { getDbClient } from "../../shared/config/database.mjs";
+import { getClient } from "../../shared/config/database.mjs";
 
 export class JornadaRepository {
   async create(jornadaData) {
-    const client = await getDbClient();
+    const client = await getClient();
     try {
       const query = `
         INSERT INTO jornadas (id_conductor, id_unidad, id_contrato, estado)
@@ -23,7 +23,7 @@ export class JornadaRepository {
   }
 
   async checkUnidadActiva(id_unidad) {
-    const client = await getDbClient();
+    const client = await getClient();
     try {
       const query = `SELECT id FROM jornadas WHERE id_unidad = $1 AND estado = 'ACTIVA' LIMIT 1;`;
       const result = await client.query(query, [id_unidad]);

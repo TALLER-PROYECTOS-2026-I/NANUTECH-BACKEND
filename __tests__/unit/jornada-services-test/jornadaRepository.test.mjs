@@ -4,7 +4,7 @@ const mockQuery = jest.fn();
 const mockRelease = jest.fn();
 
 jest.unstable_mockModule("../../../src/shared/config/database.mjs", () => ({
-  getDbClient: jest.fn().mockResolvedValue({
+  getClient: jest.fn().mockResolvedValue({
     query: mockQuery,
     release: mockRelease,
   }),
