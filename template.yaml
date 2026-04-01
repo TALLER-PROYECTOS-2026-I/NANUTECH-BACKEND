@@ -25,6 +25,22 @@ Parameters:
   DBPort:
     Type: String
     Default: "5432"
+  AuthProvider:
+    Type: String
+    Default: "local"
+  CognitoUserPoolId:
+    Type: String
+    Default: ""
+  CognitoClientId:
+    Type: String
+    Default: ""
+  SessionTimeoutSeconds:
+    Type: String
+    Default: "7200"
+  AuthTokenSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
 
 Globals:
   Function:
@@ -101,6 +117,53 @@ Resources:
         EntryPoints:
           - src/functions/camion-services/camionHandler.mjs
 
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-auth"
+      CodeUri: .
+      Handler: src/functions/auth-services/authHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+          AUTH_PROVIDER: !Ref AuthProvider
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          SESSION_TIMEOUT_SECONDS: !Ref SessionTimeoutSeconds
+          AUTH_TOKEN_SECRET: !Ref AuthTokenSecret
+      Events:
+        AuthLogin:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/login
+            Method: POST
+        AuthForgotPassword:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/forgot-password
+            Method: POST
+        AuthMe:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/me
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: auth
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/auth-services/authHandler.mjs
+
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
@@ -121,3 +184,6 @@ Outputs:
   CamionFunctionArn:
     Description: "ARN de la función Camion"
     Value: !GetAtt CamionFunction.Arn
+  AuthFunctionArn:
+    Description: "ARN de la función Auth"
+    Value: !GetAtt AuthFunction.Arn

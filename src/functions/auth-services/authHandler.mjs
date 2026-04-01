@@ -1,19 +1,25 @@
-import { forgotPassword, loginAttempt } from "./authController.mjs";
+import { errorResponse } from "../../shared/utils/response/response.mjs";
+import {
+  forgotPassword,
+  getCurrentSessionController,
+  loginAttempt,
+} from "./authController.mjs";
+
+const routes = {
+  "POST /auth/forgot-password": forgotPassword,
+  "POST /auth/login": loginAttempt,
+  "GET /auth/me": getCurrentSessionController,
+};
 
 export const handler = async (event) => {
-  const path = event.resource;
-  const method = event.httpMethod;
+  const routeKey = `${event.httpMethod} ${event.resource}`;
+  const controller = routes[routeKey];
 
-  if (path === "/auth/forgot-password" && method === "POST") {
-    return await forgotPassword(event);
+  if (!controller) {
+    return errorResponse("Ruta no encontrada", 404, {
+      code: "ROUTE_NOT_FOUND",
+    });
   }
 
-  if (path === "/auth/login" && method === "POST") {
-    return await loginAttempt(event);
-  }
-
-  return {
-    statusCode: 404,
-    body: JSON.stringify({ message: "Ruta no encontrada" }),
-  };
+  return await controller(event);
 };
