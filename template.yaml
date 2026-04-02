@@ -53,7 +53,6 @@ Globals:
     Tracing: Active
 
 Resources:
-
   NanutechApi:
     Type: AWS::Serverless::Api
     Properties:
