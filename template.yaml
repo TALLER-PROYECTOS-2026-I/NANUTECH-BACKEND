@@ -4,6 +4,7 @@ Description: API para gestión de camiones - Nanutech Backend
 Transform:
   - AWS::Serverless-2016-10-31
 
+
 Parameters:
   StageName:
     Type: String
@@ -25,6 +26,7 @@ Parameters:
   DBPort:
     Type: String
     Default: "5432"
+
 
 Globals:
   Function:
@@ -51,6 +53,7 @@ Globals:
     Tracing: Active
 
 Resources:
+
   NanutechApi:
     Type: AWS::Serverless::Api
     Properties:
@@ -64,7 +67,7 @@ Resources:
       Tags:
         Environment: !Ref StageName
         Proyecto: Nanutech-Backend
-  # 👇 EJEMPLO 1 (YA TIENES)
+
   getAllItemsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -143,6 +146,36 @@ Resources:
         EntryPoints:
           - src/functions/conductor-services/conductorHandler.mjs
 
+  JornadaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-jornadas"
+      CodeUri: .
+      Handler: src/functions/jornada-services/jornadaHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        Create:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas
+            Method: POST
+      Tags:
+        Environment: !Ref StageName
+        Servicio: jornada
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/jornada-services/jornadaHandler.mjs
+
   ContratoFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -201,7 +234,8 @@ Resources:
         Target: es2022
         Sourcemap: true
         EntryPoints:
-          - src/functions/unidad-services/unidadHandler.mjs        
+          - src/functions/unidad-services/unidadHandler.mjs
+
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
@@ -232,3 +266,6 @@ Outputs:
   UnidadFunctionArn:
     Description: "ARN de la función Unidad"
     Value: !GetAtt UnidadFunction.Arn
+  JornadaFunctionArn:
+    Description: "ARN de la función Jornada"
+    Value: !GetAtt JornadaFunction.Arn
