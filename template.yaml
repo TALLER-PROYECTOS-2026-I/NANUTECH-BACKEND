@@ -113,6 +113,36 @@ Resources:
         EntryPoints:
           - src/functions/camion-services/camionHandler.mjs
 
+  JornadaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-jornadas"
+      CodeUri: .
+      Handler: src/functions/jornada-services/jornadaHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        Create:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas
+            Method: POST
+      Tags:
+        Environment: !Ref StageName
+        Servicio: jornada
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/jornada-services/jornadaHandler.mjs
+
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
@@ -133,3 +163,6 @@ Outputs:
   CamionFunctionArn:
     Description: "ARN de la función Camion"
     Value: !GetAtt CamionFunction.Arn
+  JornadaFunctionArn:
+    Description: "ARN de la función Jornada"
+    Value: !GetAtt JornadaFunction.Arn
