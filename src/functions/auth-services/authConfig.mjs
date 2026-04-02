@@ -1,3 +1,9 @@
+// Configuración base del módulo auth.
+// Hoy el backend soporta:
+// - local: fallback provisional para desarrollo y pruebas
+// - cognito: flujo real solo si DevSecOps configura AUTH_PROVIDER=cognito,
+//   COGNITO_USER_POOL_ID y COGNITO_CLIENT_ID.
+// Para nube real también debe existir región AWS válida y un User Pool/App Client activos.
 const DEFAULT_AUTH_PROVIDER = "local";
 const DEFAULT_SESSION_TIMEOUT_SECONDS = 60 * 60 * 2;
 const DEFAULT_TOKEN_SECRET = "nanutech-local-auth-secret";

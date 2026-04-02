@@ -1,3 +1,5 @@
+// Adaptador para Cognito real.
+// Se activa solo cuando AUTH_PROVIDER=cognito y existen los IDs necesarios.
 import {
   CognitoIdentityProviderClient,
   ForgotPasswordCommand,

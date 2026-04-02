@@ -87,4 +87,17 @@ describe("AuthHandler", () => {
     expect(body.success).toBe(false);
     expect(body.data.code).toBe("ROUTE_NOT_FOUND");
   });
+
+  it("retorna 401 cuando /auth/me no recibe Bearer token", async () => {
+    const response = await authHandler({
+      httpMethod: "GET",
+      resource: "/auth/me",
+      headers: {},
+    });
+    const body = JSON.parse(response.body);
+
+    expect(response.statusCode).toBe(401);
+    expect(body.success).toBe(false);
+    expect(body.data.code).toBe("TOKEN_REQUIRED");
+  });
 });

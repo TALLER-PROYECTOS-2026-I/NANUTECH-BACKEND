@@ -1,3 +1,5 @@
+// Fallback local provisional para desarrollo y pruebas.
+// No reemplaza un origen real de identidades como Cognito.
 const initialUsers = [
   {
     email: "test@test.com",

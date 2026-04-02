@@ -1,3 +1,6 @@
+// Orquesta auth con dos modos:
+// - cognito: flujo real cuando la infraestructura está configurada
+// - local: fallback provisional para no bloquear desarrollo, QA y frontend
 import * as cognitoProvider from "./authCognitoProvider.mjs";
 import {
   getAuthProvider,

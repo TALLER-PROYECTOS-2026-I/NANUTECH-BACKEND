@@ -1,3 +1,6 @@
+// Endpoints expuestos por la Lambda de auth.
+// El contrato de request/response para frontend y QA está documentado
+// en src/functions/auth-services/AUTH_CONTRACT.md.
 import { errorResponse } from "../../shared/utils/response/response.mjs";
 import {
   forgotPassword,
