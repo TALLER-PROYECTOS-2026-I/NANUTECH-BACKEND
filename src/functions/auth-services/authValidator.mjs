@@ -40,6 +40,24 @@ export const validatePassword = (password) => {
   return password;
 };
 
+export const validateConfirmationCode = (code) => {
+  if (!code) {
+    throw createValidationError(
+      "El código de confirmación es obligatorio",
+      "CODE_REQUIRED",
+    );
+  }
+
+  if (typeof code !== "string" || code.trim() === "") {
+    throw createValidationError(
+      "El código de confirmación es obligatorio",
+      "CODE_REQUIRED",
+    );
+  }
+
+  return code.trim();
+};
+
 export const extractBearerToken = (authorizationHeader) => {
   if (!authorizationHeader) {
     const error = new Error("Token de acceso requerido");

@@ -7,6 +7,7 @@ const initialUsers = [
     role: "admin",
     attempts: 0,
     locked: false,
+    resetCode: null,
   },
   {
     email: "chofer@test.com",
@@ -14,6 +15,7 @@ const initialUsers = [
     role: "chofer",
     attempts: 0,
     locked: false,
+    resetCode: null,
   },
 ];
 
@@ -41,6 +43,26 @@ export const resetAttempts = async (email) => {
 export const lockUser = async (email) => {
   const user = users.find((u) => u.email === email);
   if (user) user.locked = true;
+};
+
+export const setResetCode = async (email, code) => {
+  const user = users.find((u) => u.email === email);
+  if (user) user.resetCode = code;
+};
+
+export const getResetCode = async (email) => {
+  const user = users.find((u) => u.email === email);
+  return user?.resetCode || null;
+};
+
+export const clearResetCode = async (email) => {
+  const user = users.find((u) => u.email === email);
+  if (user) user.resetCode = null;
+};
+
+export const updatePassword = async (email, newPassword) => {
+  const user = users.find((u) => u.email === email);
+  if (user) user.password = newPassword;
 };
 
 export const resetUsersState = async () => {

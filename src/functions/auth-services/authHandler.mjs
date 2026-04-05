@@ -1,8 +1,9 @@
 // Endpoints expuestos por la Lambda de auth.
-// El contrato de request/response para frontend y QA está documentado
+// El contrato de request/response para frontend y QA esta documentado
 // en src/functions/auth-services/AUTH_CONTRACT.md.
 import { errorResponse } from "../../shared/utils/response/response.mjs";
 import {
+  confirmForgotPassword,
   forgotPassword,
   getCurrentSessionController,
   loginAttempt,
@@ -10,6 +11,7 @@ import {
 
 const routes = {
   "POST /auth/forgot-password": forgotPassword,
+  "POST /auth/forgot-password/confirm": confirmForgotPassword,
   "POST /auth/login": loginAttempt,
   "GET /auth/me": getCurrentSessionController,
 };

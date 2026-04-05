@@ -4,6 +4,7 @@ import {
   describe,
   expect,
   it,
+  jest,
 } from "@jest/globals";
 
 let authHandler;
@@ -20,6 +21,7 @@ beforeAll(async () => {
 
 describe("AuthHandler", () => {
   beforeEach(async () => {
+    jest.restoreAllMocks();
     delete process.env.AUTH_PROVIDER;
     delete process.env.COGNITO_USER_POOL_ID;
     delete process.env.COGNITO_CLIENT_ID;
@@ -43,6 +45,7 @@ describe("AuthHandler", () => {
     expect(response.statusCode).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.user.role).toBe("admin");
+    expect(body.data.role).toBe("admin");
     expect(body.data.session.accessToken).toBeTruthy();
   });
 
@@ -72,7 +75,36 @@ describe("AuthHandler", () => {
       email: "chofer@test.com",
       role: "chofer",
     });
+    expect(meBody.data.role).toBe("chofer");
     expect(meBody.data.nextRoute).toBe("/dashboard/chofer");
+  });
+
+  it("confirma forgot password en la ruta /auth/forgot-password/confirm", async () => {
+    await authHandler({
+      httpMethod: "POST",
+      resource: "/auth/forgot-password",
+      body: JSON.stringify({
+        email: "test@test.com",
+      }),
+      headers: {},
+    });
+
+    const confirmResponse = await authHandler({
+      httpMethod: "POST",
+      resource: "/auth/forgot-password/confirm",
+      body: JSON.stringify({
+        email: "test@test.com",
+        code: "123456",
+        newPassword: "NuevaClave123",
+      }),
+      headers: {},
+    });
+    const confirmBody = JSON.parse(confirmResponse.body);
+
+    expect(confirmResponse.statusCode).toBe(200);
+    expect(confirmBody.success).toBe(true);
+    expect(confirmBody.data.provider).toBe("local");
+    expect(confirmBody.data.message).toBe("La contrasena fue actualizada");
   });
 
   it("retorna error 404 para rutas auth no registradas", async () => {

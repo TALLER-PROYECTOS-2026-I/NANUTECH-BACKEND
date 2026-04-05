@@ -1,6 +1,7 @@
 // Adaptador para Cognito real.
 // Se activa solo cuando AUTH_PROVIDER=cognito y existen los IDs necesarios.
 import {
+  ConfirmForgotPasswordCommand,
   CognitoIdentityProviderClient,
   ForgotPasswordCommand,
   GetUserCommand,
@@ -27,17 +28,34 @@ const getClient = () => {
   return cognitoClient;
 };
 
+const normalizeRole = (value) => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized || null;
+};
+
 const getRoleFromClaims = (claims = {}, attributes = []) => {
-  if (claims["custom:role"]) return claims["custom:role"];
-  if (claims.role) return claims.role;
+  const customRoleAttribute = attributes.find(
+    (attribute) => attribute.Name === "custom:role",
+  );
+  const genericRoleAttribute = attributes.find(
+    (attribute) => attribute.Name === "role",
+  );
+
+  const customRole =
+    normalizeRole(claims["custom:role"]) ||
+    normalizeRole(customRoleAttribute?.Value);
+  if (customRole) return customRole;
+
   if (Array.isArray(claims["cognito:groups"]) && claims["cognito:groups"][0]) {
-    return claims["cognito:groups"][0].toLowerCase();
+    return normalizeRole(claims["cognito:groups"][0]);
   }
 
-  const roleAttribute = attributes.find(
-    (attribute) => attribute.Name === "custom:role" || attribute.Name === "role",
-  );
-  return roleAttribute?.Value || null;
+  const fallbackRole =
+    normalizeRole(claims.role) || normalizeRole(genericRoleAttribute?.Value);
+  if (fallbackRole) return fallbackRole;
+
+  return null;
 };
 
 const buildNextRoute = (role) => {
@@ -70,6 +88,12 @@ const buildSession = (accessToken, idToken, expiresIn) => {
   };
 };
 
+const buildIdentity = (claims, fallbackEmail = null, fallbackRole = null) => ({
+  sub: claims.sub || claims.username || null,
+  email: claims.email || fallbackEmail,
+  cognitoRole: fallbackRole,
+});
+
 export const loginWithCognito = async (email, password) => {
   try {
     const client = getClient();
@@ -97,10 +121,12 @@ export const loginWithCognito = async (email, password) => {
       ? decodeJwtPayload(authResult.IdToken)
       : decodeJwtPayload(authResult.AccessToken);
     const role = getRoleFromClaims(claims);
+    const identity = buildIdentity(claims, email, role);
 
     return {
+      identity,
       user: {
-        email: claims.email || email,
+        email: identity.email,
         role,
       },
       session: buildSession(
@@ -175,6 +201,63 @@ export const forgotPasswordWithCognito = async (email) => {
   }
 };
 
+export const confirmForgotPasswordWithCognito = async (
+  email,
+  code,
+  newPassword,
+) => {
+  try {
+    const client = getClient();
+    const command = new ConfirmForgotPasswordCommand({
+      ClientId: process.env.COGNITO_CLIENT_ID,
+      Username: email,
+      ConfirmationCode: code,
+      Password: newPassword,
+    });
+
+    await client.send(command);
+
+    return {
+      email,
+      provider: "cognito",
+      message: "La contraseña fue actualizada",
+    };
+  } catch (error) {
+    if (error.name === "CodeMismatchException") {
+      throw createAuthError(
+        "El código de recuperación es inválido",
+        401,
+        "RESET_CODE_INVALID",
+      );
+    }
+    if (error.name === "ExpiredCodeException") {
+      throw createAuthError(
+        "El código de recuperación expiró",
+        401,
+        "RESET_CODE_EXPIRED",
+      );
+    }
+    if (error.name === "UserNotFoundException") {
+      throw createAuthError("Usuario no encontrado", 404, "USER_NOT_FOUND");
+    }
+    if (error.name === "InvalidPasswordException") {
+      throw createAuthError(
+        "La nueva contraseña no cumple la política requerida",
+        400,
+        "PASSWORD_INVALID",
+      );
+    }
+    if (error.statusCode) {
+      throw error;
+    }
+    throw createAuthError(
+      "Error al confirmar la recuperación de contraseña",
+      502,
+      "COGNITO_CONFIRM_FORGOT_PASSWORD_ERROR",
+    );
+  }
+};
+
 export const getCognitoSession = async (accessToken) => {
   try {
     const client = getClient();
@@ -189,10 +272,16 @@ export const getCognitoSession = async (accessToken) => {
       (attribute) => attribute.Name === "email",
     );
     const role = getRoleFromClaims(accessClaims, response.UserAttributes || []);
+    const identity = buildIdentity(
+      accessClaims,
+      emailAttribute?.Value || null,
+      role,
+    );
 
     return {
+      identity,
       user: {
-        email: emailAttribute?.Value || accessClaims.username || null,
+        email: identity.email,
         role,
       },
       session: {

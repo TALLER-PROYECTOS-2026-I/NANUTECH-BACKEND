@@ -19,6 +19,25 @@ function getEnvironmentName() {
   return "UNKNOWN";
 }
 
+function getSslConfig() {
+  const explicitSsl = process.env.DB_SSL_ENABLED?.toLowerCase();
+
+  if (explicitSsl === "true") {
+    return {
+      rejectUnauthorized:
+        process.env.DB_SSL_REJECT_UNAUTHORIZED?.toLowerCase() === "true",
+    };
+  }
+
+  if (explicitSsl === "false" || isLocal) {
+    return false;
+  }
+
+  return {
+    rejectUnauthorized: false,
+  };
+}
+
 /**
  * Obtener pool de conexiones
  * Las variables de entorno vienen de GitHub Environments:
@@ -60,10 +79,10 @@ async function getPool() {
     throw new Error("Configuración de base de datos incompleta");
   }
 
-  // SSL solo en la nube (testing y production)
-  poolConfig.ssl = {
-    rejectUnauthorized: false,
-  };
+  const sslConfig = getSslConfig();
+  if (sslConfig) {
+    poolConfig.ssl = sslConfig;
+  }
 
   console.log(
     `🔌 [${env}] Creando pool de conexiones a: ${poolConfig.host}/${poolConfig.database}`,

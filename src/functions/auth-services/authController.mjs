@@ -10,7 +10,7 @@ const parseJsonBody = (body) => {
   try {
     return JSON.parse(body);
   } catch (error) {
-    const parsingError = new Error("Cuerpo de solicitud inválido");
+    const parsingError = new Error("Cuerpo de solicitud invalido");
     parsingError.statusCode = 400;
     parsingError.code = "INVALID_REQUEST_BODY";
     throw parsingError;
@@ -27,7 +27,22 @@ export const forgotPassword = async (event) => {
     const body = parseJsonBody(event.body);
     const result = await authService.handleForgotPassword(body.email);
 
-    return successResponse(result, "Correo de recuperación enviado");
+    return successResponse(result, "Correo de recuperacion enviado");
+  } catch (error) {
+    return resolveErrorResponse(error);
+  }
+};
+
+export const confirmForgotPassword = async (event) => {
+  try {
+    const body = parseJsonBody(event.body);
+    const result = await authService.handleConfirmForgotPassword(
+      body.email,
+      body.code,
+      body.newPassword,
+    );
+
+    return successResponse(result, "Contrasena actualizada");
   } catch (error) {
     return resolveErrorResponse(error);
   }
@@ -53,7 +68,7 @@ export const getCurrentSessionController = async (event) => {
       event.headers?.Authorization || event.headers?.authorization;
     const result = await authService.getCurrentSession(authorizationHeader);
 
-    return successResponse(result, "Sesión válida");
+    return successResponse(result, "Sesion valida");
   } catch (error) {
     return resolveErrorResponse(error);
   }
