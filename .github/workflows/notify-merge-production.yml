@@ -1,0 +1,66 @@
+name: Notificar a Backend por fusión a Producción
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  notify:
+    if: ${{ github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener emails de backend mencionados
+        id: get_emails
+        run: |
+          MAP='${{ secrets.USER_EMAIL_MAP }}'
+          PR_BODY="${{ github.event.pull_request.body }}"
+
+          MENTIONED_EMAILS=""
+          MENTIONED_LOGINS=""
+
+          for LOGIN in $(echo "$PR_BODY" | grep -oP '(?<=@)\w[\w\-]*'); do
+            EMAIL=$(echo "$MAP" | jq -r ".backend[\"$LOGIN\"] // empty")
+            if [ -n "$EMAIL" ]; then
+              MENTIONED_EMAILS="$MENTIONED_EMAILS,$EMAIL"
+              MENTIONED_LOGINS="$MENTIONED_LOGINS @$LOGIN"
+            fi
+          done
+
+          # Limpiar coma inicial de emails
+          MENTIONED_EMAILS=$(echo "$MENTIONED_EMAILS" | sed 's/^,//')
+
+          # Limpiar espacio inicial de logins
+          MENTIONED_LOGINS=$(echo "$MENTIONED_LOGINS" | sed 's/^ //')
+
+          echo "backend=$MENTIONED_EMAILS" >> $GITHUB_OUTPUT
+          echo "logins=$MENTIONED_LOGINS" >> $GITHUB_OUTPUT
+
+      - name: Notificar a backend mencionados
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ steps.get_emails.outputs.backend }}
+          from: DevOps Team <${{ secrets.MAIL_USERNAME }}>
+          subject: Tu funcionalidad ha sido desplegada a Producción 🚀🎉
+          body: |
+            Hola equipo Backend,
+
+            Las funcionalidades de ${{ steps.get_emails.outputs.logins }}
+            incluidas en el Pull Request
+            "#${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+            han sido fusionadas a la rama 'main' y ya se encuentran
+            disponibles en PRODUCCIÓN.
+
+            Fusionado por: ${{ github.actor }}
+
+            Por favor manténganse atentos ante cualquier incidencia
+            que pueda surgir en el entorno productivo.
+
+            Saludos,
+            Equipo DevOps
