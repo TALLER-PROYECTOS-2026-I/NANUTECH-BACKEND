@@ -44,7 +44,7 @@ jobs:
             Tu Pull Request "#${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
             ha sido APROBADO y FUSIONADO a la rama 'develop' por ${{ github.actor }}.
 
-            Tu funcionalidad ya se encuentra disponible para pruebas internas.
+            Próximamente se te notificará cuando tu funcionalidad haya sido desplegada en el ambiente de pruebas y derivada al equipo de QA para su validación.
 
             Por favor, mantente atento a cualquier solicitud de cambio o
             retroalimentación que pueda surgir durante el proceso de validación.
