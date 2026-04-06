@@ -22,7 +22,7 @@ Parameters:
     NoEcho: true
   DBName:
     Type: String
-    Default: "postgres"
+    Default: "nanutech_sprint1"
   DBPort:
     Type: String
     Default: "5432"
