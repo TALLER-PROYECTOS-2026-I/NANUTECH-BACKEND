@@ -1,0 +1,53 @@
+name: Notificar a Desarrollador por fusión a Develop
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - develop
+
+jobs:
+  notify:
+    if: ${{ github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener email del autor
+        id: get_email
+        run: |
+          MAP='${{ secrets.USER_EMAIL_MAP }}'
+          LOGIN="${{ github.event.pull_request.user.login }}"
+
+          AUTHOR_EMAIL=$(echo "$MAP" | \
+            jq -r "
+              .backend[\"$LOGIN\"] //
+              .qa[\"$LOGIN\"]      //
+              .lider_nube[\"$LOGIN\"] //
+              \"${{ secrets.DEFAULT_EMAIL }}\"
+            ")
+
+          echo "author=$AUTHOR_EMAIL" >> $GITHUB_OUTPUT
+
+      - name: Enviar notificación al autor
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ steps.get_email.outputs.author }}
+          from: DevOps Team <${{ secrets.MAIL_USERNAME }}>
+          subject: Tu funcionalidad ha sido fusionada a Develop 🚀
+          body: |
+            Hola ${{ github.event.pull_request.user.login }},
+
+            Tu Pull Request "#${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+            ha sido APROBADO y FUSIONADO a la rama 'develop' por ${{ github.actor }}.
+
+            Tu funcionalidad ya se encuentra disponible para pruebas internas.
+
+            Por favor, mantente atento a cualquier solicitud de cambio o
+            retroalimentación que pueda surgir durante el proceso de validación.
+
+            Saludos,
+            Equipo DevOps
