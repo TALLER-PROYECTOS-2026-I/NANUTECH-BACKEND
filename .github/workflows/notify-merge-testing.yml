@@ -1,0 +1,84 @@
+name: Notificar fusión a Testing
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - testing
+
+jobs:
+  notify:
+    if: ${{ github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener emails QA y backend mencionados
+        id: get_emails
+        run: |
+          MAP='${{ secrets.USER_EMAIL_MAP }}'
+
+          QA_EMAILS=$(echo "$MAP" | jq -r '.qa | values[]' | tr '\n' ',' | sed 's/,$//')
+
+          PR_BODY="${{ github.event.pull_request.body }}"
+
+          MENTIONED_EMAILS=""
+          for LOGIN in $(echo "$PR_BODY" | grep -oP '(?<=@)\w[\w\-]*'); do
+            EMAIL=$(echo "$MAP" | jq -r ".backend[\"$LOGIN\"] // empty")
+            if [ -n "$EMAIL" ]; then
+              MENTIONED_EMAILS="$MENTIONED_EMAILS,$EMAIL"
+            fi
+          done
+
+          MENTIONED_EMAILS=$(echo "$MENTIONED_EMAILS" | sed 's/^,//')
+
+          echo "qa=$QA_EMAILS" >> $GITHUB_OUTPUT
+          echo "backend=$MENTIONED_EMAILS" >> $GITHUB_OUTPUT
+
+      - name: Notificar a backend mencionados
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ steps.get_emails.outputs.backend }}
+          from: DevOps Team <${{ secrets.MAIL_USERNAME }}>
+          subject: Tu funcionalidad está siendo enviada a Testing 🧪
+          body: |
+            Hola,
+
+            Tu funcionalidad ha sido incluida en el Pull Request
+            "#${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+            y ha sido fusionada a la rama 'testing' por ${{ github.actor }}.
+
+            Tu funcionalidad será sometida a pruebas por el equipo QA.
+            Por favor mantente atento a cualquier retroalimentación o
+            solicitud de cambio que pueda surgir.
+
+            Saludos,
+            Equipo DevOps
+
+      - name: Notificar a equipo QA
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ steps.get_emails.outputs.qa }}
+          from: DevOps Team <${{ secrets.MAIL_USERNAME }}>
+          subject: Nuevos cambios en Testing listos para probar 🔍
+          body: |
+            Hola equipo QA,
+
+            El Pull Request "#${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+            ha sido fusionado a la rama 'testing' por ${{ github.actor }}.
+
+            Hay nuevos cambios listos para ser probados.
+            Por favor inicien el proceso de validación correspondiente.
+
+            Funcionalidades incluidas en este PR:
+            ${{ github.event.pull_request.body }}
+
+            Saludos,
+            Equipo DevOps
