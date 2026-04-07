@@ -4,7 +4,6 @@ Description: API para gestión de camiones - Nanutech Backend
 Transform:
   - AWS::Serverless-2016-10-31
 
-
 Parameters:
   StageName:
     Type: String
@@ -26,14 +25,13 @@ Parameters:
   DBPort:
     Type: String
     Default: "5432"
-
-PrivateSubnets:
+  PrivateSubnets:
     Type: CommaDelimitedList
     Description: "IDs de las subredes privadas para las Lambdas"
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: "ID del Security Group para las Lambdas"
-    
+
 Globals:
   Function:
     Timeout: 30
@@ -41,7 +39,6 @@ Globals:
     Runtime: nodejs20.x
     Architectures:
       - x86_64
-      
     Environment:
       Variables:
         NODE_ENV: !Ref StageName
@@ -59,11 +56,11 @@ Globals:
       Proyecto: Nanutech-Backend
     Tracing: Active
     VpcConfig:
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroup
-        SubnetIds: !Ref PrivateSubnets
-      Policies:
-        - VPCAccessPolicy: {}
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+      SubnetIds: !Ref PrivateSubnets
+    Policies:
+      - VPCAccessPolicy: {}
 
 Resources:
   NanutechApi:
@@ -247,7 +244,6 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/functions/unidad-services/unidadHandler.mjs
-
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
