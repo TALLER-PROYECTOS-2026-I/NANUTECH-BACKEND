@@ -11,38 +11,9 @@ permissions:
   contents: read
 
 jobs:
-  # ══════════════════════════════════════════
-  # JOB 1 — Migración
-  # ══════════════════════════════════════════
-  migrate:
-    name: 🗄️ Migrate Database - Testing
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    environment: testing
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run migrations
-        run: npm run migrate:up
-        env:
-          DATABASE_URL: postgresql://${{ secrets.DB_USER }}:${{ secrets.DB_PASSWORD }}@${{ secrets.DB_HOST }}:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}
-
-  # ══════════════════════════════════════════
-  # JOB 2 — Deploy (solo si migración exitosa)
-  # ══════════════════════════════════════════
   deploy:
     name: 🚀 Deploy to AWS - Testing
-    needs: migrate
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     environment: testing
 
