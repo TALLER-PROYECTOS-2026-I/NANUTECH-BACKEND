@@ -20,48 +20,6 @@ function getEnvironmentName() {
 }
 
 /**
- * Definir si debe usar SSL
- * Para tests locales con pg-mem o testcontainers:
- * DB_SSL=false
- */
-function shouldUseSsl() {
-  return process.env.DB_SSL === "true";
-}
-
-/**
- * Inyectar un pool externo para tests
- * Útil para pg-mem o testcontainers
- */
-export async function setPoolForTests(externalPool) {
-  if (pool && pool !== externalPool && typeof pool.end === "function") {
-    try {
-      await pool.end();
-    } catch (error) {
-      console.warn("⚠️ Error cerrando pool anterior de tests:", error.message);
-    }
-  }
-
-  pool = externalPool;
-  console.log(`🧪 [${getEnvironmentName()}] Pool de pruebas inyectado`);
-}
-
-/**
- * Resetear pool de tests
- */
-export async function resetPoolForTests() {
-  if (pool && typeof pool.end === "function") {
-    try {
-      await pool.end();
-    } catch (error) {
-      console.warn("⚠️ Error cerrando pool en reset:", error.message);
-    }
-  }
-
-  pool = null;
-  console.log(`🧪 [${getEnvironmentName()}] Pool de pruebas reseteado`);
-}
-
-/**
  * Obtener pool de conexiones
  * Las variables de entorno vienen de GitHub Environments:
  * - Rama testing → Environment: testing (variables de testing en AWS)
@@ -182,5 +140,4 @@ export async function closePool() {
 }
 
 // Exportar todo
-export default { query, getClient, closePool, getPool, setPoolForTests, resetPoolForTests };
-  
+export default { query, getClient, closePool, getPool };

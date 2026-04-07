@@ -4,7 +4,6 @@ Description: API para gestión de camiones - Nanutech Backend
 Transform:
   - AWS::Serverless-2016-10-31
 
-
 Parameters:
   StageName:
     Type: String
@@ -22,11 +21,10 @@ Parameters:
     NoEcho: true
   DBName:
     Type: String
-    Default: "nanutech_sprint1"
+    Default: "postgres"
   DBPort:
     Type: String
     Default: "5432"
-
 
 Globals:
   Function:
@@ -49,7 +47,7 @@ Globals:
       LogFormat: JSON
     Tags:
       Environment: !Ref StageName
-      Proyecto: Nanutech-Backend
+      Proyecto: Nanuetch-Backend
     Tracing: Active
 
 Resources:
@@ -65,19 +63,7 @@ Resources:
       TracingEnabled: true
       Tags:
         Environment: !Ref StageName
-        Proyecto: Nanutech-Backend
-
-  getAllItemsFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/functions/camion-services/get-all-items.getAllItemsHandler
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /items
-            Method: GET
+        Proyecto: Nanuetch-Backend
 
   CamionFunction:
     Type: AWS::Serverless::Function
@@ -115,127 +101,6 @@ Resources:
         EntryPoints:
           - src/functions/camion-services/camionHandler.mjs
 
-  ConductorFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "${StageName}-conductores"
-      CodeUri: .
-      Handler: src/functions/conductor-services/conductorHandler.handler
-      Policies:
-        - AWSLambdaBasicExecutionRole
-      Environment:
-        Variables:
-          LOG_LEVEL: "debug"
-      Events:
-        GetAll:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /conductores
-            Method: GET
-      Tags:
-        Environment: !Ref StageName
-        Servicio: conductor
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Sourcemap: true
-        EntryPoints:
-          - src/functions/conductor-services/conductorHandler.mjs
-
-  JornadaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "${StageName}-jornadas"
-      CodeUri: .
-      Handler: src/functions/jornada-services/jornadaHandler.handler
-      Policies:
-        - AWSLambdaBasicExecutionRole
-      Environment:
-        Variables:
-          LOG_LEVEL: "debug"
-      Events:
-        Create:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /jornadas
-            Method: POST
-      Tags:
-        Environment: !Ref StageName
-        Servicio: jornada
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Sourcemap: true
-        EntryPoints:
-          - src/functions/jornada-services/jornadaHandler.mjs
-
-  ContratoFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "${StageName}-contratos"
-      CodeUri: .
-      Handler: src/functions/contrato-services/contratoHandler.handler
-      Policies:
-        - AWSLambdaBasicExecutionRole
-      Environment:
-        Variables:
-          LOG_LEVEL: "debug"
-      Events:
-        GetVigentes:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /contratos/vigentes
-            Method: GET
-      Tags:
-        Environment: !Ref StageName
-        Servicio: contrato
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Sourcemap: true
-        EntryPoints:
-          - src/functions/contrato-services/contratoHandler.mjs
-
-  UnidadFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "${StageName}-unidades"
-      CodeUri: .
-      Handler: src/functions/unidad-services/unidadHandler.handler
-      Policies:
-        - AWSLambdaBasicExecutionRole
-      Environment:
-        Variables:
-          LOG_LEVEL: "debug"
-      Events:
-        GetDisponibles:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /unidades/disponibles
-            Method: GET
-      Tags:
-        Environment: !Ref StageName
-        Servicio: unidad
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Sourcemap: true
-        EntryPoints:
-          - src/functions/unidad-services/unidadHandler.mjs
-
-
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
@@ -256,15 +121,3 @@ Outputs:
   CamionFunctionArn:
     Description: "ARN de la función Camion"
     Value: !GetAtt CamionFunction.Arn
-  ConductorFunctionArn:
-    Description: "ARN de la función Conductor"
-    Value: !GetAtt ConductorFunction.Arn
-  ContratoFunctionArn:
-    Description: "ARN de la función Contrato"
-    Value: !GetAtt ContratoFunction.Arn
-  UnidadFunctionArn:
-    Description: "ARN de la función Unidad"
-    Value: !GetAtt UnidadFunction.Arn
-  JornadaFunctionArn:
-    Description: "ARN de la función Jornada"
-    Value: !GetAtt JornadaFunction.Arn
