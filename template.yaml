@@ -27,7 +27,13 @@ Parameters:
     Type: String
     Default: "5432"
 
-
+PrivateSubnets:
+    Type: CommaDelimitedList
+    Description: "IDs de las subredes privadas para las Lambdas"
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: "ID del Security Group para las Lambdas"
+    
 Globals:
   Function:
     Timeout: 30
@@ -35,6 +41,7 @@ Globals:
     Runtime: nodejs20.x
     Architectures:
       - x86_64
+      
     Environment:
       Variables:
         NODE_ENV: !Ref StageName
@@ -51,6 +58,12 @@ Globals:
       Environment: !Ref StageName
       Proyecto: Nanutech-Backend
     Tracing: Active
+    VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref PrivateSubnets
+      Policies:
+        - VPCAccessPolicy: {}
 
 Resources:
   NanutechApi:
