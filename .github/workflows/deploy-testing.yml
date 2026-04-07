@@ -56,6 +56,6 @@ jobs:
               DBName=${{ secrets.DB_NAME }} \
               DBUser=${{ secrets.DB_USER }} \
               DBPassword=${{ secrets.DB_PASSWORD }} \
-              DBPort=${{ secrets.DB_PORT }}
+              DBPort=${{ secrets.DB_PORT }} \
               PrivateSubnets=${{ secrets.SUBNET_IDS }} \
               LambdaSecurityGroup=${{ secrets.LAMBDA_SG_ID }}
