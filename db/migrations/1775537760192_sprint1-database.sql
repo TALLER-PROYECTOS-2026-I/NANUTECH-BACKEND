@@ -14,25 +14,46 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- 2. TIPOS ENUM
 -- ============================================
 
-CREATE TYPE rol_usuario AS ENUM ('ADMIN', 'CHOFER');
+DO $$ BEGIN
+    CREATE TYPE rol_usuario AS ENUM ('ADMIN', 'CHOFER');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE estado_usuario AS ENUM ('ACTIVO', 'INACTIVO', 'BLOQUEADO');
+DO $$ BEGIN
+    CREATE TYPE estado_usuario AS ENUM ('ACTIVO', 'INACTIVO', 'BLOQUEADO');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE estado_unidad AS ENUM ('DISPONIBLE', 'EN_JORNADA', 'EN_AUXILIO', 'INACTIVA');
+DO $$ BEGIN
+    CREATE TYPE estado_unidad AS ENUM ('DISPONIBLE', 'EN_JORNADA', 'EN_AUXILIO', 'INACTIVA');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE estado_contrato AS ENUM ('VIGENTE', 'VENCIDO', 'SUSPENDIDO');
+DO $$ BEGIN
+    CREATE TYPE estado_contrato AS ENUM ('VIGENTE', 'VENCIDO', 'SUSPENDIDO');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE estado_jornada AS ENUM ('REGISTRADA', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA');
+DO $$ BEGIN
+    CREATE TYPE estado_jornada AS ENUM ('REGISTRADA', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE tipo_alerta AS ENUM ('PANICO', 'AUXILIO_MECANICO');
+DO $$ BEGIN
+    CREATE TYPE tipo_alerta AS ENUM ('PANICO', 'AUXILIO_MECANICO');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE tipo_registro_ubicacion AS ENUM ('INICIO', 'FIN', 'ALERTA', 'TRACKING');
+DO $$ BEGIN
+    CREATE TYPE tipo_registro_ubicacion AS ENUM ('INICIO', 'FIN', 'ALERTA', 'TRACKING');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================
 -- 3. TABLAS
 -- ============================================
 
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cognito_sub VARCHAR(100) UNIQUE,
     correo VARCHAR(120) NOT NULL UNIQUE,
@@ -48,7 +69,7 @@ CREATE TABLE usuarios (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE unidades (
+CREATE TABLE IF NOT EXISTS unidades (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     placa VARCHAR(20) NOT NULL UNIQUE,
     marca VARCHAR(50),
@@ -64,7 +85,7 @@ CREATE TABLE unidades (
     CONSTRAINT chk_unidades_capacidad CHECK (capacidad_ton IS NULL OR capacidad_ton >= 0)
 );
 
-CREATE TABLE contratos (
+CREATE TABLE IF NOT EXISTS contratos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     codigo VARCHAR(30) NOT NULL UNIQUE,
     cliente VARCHAR(120) NOT NULL,
@@ -81,7 +102,7 @@ CREATE TABLE contratos (
     CONSTRAINT chk_contratos_tarifa CHECK (tarifa IS NULL OR tarifa >= 0)
 );
 
-CREATE TABLE jornadas (
+CREATE TABLE IF NOT EXISTS jornadas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     conductor_id UUID NOT NULL,
     unidad_id UUID NOT NULL,
@@ -105,7 +126,7 @@ CREATE TABLE jornadas (
     CONSTRAINT chk_jornadas_km CHECK (km_recorridos >= 0)
 );
 
-CREATE TABLE alertas_jornada (
+CREATE TABLE IF NOT EXISTS alertas_jornada (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     jornada_id UUID NOT NULL,
     tipo tipo_alerta NOT NULL,
@@ -126,7 +147,7 @@ CREATE TABLE alertas_jornada (
     )
 );
 
-CREATE TABLE ubicaciones_jornada (
+CREATE TABLE IF NOT EXISTS ubicaciones_jornada (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     jornada_id UUID NOT NULL,
     latitud NUMERIC(10,7) NOT NULL,
@@ -145,25 +166,25 @@ CREATE TABLE ubicaciones_jornada (
 -- 4. ÍNDICES
 -- ============================================
 
-CREATE INDEX idx_usuarios_rol ON usuarios(rol);
-CREATE INDEX idx_usuarios_estado ON usuarios(estado);
-CREATE INDEX idx_unidades_estado ON unidades(estado);
-CREATE INDEX idx_contratos_estado ON contratos(estado);
-CREATE INDEX idx_jornadas_fecha ON jornadas(fecha_jornada);
-CREATE INDEX idx_jornadas_estado ON jornadas(estado);
-CREATE INDEX idx_jornadas_conductor ON jornadas(conductor_id);
-CREATE INDEX idx_jornadas_unidad ON jornadas(unidad_id);
-CREATE INDEX idx_jornadas_contrato ON jornadas(contrato_id);
-CREATE INDEX idx_alertas_jornada ON alertas_jornada(jornada_id);
-CREATE INDEX idx_alertas_tipo ON alertas_jornada(tipo);
-CREATE INDEX idx_alertas_fecha_hora ON alertas_jornada(fecha_hora);
-CREATE INDEX idx_ubicaciones_jornada ON ubicaciones_jornada(jornada_id);
-CREATE INDEX idx_ubicaciones_fecha_hora ON ubicaciones_jornada(fecha_hora);
+CREATE INDEX IF NOT EXISTS idx_usuarios_rol ON usuarios(rol);
+CREATE INDEX IF NOT EXISTS idx_usuarios_estado ON usuarios(estado);
+CREATE INDEX IF NOT EXISTS idx_unidades_estado ON unidades(estado);
+CREATE INDEX IF NOT EXISTS idx_contratos_estado ON contratos(estado);
+CREATE INDEX IF NOT EXISTS idx_jornadas_fecha ON jornadas(fecha_jornada);
+CREATE INDEX IF NOT EXISTS idx_jornadas_estado ON jornadas(estado);
+CREATE INDEX IF NOT EXISTS idx_jornadas_conductor ON jornadas(conductor_id);
+CREATE INDEX IF NOT EXISTS idx_jornadas_unidad ON jornadas(unidad_id);
+CREATE INDEX IF NOT EXISTS idx_jornadas_contrato ON jornadas(contrato_id);
+CREATE INDEX IF NOT EXISTS idx_alertas_jornada ON alertas_jornada(jornada_id);
+CREATE INDEX IF NOT EXISTS idx_alertas_tipo ON alertas_jornada(tipo);
+CREATE INDEX IF NOT EXISTS idx_alertas_fecha_hora ON alertas_jornada(fecha_hora);
+CREATE INDEX IF NOT EXISTS idx_ubicaciones_jornada ON ubicaciones_jornada(jornada_id);
+CREATE INDEX IF NOT EXISTS idx_ubicaciones_fecha_hora ON ubicaciones_jornada(fecha_hora);
 
-CREATE UNIQUE INDEX uq_jornada_activa_unidad ON jornadas (unidad_id)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_jornada_activa_unidad ON jornadas (unidad_id)
     WHERE estado IN ('REGISTRADA', 'EN_PROCESO');
 
-CREATE UNIQUE INDEX uq_jornada_activa_chofer ON jornadas (conductor_id)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_jornada_activa_chofer ON jornadas (conductor_id)
     WHERE estado IN ('REGISTRADA', 'EN_PROCESO');
 
 -- ============================================
@@ -178,27 +199,39 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER tg_usuarios_updated_at
-    BEFORE UPDATE ON usuarios
-    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+DO $$ BEGIN
+    CREATE TRIGGER tg_usuarios_updated_at
+        BEFORE UPDATE ON usuarios
+        FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TRIGGER tg_unidades_updated_at
-    BEFORE UPDATE ON unidades
-    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+DO $$ BEGIN
+    CREATE TRIGGER tg_unidades_updated_at
+        BEFORE UPDATE ON unidades
+        FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TRIGGER tg_contratos_updated_at
-    BEFORE UPDATE ON contratos
-    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+DO $$ BEGIN
+    CREATE TRIGGER tg_contratos_updated_at
+        BEFORE UPDATE ON contratos
+        FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TRIGGER tg_jornadas_updated_at
-    BEFORE UPDATE ON jornadas
-    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+DO $$ BEGIN
+    CREATE TRIGGER tg_jornadas_updated_at
+        BEFORE UPDATE ON jornadas
+        FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================
 -- 6. VISTAS
 -- ============================================
 
-CREATE VIEW vw_seguimiento_jornadas AS
+CREATE OR REPLACE VIEW vw_seguimiento_jornadas AS
 SELECT
     j.id,
     j.fecha_jornada,
