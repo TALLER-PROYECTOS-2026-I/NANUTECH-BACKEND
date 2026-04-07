@@ -1,29 +1,29 @@
 export class Contrato {
-  constructor(id, codigo, empresa, tipo_servicio, tarifa, moneda, fecha_inicio, fecha_fin, estado, descripcion) {
+  constructor(id, codigo, cliente, descripcion, fecha_inicio, fecha_fin, tarifa, moneda, estado, activo) {
     this.id = id;
     this.codigo = codigo;
-    this.empresa = empresa;
-    this.tipo_servicio = tipo_servicio;
-    this.tarifa = tarifa;
-    this.moneda = moneda;
+    this.cliente = cliente;
+    this.descripcion = descripcion;
     this.fecha_inicio = fecha_inicio;
     this.fecha_fin = fecha_fin;
+    this.tarifa = tarifa;
+    this.moneda = moneda;
     this.estado = estado;
-    this.descripcion = descripcion;
+    this.activo = activo;
   }
 
   static fromDatabase(row) {
     return new Contrato(
       row.id,
       row.codigo,
-      row.empresa,
-      row.tipo_servicio,
-      row.tarifa,
-      row.moneda,
+      row.cliente,
+      row.descripcion,
       row.fecha_inicio,
       row.fecha_fin,
+      row.tarifa,
+      row.moneda,
       row.estado,
-      row.descripcion
+      row.activo
     );
   }
 
