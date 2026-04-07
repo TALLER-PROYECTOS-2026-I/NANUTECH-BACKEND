@@ -256,7 +256,7 @@ Globals:
       LogFormat: JSON
     Tags:
       Environment: !Ref StageName
-      Proyecto: Nanutech-Backend
+      Proyecto: Nanuetch-Backend
     Tracing: Active
 
 Resources:
@@ -272,7 +272,7 @@ Resources:
       TracingEnabled: true
       Tags:
         Environment: !Ref StageName
-        Proyecto: Nanutech-Backend
+        Proyecto: Nanuetch-Backend
 
   CamionFunction:
     Type: AWS::Serverless::Function

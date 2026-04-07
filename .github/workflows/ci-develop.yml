@@ -21,10 +21,6 @@ jobs:
       
       - name: Install dependencies
         run: npm ci
-
-      # 👇 NUEVO PASO: Necesario para que SAM pueda procesar el Metadata del template
-      - name: Install esbuild
-        run: npm install -g esbuild
       
       - name: Install SAM CLI
         run: pip install aws-sam-cli
