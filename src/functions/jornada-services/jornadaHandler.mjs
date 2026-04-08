@@ -1,16 +1,27 @@
-import { createJornadaController } from "./jornadaController.mjs";
+import { errorResponse } from "../../shared/utils/response/response.mjs";
+import {
+  createJornadaController,
+  finishTurnController,
+  getCurrentJornadaController,
+  startTurnController,
+} from "./jornadaController.mjs";
+
+const routes = {
+  "POST /jornadas": createJornadaController,
+  "GET /jornadas/actual/{conductorId}": getCurrentJornadaController,
+  "POST /jornadas/iniciar": startTurnController,
+  "POST /jornadas/finalizar": finishTurnController,
+};
 
 export const handler = async (event) => {
-  const method = event.requestContext?.http?.method || event.httpMethod;
+  const routeKey = `${event.httpMethod} ${event.resource}`;
+  const controller = routes[routeKey];
 
-  if (method === "POST") {
-    return await createJornadaController(event);
+  if (!controller) {
+    return errorResponse("Ruta no encontrada", 404, {
+      code: "ROUTE_NOT_FOUND",
+    });
   }
 
-  return {
-    statusCode: 404,
-    body: JSON.stringify({
-      message: "Ruta o método no encontrado para jornadas",
-    }),
-  };
+  return await controller(event);
 };

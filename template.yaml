@@ -54,8 +54,6 @@ Globals:
         SecurityGroupIds:
           - !Ref LambdaSecurityGroup
         SubnetIds: !Ref PrivateSubnets
-      Policies:
-        - VPCAccessPolicy: {}
 
 Resources:
   NanutechApi:
@@ -76,6 +74,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/functions/camion-services/get-all-items.getAllItemsHandler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
       Events:
         Api:
           Type: Api
@@ -92,6 +93,7 @@ Resources:
       Handler: src/functions/camion-services/camionHandler.handler
       Policies:
         - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -128,6 +130,7 @@ Resources:
       Handler: src/functions/conductor-services/conductorHandler.handler
       Policies:
         - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -158,6 +161,7 @@ Resources:
       Handler: src/functions/jornada-services/jornadaHandler.handler
       Policies:
         - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -167,6 +171,24 @@ Resources:
           Properties:
             RestApiId: !Ref NanutechApi
             Path: /jornadas
+            Method: POST
+        GetCurrent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/actual/{conductorId}
+            Method: GET
+        StartTurn:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/iniciar
+            Method: POST
+        FinishTurn:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/finalizar
             Method: POST
       Tags:
         Environment: !Ref StageName
@@ -188,6 +210,7 @@ Resources:
       Handler: src/functions/contrato-services/contratoHandler.handler
       Policies:
         - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -218,6 +241,7 @@ Resources:
       Handler: src/functions/unidad-services/unidadHandler.handler
       Policies:
         - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
       Environment:
         Variables:
           LOG_LEVEL: "debug"
