@@ -360,7 +360,7 @@ Resources:
       FunctionName: !Sub "${StageName}-migrator"
       CodeUri: .
       Handler: src/functions/migrator-services/migratorHandler.handler
-      Timeout: 600
+      Timeout: 360  # ← CAMBIADO: 360 segundos = 6 minutos
       MemorySize: 1024
       Policies:
         - AWSLambdaBasicExecutionRole
@@ -408,7 +408,7 @@ Resources:
       ServiceToken: !GetAtt MigratorFunction.Arn
       action: migrate
       timestamp: !Ref ForceUpdate
-      # ✅ Credenciales de base de datos pasadas al Custom Resource
+      # Credenciales de base de datos pasadas al Custom Resource
       DB_HOST: !Ref DBHost
       DB_USER: !Ref DBUser
       DB_PASSWORD: !Ref DBPassword
