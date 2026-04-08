@@ -378,14 +378,6 @@ Resources:
         SecurityGroupIds:
           - !Ref LambdaSecurityGroup
         SubnetIds: !Ref PrivateSubnets
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Sourcemap: true
-        EntryPoints:
-          - src/functions/migrator-services/migratorHandler.mjs
 
   ###########################################################################
   # Permiso para que CloudFormation invoque la Lambda Migrator
