@@ -1,8 +1,9 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: 2010-09-09
 Description: API para gestión de camiones - Nanutech Backend
 
 Transform:
   - AWS::Serverless-2016-10-31
+
 
 Parameters:
   StageName:
@@ -21,16 +22,37 @@ Parameters:
     NoEcho: true
   DBName:
     Type: String
-    Default: "nanutech_sprint1"
+    Default: "postgres"
   DBPort:
     Type: String
     Default: "5432"
+  AuthProvider:
+    Type: String
+    Default: "local"
+  CognitoUserPoolId:
+    Type: String
+    Default: ""
+  CognitoClientId:
+    Type: String
+    Default: ""
+  SessionTimeoutSeconds:
+    Type: String
+    Default: "7200"
+  AuthTokenSecret:
+    Type: String
+    Default: "nanutech-local-auth-secret"
+    NoEcho: true
+  DBSslEnabled:
+    Type: String
+    Default: "false"
+  # Nuevos parámetros para VPC
   PrivateSubnets:
     Type: CommaDelimitedList
     Description: "IDs de las subredes privadas para las Lambdas"
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: "ID del Security Group para las Lambdas"
+
 
 Globals:
   Function:
@@ -49,12 +71,19 @@ Globals:
         DB_PORT: !Ref DBPort
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
         NODE_OPTIONS: "--enable-source-maps"
+        AUTH_PROVIDER: !Ref AuthProvider
+        COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+        COGNITO_CLIENT_ID: !Ref CognitoClientId
+        SESSION_TIMEOUT_SECONDS: !Ref SessionTimeoutSeconds
+        AUTH_TOKEN_SECRET: !Ref AuthTokenSecret
+        DB_SSL_ENABLED: !Ref DBSslEnabled
     LoggingConfig:
       LogFormat: JSON
     Tags:
       Environment: !Ref StageName
       Proyecto: Nanutech-Backend
     Tracing: Active
+    # Configuración VPC para todas las funciones
     VpcConfig:
       SecurityGroupIds:
         - !Ref LambdaSecurityGroup
@@ -251,6 +280,76 @@ Resources:
         EntryPoints:
           - src/functions/unidad-services/unidadHandler.mjs
 
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-auth"
+      CodeUri: .
+      Handler: src/functions/auth-services/authHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminInitiateAuth
+                - cognito-idp:InitiateAuth
+                - cognito-idp:ForgotPassword
+                - cognito-idp:ConfirmForgotPassword
+                - cognito-idp:GetUser
+              Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}"
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+          AUTH_PROVIDER: !Ref AuthProvider
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          SESSION_TIMEOUT_SECONDS: !Ref SessionTimeoutSeconds
+          AUTH_TOKEN_SECRET: !Ref AuthTokenSecret
+          DB_HOST: !Ref DBHost
+          DB_USER: !Ref DBUser
+          DB_PASSWORD: !Ref DBPassword
+          DB_NAME: !Ref DBName
+          DB_PORT: !Ref DBPort
+          DB_SSL_ENABLED: !Ref DBSslEnabled
+      Events:
+        Login:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/login
+            Method: POST
+        ForgotPassword:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/forgot-password
+            Method: POST
+        ConfirmForgotPassword:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/forgot-password/confirm
+            Method: POST
+        GetCurrentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/me
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: auth
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/auth-services/authHandler.mjs
+
+
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
@@ -283,3 +382,6 @@ Outputs:
   JornadaFunctionArn:
     Description: "ARN de la función Jornada"
     Value: !GetAtt JornadaFunction.Arn
+  AuthFunctionArn:
+    Description: "ARN de la función Auth"
+    Value: !GetAtt AuthFunction.Arn
