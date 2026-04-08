@@ -39,15 +39,12 @@ jobs:
         run: pip install aws-sam-cli
 
       - name: Build SAM application
-        run: |
-          echo "🔨 Building SAM application..."
-          sam build
+        run: sam build
 
       - name: Deploy SAM application
         run: |
           FORCE_UPDATE=$(date +%s)
           
-          echo "🚀 Deploying to AWS..."
           sam deploy \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
