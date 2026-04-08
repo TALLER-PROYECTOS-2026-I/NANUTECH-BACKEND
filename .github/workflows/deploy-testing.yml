@@ -64,8 +64,8 @@ jobs:
               CognitoUserPoolId=${{ secrets.COGNITO_USER_POOL_ID }} \
               CognitoClientId=${{ secrets.COGNITO_CLIENT_ID }} \
               SessionTimeoutSeconds=${{ secrets.SESSION_TIMEOUT_SECONDS || '7200' }} \
-              PrivateSubnets=${{ secrets.PRIVATE_SUBNETS }} \
-              LambdaSecurityGroup=${{ secrets.LAMBDA_SECURITY_GROUP }} \
+              PrivateSubnets=${{ secrets.SUBNET_IDS }} \
+              LambdaSecurityGroup=${{ secrets.LAMBDA_SG_ID }} \
               ForceUpdate=${FORCE_UPDATE}
 
       - name: Wait for stack to be ready
