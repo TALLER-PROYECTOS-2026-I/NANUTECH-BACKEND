@@ -2,7 +2,7 @@ import https from 'https';
 import http from 'http';
 import url from 'url';
 import pg from 'pg';
-import migrate from 'node-pg-migrate';
+import runner from 'node-pg-migrate';
 
 // Timeout de 6 minutos
 const MIGRATION_TIMEOUT_MS = 360000;
@@ -102,8 +102,8 @@ async function runMigrations() {
     console.log('✅ Conexión exitosa');
     testClient.release();
 
-    // ✅ Con v6.2.2, migrate es la función directamente
-    await migrate({
+    // ✅ CORRECCIÓN APLICADA AQUÍ: Usar runner
+    await runner({
       dbClient: pool,
       direction: 'up',
       migrationsTable: 'pgmigrations',
