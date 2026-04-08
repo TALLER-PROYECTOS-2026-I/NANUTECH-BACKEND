@@ -1,10 +1,13 @@
 export class Unidad {
-  constructor(id, placa, marca, modelo, estado) {
+  constructor(id, placa, marca, modelo, anio, capacidad_ton, estado, activo) {
     this.id = id;
     this.placa = placa;
     this.marca = marca;
     this.modelo = modelo;
+    this.anio = anio;
+    this.capacidad_ton = capacidad_ton;
     this.estado = estado;
+    this.activo = activo;
   }
 
   static fromDatabase(row) {
@@ -13,7 +16,10 @@ export class Unidad {
       row.placa,
       row.marca,
       row.modelo,
-      row.estado
+      row.anio,
+      row.capacidad_ton,
+      row.estado,
+      row.activo
     );
   }
 

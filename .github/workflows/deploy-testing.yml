@@ -12,8 +12,10 @@ permissions:
 
 jobs:
   deploy:
+    name: 🚀 Deploy to AWS - Testing
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    environment: testing
 
     steps:
       - name: Checkout repository
@@ -23,7 +25,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1 
+          aws-region: us-east-1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -55,3 +57,5 @@ jobs:
               DBUser=${{ secrets.DB_USER }} \
               DBPassword=${{ secrets.DB_PASSWORD }} \
               DBPort=${{ secrets.DB_PORT }}
+              PrivateSubnets=${{ secrets.SUBNET_IDS }} \
+              LambdaSecurityGroup=${{ secrets.LAMBDA_SG_ID }}
