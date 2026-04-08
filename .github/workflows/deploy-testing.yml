@@ -69,11 +69,25 @@ jobs:
               LambdaSecurityGroup=${{ secrets.LAMBDA_SECURITY_GROUP || secrets.LAMBDA_SG_ID }} \
               ForceUpdate=${FORCE_UPDATE}
 
+      - name: Run migrations
+        run: |
+          echo "Ejecutando migraciones..."
+          aws lambda invoke \
+            --function-name testing-migrator \
+            --region us-east-1 \
+            --payload '{"action": "migrate"}' \
+            migration-response.json
+          
+          cat migration-response.json
+          
+          if grep -q '"success":false' migration-response.json; then
+            echo "❌ Error en migraciones"
+            exit 1
+          fi
+
       - name: Verify deployment
         run: |
-          echo "✅ Deployment completed!"
-          echo ""
-          echo "📋 API Endpoint:"
+          echo "✅ Deployment completado"
           aws cloudformation describe-stacks \
             --stack-name nanutech-backend-testing \
             --region us-east-1 \
