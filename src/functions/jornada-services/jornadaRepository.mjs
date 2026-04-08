@@ -5,15 +5,18 @@ export class JornadaRepository {
     const client = await getClient();
     try {
       const query = `
-        INSERT INTO jornadas (id_conductor, id_unidad, id_contrato, estado)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO jornadas (conductor_id, unidad_id, contrato_id, creado_por, origen, destino, observaciones)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *;
       `;
       const values = [
-        jornadaData.id_conductor,
-        jornadaData.id_unidad,
-        jornadaData.id_contrato,
-        jornadaData.estado,
+        jornadaData.conductor_id,
+        jornadaData.unidad_id,
+        jornadaData.contrato_id,
+        jornadaData.creado_por,
+        jornadaData.origen || null,
+        jornadaData.destino || null,
+        jornadaData.observaciones || null
       ];
       const result = await client.query(query, values);
       return result.rows[0];
@@ -22,11 +25,22 @@ export class JornadaRepository {
     }
   }
 
-  async checkUnidadActiva(id_unidad) {
+  async checkUnidadActiva(unidad_id) {
     const client = await getClient();
     try {
-      const query = `SELECT id FROM jornadas WHERE id_unidad = $1 AND estado = 'ACTIVA' LIMIT 1;`;
-      const result = await client.query(query, [id_unidad]);
+      const query = `SELECT id FROM jornadas WHERE unidad_id = $1 AND estado IN ('REGISTRADA', 'EN_PROCESO') LIMIT 1;`;
+      const result = await client.query(query, [unidad_id]);
+      return result.rows.length > 0;
+    } finally {
+      client.release();
+    }
+  }
+
+  async checkConductorActivo(conductor_id) {
+    const client = await getClient();
+    try {
+      const query = `SELECT id FROM jornadas WHERE conductor_id = $1 AND estado IN ('REGISTRADA', 'EN_PROCESO') LIMIT 1;`;
+      const result = await client.query(query, [conductor_id]);
       return result.rows.length > 0;
     } finally {
       client.release();

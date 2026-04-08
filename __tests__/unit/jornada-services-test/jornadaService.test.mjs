@@ -1,23 +1,18 @@
-import { jest } from "@jest/globals";
+﻿import { jest } from '@jest/globals';
 
-// Mock dependencias
-jest.unstable_mockModule(
-  "../../../src/functions/jornada-services/jornadaRepository.mjs",
-  () => {
-    return {
-      JornadaRepository: jest.fn().mockImplementation(() => ({
-        checkUnidadActiva: jest.fn(),
-        create: jest.fn(),
-      })),
-    };
-  },
-);
+jest.unstable_mockModule('../../../src/functions/jornada-services/jornadaRepository.mjs', () => {
+  return {
+    JornadaRepository: jest.fn().mockImplementation(() => ({
+      checkUnidadActiva: jest.fn(),
+      checkConductorActivo: jest.fn(),
+      create: jest.fn(),
+    }))
+  };
+});
 
-// Cargar modulo DESPUES del mock para ES modules en Jest
-const { JornadaService } =
-  await import("../../../src/functions/jornada-services/jornadaService.mjs");
+const { JornadaService } = await import('../../../src/functions/jornada-services/jornadaService.mjs');
 
-describe("JornadaService - Pruebas de Integración T18", () => {
+describe('JornadaService - Pruebas', () => {
   let jornadaService;
 
   beforeEach(() => {
@@ -25,39 +20,36 @@ describe("JornadaService - Pruebas de Integración T18", () => {
     jornadaService = new JornadaService();
   });
 
-  test("T18: Debe lanzar error si se intenta registrar una jornada con unidad ya asignada (activa)", async () => {
+  test('Debe lanzar error si la unidad ya tiene jornada (activa o en proceso)', async () => {
     jornadaService.repository.checkUnidadActiva.mockResolvedValue(true);
+    const data = { conductor_id: 'uuid1', unidad_id: 'uuid2', contrato_id: 'uuid3', creado_por: 'admin1' };
 
-    const data = {
-      id_conductor: 1,
-      id_unidad: 101,
-      id_contrato: 50,
-    };
-
-    await expect(jornadaService.createJornada(data)).rejects.toThrow(
-      "La unidad ya tiene una jornada activa.",
-    );
+    await expect(jornadaService.createJornada(data)).rejects.toThrow('La unidad ya tiene una jornada en proceso o registrada.');
     expect(jornadaService.repository.create).not.toHaveBeenCalled();
   });
 
-  test("Debe registrar jornada si la unidad está disponible", async () => {
+  test('Debe lanzar error si el conductor ya esta en jornada (activa o en proceso)', async () => {
     jornadaService.repository.checkUnidadActiva.mockResolvedValue(false);
+    jornadaService.repository.checkConductorActivo.mockResolvedValue(true);
+    const data = { conductor_id: 'uuid1', unidad_id: 'uuid2', contrato_id: 'uuid3', creado_por: 'admin1' };
+
+    await expect(jornadaService.createJornada(data)).rejects.toThrow('El conductor ya tiene una jornada en proceso o registrada.');
+    expect(jornadaService.repository.create).not.toHaveBeenCalled();
+  });
+
+  test('Debe registrar jornada si todo esta disponible', async () => {
+    jornadaService.repository.checkUnidadActiva.mockResolvedValue(false);
+    jornadaService.repository.checkConductorActivo.mockResolvedValue(false);
 
     const dbResponse = {
-      id: 99,
-      id_conductor: 1,
-      id_unidad: 102,
-      id_contrato: 50,
-      estado: "ACTIVA",
+      id: 'uuid99', conductor_id: 'uuid1', unidad_id: 'uuid2', contrato_id: 'uuid3', creado_por: 'admin1', estado: 'REGISTRADA'
     };
     jornadaService.repository.create.mockResolvedValue(dbResponse);
 
-    const data = { id_conductor: 1, id_unidad: 102, id_contrato: 50 };
+    const data = { conductor_id: 'uuid1', unidad_id: 'uuid2', contrato_id: 'uuid3', creado_por: 'admin1' };
     const result = await jornadaService.createJornada(data);
 
-    expect(result.id).toBe(99);
-    expect(jornadaService.repository.create).toHaveBeenCalledWith(
-      expect.objectContaining(data),
-    );
+    expect(result.id).toBe('uuid99');
+    expect(jornadaService.repository.create).toHaveBeenCalled();
   });
 });

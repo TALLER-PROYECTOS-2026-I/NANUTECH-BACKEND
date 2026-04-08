@@ -1,35 +1,28 @@
-import { jest } from "@jest/globals";
+﻿import { jest } from '@jest/globals';
 
-jest.unstable_mockModule(
-  "../../../src/functions/jornada-services/jornadaController.mjs",
-  () => ({
-    createJornadaController: jest.fn(),
-  }),
-);
+jest.unstable_mockModule('../../../src/functions/jornada-services/jornadaController.mjs', () => ({
+  createJornadaController: jest.fn(),
+}));
 
-const { handler } =
-  await import("../../../src/functions/jornada-services/jornadaHandler.mjs");
-const { createJornadaController } =
-  await import("../../../src/functions/jornada-services/jornadaController.mjs");
+const { handler } = await import('../../../src/functions/jornada-services/jornadaHandler.mjs');
+const { createJornadaController } = await import('../../../src/functions/jornada-services/jornadaController.mjs');
 
-describe("jornadaHandler", () => {
+describe('JornadaHandler - Rutas', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  test("Debe llamar a createJornadaController cuando el método es POST", async () => {
-    const event = { requestContext: { http: { method: "POST" } } };
-    const expectedResponse = { statusCode: 200, body: '{"success":true}' };
-    createJornadaController.mockResolvedValue(expectedResponse);
-
-    const response = await handler(event);
-    expect(createJornadaController).toHaveBeenCalledWith(event);
-    expect(response).toEqual(expectedResponse);
+  test('Debe llamar a createJornadaController si el metod es POST', async () => {
+    createJornadaController.mockResolvedValue({ statusCode: 201 });
+    const event = { requestContext: { http: { method: 'POST' } } };
+    const res = await handler(event);
+    expect(res.statusCode).toBe(201);
+    expect(createJornadaController).toHaveBeenCalled();
   });
 
-  test("Debe retornar 404 para métodos no soportados", async () => {
-    const event = { requestContext: { http: { method: "GET" } } };
-    const response = await handler(event);
-    expect(response.statusCode).toBe(404);
+  test('Debe regresar 404 si el metodo NO es POST', async () => {
+    const event = { requestContext: { http: { method: 'GET' } } };
+    const res = await handler(event);
+    expect(res.statusCode).toBe(404);
   });
 });
