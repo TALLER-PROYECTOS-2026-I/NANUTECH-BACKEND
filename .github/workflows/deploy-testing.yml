@@ -64,7 +64,6 @@ jobs:
               CognitoUserPoolId=${{ secrets.COGNITO_USER_POOL_ID }} \
               CognitoClientId=${{ secrets.COGNITO_CLIENT_ID }} \
               SessionTimeoutSeconds=${{ secrets.SESSION_TIMEOUT_SECONDS || '7200' }} \
-              AuthTokenSecret=${{ secrets.AUTH_TOKEN_SECRET }} \
               PrivateSubnets=${{ secrets.PRIVATE_SUBNETS }} \
               LambdaSecurityGroup=${{ secrets.LAMBDA_SECURITY_GROUP }} \
               ForceUpdate=${FORCE_UPDATE}
