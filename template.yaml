@@ -4,7 +4,6 @@ Description: API para gestión de camiones - Nanutech Backend
 Transform:
   - AWS::Serverless-2016-10-31
 
-
 Parameters:
   StageName:
     Type: String
@@ -44,19 +43,13 @@ Parameters:
     NoEcho: true
   DBSslEnabled:
     Type: String
-    Default: "false"
-  # Nuevos parámetros para VPC
+    Default: "true"  # Cambiado a true para RDS
   PrivateSubnets:
     Type: CommaDelimitedList
     Description: "IDs de las subredes privadas para las Lambdas"
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: "ID del Security Group para las Lambdas"
-  ForceUpdate:
-    Type: String
-    Default: "0"
-    Description: "Force update timestamp for custom resource"
-
 
 Globals:
   Function:
@@ -87,7 +80,6 @@ Globals:
       Environment: !Ref StageName
       Proyecto: Nanutech-Backend
     Tracing: Active
-    # Configuración VPC para todas las funciones
     VpcConfig:
       SecurityGroupIds:
         - !Ref LambdaSecurityGroup
@@ -362,8 +354,8 @@ Resources:
       FunctionName: !Sub "${StageName}-migrator"
       CodeUri: .
       Handler: src/functions/migrator-services/migratorHandler.handler
-      Timeout: 300
-      MemorySize: 512
+      Timeout: 600
+      MemorySize: 1024
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
@@ -388,28 +380,6 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/functions/migrator-services/migratorHandler.mjs
-
-  ###########################################################################
-  # Permiso para que CloudFormation invoque la Lambda Migrator
-  ###########################################################################
-  MigratorFunctionPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref MigratorFunction
-      Action: lambda:InvokeFunction
-      Principal: cloudformation.amazonaws.com
-      SourceArn: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"
-
-  ###########################################################################
-  # Custom Resource para ejecutar migraciones automáticamente en cada deploy
-  ###########################################################################
-  MigratorCustomResource:
-    Type: AWS::CloudFormation::CustomResource
-    DependsOn: MigratorFunctionPermission
-    Properties:
-      ServiceToken: !GetAtt MigratorFunction.Arn
-      action: migrate
-      timestamp: !Ref ForceUpdate
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
