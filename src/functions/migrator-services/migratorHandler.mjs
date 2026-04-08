@@ -2,7 +2,8 @@ import https from 'https';
 import http from 'http';
 import url from 'url';
 import pg from 'pg';
-import runner from 'node-pg-migrate';
+// ✅ CORRECCIÓN 1: Importar el objeto completo del módulo
+import pgMigrate from 'node-pg-migrate';
 
 // Timeout de 6 minutos
 const MIGRATION_TIMEOUT_MS = 360000;
@@ -102,7 +103,9 @@ async function runMigrations() {
     console.log('✅ Conexión exitosa');
     testClient.release();
 
-    // ✅ CORRECCIÓN APLICADA AQUÍ: Usar runner
+    // ✅ CORRECCIÓN 2: Extraer la función de forma segura para ES Modules
+    const runner = pgMigrate.default || pgMigrate;
+
     await runner({
       dbClient: pool,
       direction: 'up',
