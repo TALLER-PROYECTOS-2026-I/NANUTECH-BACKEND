@@ -15,6 +15,7 @@ jobs:
     name: 🚀 Deploy to AWS - Testing
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    environment: testing  # ← IMPORTANTE: para acceder a secrets de entorno
 
     steps:
       - name: Checkout repository
@@ -62,5 +63,5 @@ jobs:
               CognitoClientId=${{ secrets.COGNITO_CLIENT_ID || '' }} \
               SessionTimeoutSeconds=${{ secrets.SESSION_TIMEOUT_SECONDS || '7200' }} \
               AuthTokenSecret=${{ secrets.AUTH_TOKEN_SECRET || 'nanutech-local-auth-secret' }} \
-              PrivateSubnets=${{ secrets.PRIVATE_SUBNETS }} \
-              LambdaSecurityGroup=${{ secrets.LAMBDA_SECURITY_GROUP }}
+              PrivateSubnets=${{ secrets.PRIVATE_SUBNETS || secrets.SUBNET_IDS }} \
+              LambdaSecurityGroup=${{ secrets.LAMBDA_SECURITY_GROUP || secrets.LAMBDA_SG_ID }}
