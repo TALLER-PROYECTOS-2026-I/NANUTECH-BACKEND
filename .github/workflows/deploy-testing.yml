@@ -81,18 +81,29 @@ jobs:
           timeout 360 aws lambda invoke \
             --function-name testing-migrator \
             --region us-east-1 \
+            --cli-binary-format raw-in-base64-out \
             --payload '{"action": "migrate"}' \
             migration-response.json
           
+          # Guardar el código de salida
+          EXIT_CODE=$?
+          
           # Verificar si hubo timeout (código 124)
-          if [ $? -eq 124 ]; then
+          if [ $EXIT_CODE -eq 124 ]; then
             echo "❌ Error: Las migraciones tomaron más de 6 minutos"
             exit 1
+          fi
+          
+          # Verificar si hubo otro error
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ Error al invocar la Lambda (código: $EXIT_CODE)"
+            exit $EXIT_CODE
           fi
           
           # Mostrar respuesta
           echo "📋 Respuesta de la Lambda:"
           cat migration-response.json
+          echo ""
           
           # Verificar si hubo error en la migración
           if grep -q '"success":false' migration-response.json; then
