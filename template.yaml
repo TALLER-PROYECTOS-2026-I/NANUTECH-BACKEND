@@ -349,6 +349,65 @@ Resources:
         EntryPoints:
           - src/functions/auth-services/authHandler.mjs
 
+  ###########################################################################
+  # Lambda para migraciones (se ejecuta dentro de la VPC)
+  ###########################################################################
+  MigratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-migrator"
+      CodeUri: .
+      Handler: src/functions/migrator-services/migratorHandler.handler
+      Timeout: 300
+      MemorySize: 512
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+          DB_HOST: !Ref DBHost
+          DB_USER: !Ref DBUser
+          DB_PASSWORD: !Ref DBPassword
+          DB_NAME: !Ref DBName
+          DB_PORT: !Ref DBPort
+          DB_SSL_ENABLED: !Ref DBSslEnabled
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref PrivateSubnets
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/migrator-services/migratorHandler.mjs
+
+  ###########################################################################
+  # Permiso para que CloudFormation invoque la Lambda Migrator
+  ###########################################################################
+  MigratorFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref MigratorFunction
+      Action: lambda:InvokeFunction
+      Principal: cloudformation.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"
+
+  ###########################################################################
+  # Custom Resource para ejecutar migraciones automáticamente en cada deploy
+  ###########################################################################
+  MigratorCustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    DependsOn: MigratorFunctionPermission
+    Properties:
+      ServiceToken: !GetAtt MigratorFunction.Arn
+      action: migrate
+      timestamp: !Sub "${AWS::StackId}-${AWS::DeploymentId}"
+    Metadata:
+      Comment: "Ejecuta migraciones automáticamente durante el deploy"
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
@@ -385,3 +444,6 @@ Outputs:
   AuthFunctionArn:
     Description: "ARN de la función Auth"
     Value: !GetAtt AuthFunction.Arn
+  MigratorFunctionArn:
+    Description: "ARN de la función Migrator"
+    Value: !GetAtt MigratorFunction.Arn
