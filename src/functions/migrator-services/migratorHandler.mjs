@@ -2,7 +2,7 @@ import https from 'https';
 import http from 'http';
 import url from 'url';
 import pg from 'pg';
-import * as migrate from 'node-pg-migrate';
+import migrate from 'node-pg-migrate';
 
 // Timeout de 6 minutos
 const MIGRATION_TIMEOUT_MS = 360000;
@@ -102,8 +102,8 @@ async function runMigrations() {
     console.log('✅ Conexión exitosa');
     testClient.release();
 
-    // Usar migrate.default
-    await migrate.default({
+    // ✅ Con v6.2.2, migrate es la función directamente
+    await migrate({
       dbClient: pool,
       direction: 'up',
       migrationsTable: 'pgmigrations',
@@ -130,22 +130,26 @@ async function runMigrations() {
 
 export const handler = async (event, context) => {
   console.log('📥 Event recibido:', JSON.stringify(event, null, 2));
+  console.log(`🔧 Function: ${context.functionName}, LogGroup: ${context.logGroupName}`);
 
   let isCloudFormationCustomResource = false;
   let shouldMigrate = false;
 
   try {
+    // Detectar si es Custom Resource de CloudFormation
     if (event.RequestType && event.ResponseURL) {
       isCloudFormationCustomResource = true;
       shouldMigrate = event.RequestType === 'Create' || event.RequestType === 'Update';
-      console.log(`🔷 Custom Resource - RequestType: ${event.RequestType}`);
+      console.log(`🔷 Custom Resource - RequestType: ${event.RequestType}, ShouldMigrate: ${shouldMigrate}`);
     }
 
+    // Invocación directa con action=migrate
     if (event.action === 'migrate') {
       shouldMigrate = true;
       console.log('🔷 Invocación directa con action=migrate');
     }
 
+    // Invocación por defecto
     if (!event.action && !event.RequestType) {
       shouldMigrate = true;
       console.log('🔷 Invocación por defecto');
@@ -155,11 +159,12 @@ export const handler = async (event, context) => {
     if (shouldMigrate) {
       result = await runMigrations();
     } else {
-      result = { success: true, message: 'No migration needed' };
+      console.log('ℹ️ No se requiere migración (RequestType: Delete)');
+      result = { success: true, message: 'No migration needed', skipped: true };
     }
 
     if (isCloudFormationCustomResource) {
-      await sendCloudFormationResponse(event, context, 'SUCCESS', 'Migraciones completadas', result);
+      await sendCloudFormationResponse(event, context, 'SUCCESS', 'Migraciones completadas exitosamente', result);
     }
 
     return {
@@ -171,12 +176,20 @@ export const handler = async (event, context) => {
     console.error('❌ Error fatal:', error);
 
     if (isCloudFormationCustomResource) {
-      await sendCloudFormationResponse(event, context, 'FAILED', error.message, { error: error.message });
+      try {
+        await sendCloudFormationResponse(event, context, 'FAILED', error.message, { error: error.message, success: false });
+      } catch (cfnError) {
+        console.error('❌ Error enviando respuesta FAILED a CloudFormation:', cfnError);
+      }
     }
 
     return {
       statusCode: 500,
-      body: JSON.stringify({ success: false, message: error.message })
+      body: JSON.stringify({
+        success: false,
+        message: error.message,
+        error: error.toString()
+      })
     };
   }
 };
