@@ -43,13 +43,17 @@ Parameters:
     NoEcho: true
   DBSslEnabled:
     Type: String
-    Default: "true"  # Cambiado a true para RDS
+    Default: "true"
   PrivateSubnets:
     Type: CommaDelimitedList
     Description: "IDs de las subredes privadas para las Lambdas"
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: "ID del Security Group para las Lambdas"
+  ForceUpdate:
+    Type: String
+    Default: "0"
+    Description: "Force update timestamp for custom resource"
 
 Globals:
   Function:
@@ -100,20 +104,21 @@ Resources:
         Environment: !Ref StageName
         Proyecto: Nanutech-Backend
 
-  getAllItemsFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/functions/camion-services/get-all-items.getAllItemsHandler
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - VPCAccessPolicy: {}
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /items
-            Method: GET
+  # getAllItemsFunction - COMENTADA
+  # getAllItemsFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     Handler: src/functions/camion-services/get-all-items.getAllItemsHandler
+  #     Policies:
+  #       - AWSLambdaBasicExecutionRole
+  #       - VPCAccessPolicy: {}
+  #     Events:
+  #       Api:
+  #         Type: Api
+  #         Properties:
+  #           RestApiId: !Ref NanutechApi
+  #           Path: /items
+  #           Method: GET
 
   CamionFunction:
     Type: AWS::Serverless::Function
@@ -183,36 +188,37 @@ Resources:
         EntryPoints:
           - src/functions/conductor-services/conductorHandler.mjs
 
-  JornadaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "${StageName}-jornadas"
-      CodeUri: .
-      Handler: src/functions/jornada-services/jornadaHandler.handler
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - VPCAccessPolicy: {}
-      Environment:
-        Variables:
-          LOG_LEVEL: "debug"
-      Events:
-        Create:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /jornadas
-            Method: POST
-      Tags:
-        Environment: !Ref StageName
-        Servicio: jornada
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Sourcemap: true
-        EntryPoints:
-          - src/functions/jornada-services/jornadaHandler.mjs
+  # JornadaFunction - COMENTADA
+  # JornadaFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     FunctionName: !Sub "${StageName}-jornadas"
+  #     CodeUri: .
+  #     Handler: src/functions/jornada-services/jornadaHandler.handler
+  #     Policies:
+  #       - AWSLambdaBasicExecutionRole
+  #       - VPCAccessPolicy: {}
+  #     Environment:
+  #       Variables:
+  #         LOG_LEVEL: "debug"
+  #     Events:
+  #       Create:
+  #         Type: Api
+  #         Properties:
+  #           RestApiId: !Ref NanutechApi
+  #           Path: /jornadas
+  #           Method: POST
+  #     Tags:
+  #       Environment: !Ref StageName
+  #       Servicio: jornada
+  #   Metadata:
+  #     BuildMethod: esbuild
+  #     BuildProperties:
+  #       Minify: false
+  #       Target: es2022
+  #       Sourcemap: true
+  #       EntryPoints:
+  #         - src/functions/jornada-services/jornadaHandler.mjs
 
   ContratoFunction:
     Type: AWS::Serverless::Function
@@ -381,6 +387,35 @@ Resources:
         EntryPoints:
           - src/functions/migrator-services/migratorHandler.mjs
 
+  ###########################################################################
+  # Permiso para que CloudFormation invoque la Lambda Migrator
+  ###########################################################################
+  MigratorFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref MigratorFunction
+      Action: lambda:InvokeFunction
+      Principal: cloudformation.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"
+
+  ###########################################################################
+  # Custom Resource para ejecutar migraciones automáticamente en cada deploy
+  ###########################################################################
+  MigratorCustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    DependsOn: MigratorFunctionPermission
+    Properties:
+      ServiceToken: !GetAtt MigratorFunction.Arn
+      action: migrate
+      timestamp: !Ref ForceUpdate
+      # ✅ Credenciales de base de datos pasadas al Custom Resource
+      DB_HOST: !Ref DBHost
+      DB_USER: !Ref DBUser
+      DB_PASSWORD: !Ref DBPassword
+      DB_NAME: !Ref DBName
+      DB_PORT: !Ref DBPort
+      DB_SSL_ENABLED: !Ref DBSslEnabled
+
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
@@ -410,9 +445,10 @@ Outputs:
   UnidadFunctionArn:
     Description: "ARN de la función Unidad"
     Value: !GetAtt UnidadFunction.Arn
-  JornadaFunctionArn:
-    Description: "ARN de la función Jornada"
-    Value: !GetAtt JornadaFunction.Arn
+  # JornadaFunctionArn - COMENTADA
+  # JornadaFunctionArn:
+  #   Description: "ARN de la función Jornada"
+  #   Value: !GetAtt JornadaFunction.Arn
   AuthFunctionArn:
     Description: "ARN de la función Auth"
     Value: !GetAtt AuthFunction.Arn
