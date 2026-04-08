@@ -1,11 +1,11 @@
-import { createRequire } from 'module';
 import https from 'https';
 import http from 'http';
 import url from 'url';
-
-const require = createRequire(import.meta.url);
-const { default: migrate } = require('node-pg-migrate');
 import pg from 'pg';
+import { default as migrate } from 'node-pg-migrate';
+
+// Timeout de 6 minutos (360 segundos)
+const MIGRATION_TIMEOUT_MS = 360000; // 6 minutos
 
 function getDbConfig() {
   const config = {
@@ -60,7 +60,7 @@ async function sendCloudFormationResponse(event, context, status, reason, data) 
     method: 'PUT',
     timeout: 10000,
     headers: {
-      'Content-Type': '',   // ← VACÍO: requerido por S3 pre-signed URL
+      'Content-Type': '',
       'Content-Length': Buffer.byteLength(responseBody)
     }
   };
@@ -69,19 +69,7 @@ async function sendCloudFormationResponse(event, context, status, reason, data) 
     const protocol = parsedUrl.protocol === 'https:' ? https : http;
     const req = protocol.request(options, (res) => {
       console.log(`✅ Respuesta enviada a CloudFormation, statusCode: ${res.statusCode}`);
-      let responseData = '';
-      res.on('data', (chunk) => { responseData += chunk; });
-      res.on('end', () => {
-        if (res.statusCode === 200) {
-          resolve();
-        } else {
-          reject(new Error(`CloudFormation respondió con ${res.statusCode}: ${responseData}`));
-        }
-      });
-    });
-
-    req.on('timeout', () => {
-      req.destroy(new Error('Timeout enviando respuesta a CloudFormation (10s)'));
+      resolve();
     });
 
     req.on('error', (error) => {
@@ -96,12 +84,13 @@ async function sendCloudFormationResponse(event, context, status, reason, data) 
 
 async function runMigrations() {
   console.log('🔄 Iniciando migraciones...');
+  const startTime = Date.now();
 
   const dbConfig = getDbConfig();
   console.log(`📊 Conectando a: ${dbConfig.host}/${dbConfig.database}`);
 
   if (!dbConfig.host || !dbConfig.user || !dbConfig.password || !dbConfig.database) {
-    throw new Error('Configuración de base de datos incompleta. Verifica las variables de entorno.');
+    throw new Error('Configuración de base de datos incompleta');
   }
 
   let pool = null;
@@ -109,11 +98,18 @@ async function runMigrations() {
   try {
     pool = new pg.Pool(dbConfig);
 
-    const testClient = await pool.connect();
-    console.log('✅ Conexión a base de datos exitosa');
+    // Timeout para conexión inicial (30 segundos)
+    const connectionPromise = pool.connect();
+    const connectionTimeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout conectando a la base de datos (30s)')), 30000);
+    });
+    
+    const testClient = await Promise.race([connectionPromise, connectionTimeout]);
+    console.log('✅ Conexión exitosa');
     testClient.release();
 
-    await migrate({
+    // Ejecutar migraciones con timeout de 6 minutos
+    const migrationPromise = migrate({
       dbClient: pool,
       direction: 'up',
       migrationsTable: 'pgmigrations',
@@ -123,17 +119,23 @@ async function runMigrations() {
       createMigrationsSchema: true,
     });
 
-    console.log('✅ Migraciones completadas exitosamente');
-    return { success: true, message: 'Migrations completed successfully' };
+    const migrationTimeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout: Migraciones tomaron más de ${MIGRATION_TIMEOUT_MS / 1000} segundos`)), MIGRATION_TIMEOUT_MS);
+    });
+
+    await Promise.race([migrationPromise, migrationTimeout]);
+
+    const duration = Date.now() - startTime;
+    console.log(`✅ Migraciones completadas en ${duration / 1000} segundos`);
+    return { success: true, message: `Migrations completed in ${duration / 1000}s` };
 
   } catch (error) {
-    console.error('❌ Error en migraciones:', error);
+    const duration = Date.now() - startTime;
+    console.error(`❌ Error después de ${duration / 1000}s:`, error.message);
     throw error;
-
   } finally {
     if (pool) {
       await pool.end();
-      console.log('🔌 Pool de conexiones cerrado');
     }
   }
 }
@@ -141,28 +143,41 @@ async function runMigrations() {
 export const handler = async (event, context) => {
   console.log('📥 Event recibido:', JSON.stringify(event, null, 2));
   console.log(`🔧 Function: ${context.functionName}, LogGroup: ${context.logGroupName}`);
-
+  
+  // Timeout global de 6 minutos
+  let timeoutId = null;
+  
   let isCloudFormationCustomResource = false;
   let shouldMigrate = false;
 
   try {
-    // Caso 1: Custom Resource de CloudFormation
+    // Detectar si es Custom Resource de CloudFormation
     if (event.RequestType && event.ResponseURL) {
       isCloudFormationCustomResource = true;
       shouldMigrate = event.RequestType === 'Create' || event.RequestType === 'Update';
       console.log(`🔷 Custom Resource - RequestType: ${event.RequestType}, ShouldMigrate: ${shouldMigrate}`);
     }
 
-    // Caso 2: Invocación directa desde AWS CLI o SDK
+    // Invocación directa con action=migrate
     if (event.action === 'migrate') {
       shouldMigrate = true;
       console.log('🔷 Invocación directa con action=migrate');
     }
 
-    // Caso 3: Invocación por defecto (sin parámetros)
+    // Invocación por defecto
     if (!event.action && !event.RequestType) {
       shouldMigrate = true;
       console.log('🔷 Invocación por defecto');
+    }
+
+    // Configurar timeout global
+    if (isCloudFormationCustomResource) {
+      timeoutId = setTimeout(async () => {
+        console.error(`❌ Timeout de ${MIGRATION_TIMEOUT_MS / 1000} segundos alcanzado`);
+        await sendCloudFormationResponse(event, context, 'FAILED', 
+          `Migration timeout after ${MIGRATION_TIMEOUT_MS / 1000} seconds`, 
+          { error: 'timeout', success: false });
+      }, MIGRATION_TIMEOUT_MS);
     }
 
     let result;
@@ -173,6 +188,12 @@ export const handler = async (event, context) => {
       result = { success: true, message: 'No migration needed', skipped: true };
     }
 
+    // Limpiar timeout
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+
+    // Enviar respuesta exitosa a CloudFormation
     if (isCloudFormationCustomResource) {
       await sendCloudFormationResponse(event, context, 'SUCCESS', 'Migraciones completadas exitosamente', result);
     }
@@ -184,10 +205,20 @@ export const handler = async (event, context) => {
 
   } catch (error) {
     console.error('❌ Error fatal:', error);
+    
+    // Limpiar timeout
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
 
+    // Enviar respuesta de fallo a CloudFormation
     if (isCloudFormationCustomResource) {
       try {
-        await sendCloudFormationResponse(event, context, 'FAILED', error.message, { error: error.message, success: false });
+        await sendCloudFormationResponse(event, context, 'FAILED', error.message, { 
+          error: error.message, 
+          success: false,
+          timeout: MIGRATION_TIMEOUT_MS / 1000
+        });
       } catch (cfnError) {
         console.error('❌ Error enviando respuesta FAILED a CloudFormation:', cfnError);
       }
