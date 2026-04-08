@@ -52,6 +52,10 @@ Parameters:
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: "ID del Security Group para las Lambdas"
+  ForceUpdate:
+    Type: String
+    Default: "0"
+    Description: "Force update timestamp for custom resource"
 
 
 Globals:
@@ -405,9 +409,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt MigratorFunction.Arn
       action: migrate
-      timestamp: !Sub "${AWS::StackId}-${AWS::DeploymentId}"
-    Metadata:
-      Comment: "Ejecuta migraciones automáticamente durante el deploy"
+      timestamp: !Ref ForceUpdate
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
