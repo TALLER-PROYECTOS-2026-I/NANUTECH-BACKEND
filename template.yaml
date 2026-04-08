@@ -25,6 +25,35 @@ Parameters:
   DBPort:
     Type: String
     Default: "5432"
+  AuthProvider:
+    Type: String
+    Default: "local"
+  CognitoUserPoolId:
+    Type: String
+    Default: ""
+  CognitoClientId:
+    Type: String
+    Default: ""
+  SessionTimeoutSeconds:
+    Type: String
+    Default: "7200"
+  AuthTokenSecret:
+    Type: String
+    Default: "nanutech-local-auth-secret"
+    NoEcho: true
+  DBSslEnabled:
+    Type: String
+    Default: "true"
+  PrivateSubnets:
+    Type: CommaDelimitedList
+    Description: "IDs de las subredes privadas para las Lambdas"
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: "ID del Security Group para las Lambdas"
+  ForceUpdate:
+    Type: String
+    Default: "0"
+    Description: "Force update timestamp for custom resource"
 
 Globals:
   Function:
@@ -43,12 +72,22 @@ Globals:
         DB_PORT: !Ref DBPort
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
         NODE_OPTIONS: "--enable-source-maps"
+        AUTH_PROVIDER: !Ref AuthProvider
+        COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+        COGNITO_CLIENT_ID: !Ref CognitoClientId
+        SESSION_TIMEOUT_SECONDS: !Ref SessionTimeoutSeconds
+        AUTH_TOKEN_SECRET: !Ref AuthTokenSecret
+        DB_SSL_ENABLED: !Ref DBSslEnabled
     LoggingConfig:
       LogFormat: JSON
     Tags:
       Environment: !Ref StageName
       Proyecto: Nanutech-Backend
     Tracing: Active
+    VpcConfig:
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+      SubnetIds: !Ref PrivateSubnets
 
 Resources:
   NanutechApi:
@@ -64,18 +103,22 @@ Resources:
       Tags:
         Environment: !Ref StageName
         Proyecto: Nanutech-Backend
-  # 👇 EJEMPLO 1 (YA TIENES)
-  getAllItemsFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/functions/camion-services/get-all-items.getAllItemsHandler
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /items
-            Method: GET
+
+  # getAllItemsFunction - COMENTADA
+  # getAllItemsFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     Handler: src/functions/camion-services/get-all-items.getAllItemsHandler
+  #     Policies:
+  #       - AWSLambdaBasicExecutionRole
+  #       - VPCAccessPolicy: {}
+  #     Events:
+  #       Api:
+  #         Type: Api
+  #         Properties:
+  #           RestApiId: !Ref NanutechApi
+  #           Path: /items
+  #           Method: GET
 
   CamionFunction:
     Type: AWS::Serverless::Function
@@ -85,6 +128,7 @@ Resources:
       Handler: src/functions/camion-services/camionHandler.handler
       Policies:
         - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -113,27 +157,28 @@ Resources:
         EntryPoints:
           - src/functions/camion-services/camionHandler.mjs
 
-  JornadaFunction:
+  ConductorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${StageName}-jornadas"
+      FunctionName: !Sub "${StageName}-conductores"
       CodeUri: .
-      Handler: src/functions/jornada-services/jornadaHandler.handler
+      Handler: src/functions/conductor-services/conductorHandler.handler
       Policies:
         - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
       Environment:
         Variables:
           LOG_LEVEL: "debug"
       Events:
-        Create:
+        GetAll:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
-            Path: /jornadas
-            Method: POST
+            Path: /conductores
+            Method: GET
       Tags:
         Environment: !Ref StageName
-        Servicio: jornada
+        Servicio: conductor
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -141,7 +186,227 @@ Resources:
         Target: es2022
         Sourcemap: true
         EntryPoints:
-          - src/functions/jornada-services/jornadaHandler.mjs
+          - src/functions/conductor-services/conductorHandler.mjs
+
+  # JornadaFunction - COMENTADA
+  # JornadaFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     FunctionName: !Sub "${StageName}-jornadas"
+  #     CodeUri: .
+  #     Handler: src/functions/jornada-services/jornadaHandler.handler
+  #     Policies:
+  #       - AWSLambdaBasicExecutionRole
+  #       - VPCAccessPolicy: {}
+  #     Environment:
+  #       Variables:
+  #         LOG_LEVEL: "debug"
+  #     Events:
+  #       Create:
+  #         Type: Api
+  #         Properties:
+  #           RestApiId: !Ref NanutechApi
+  #           Path: /jornadas
+  #           Method: POST
+  #     Tags:
+  #       Environment: !Ref StageName
+  #       Servicio: jornada
+  #   Metadata:
+  #     BuildMethod: esbuild
+  #     BuildProperties:
+  #       Minify: false
+  #       Target: es2022
+  #       Sourcemap: true
+  #       EntryPoints:
+  #         - src/functions/jornada-services/jornadaHandler.mjs
+
+  ContratoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-contratos"
+      CodeUri: .
+      Handler: src/functions/contrato-services/contratoHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        GetVigentes:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /contratos/vigentes
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: contrato
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/contrato-services/contratoHandler.mjs
+
+  UnidadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-unidades"
+      CodeUri: .
+      Handler: src/functions/unidad-services/unidadHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        GetDisponibles:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /unidades/disponibles
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: unidad
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/unidad-services/unidadHandler.mjs
+
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-auth"
+      CodeUri: .
+      Handler: src/functions/auth-services/authHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminInitiateAuth
+                - cognito-idp:InitiateAuth
+                - cognito-idp:ForgotPassword
+                - cognito-idp:ConfirmForgotPassword
+                - cognito-idp:GetUser
+              Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}"
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+          AUTH_PROVIDER: !Ref AuthProvider
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          SESSION_TIMEOUT_SECONDS: !Ref SessionTimeoutSeconds
+          AUTH_TOKEN_SECRET: !Ref AuthTokenSecret
+          DB_HOST: !Ref DBHost
+          DB_USER: !Ref DBUser
+          DB_PASSWORD: !Ref DBPassword
+          DB_NAME: !Ref DBName
+          DB_PORT: !Ref DBPort
+          DB_SSL_ENABLED: !Ref DBSslEnabled
+      Events:
+        Login:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/login
+            Method: POST
+        ForgotPassword:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/forgot-password
+            Method: POST
+        ConfirmForgotPassword:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/forgot-password/confirm
+            Method: POST
+        GetCurrentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/me
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: auth
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/auth-services/authHandler.mjs
+
+  ###########################################################################
+  # Lambda para migraciones (se ejecuta dentro de la VPC)
+  ###########################################################################
+  MigratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-migrator"
+      CodeUri: .
+      Handler: src/functions/migrator-services/migratorHandler.handler
+      Timeout: 360
+      MemorySize: 1024
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+          DB_HOST: !Ref DBHost
+          DB_USER: !Ref DBUser
+          DB_PASSWORD: !Ref DBPassword
+          DB_NAME: !Ref DBName
+          DB_PORT: !Ref DBPort
+          DB_SSL_ENABLED: !Ref DBSslEnabled
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref PrivateSubnets
+
+  ###########################################################################
+  # Permiso para que CloudFormation invoque la Lambda Migrator
+  ###########################################################################
+  MigratorFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref MigratorFunction
+      Action: lambda:InvokeFunction
+      Principal: cloudformation.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"
+
+  ###########################################################################
+  # Custom Resource para ejecutar migraciones - COMENTADO
+  # Las migraciones se ejecutan después del deploy desde GitHub Actions
+  ###########################################################################
+  # MigratorCustomResource:
+  #   Type: AWS::CloudFormation::CustomResource
+  #   DependsOn: MigratorFunctionPermission
+  #   Properties:
+  #     ServiceToken: !GetAtt MigratorFunction.Arn
+  #     action: migrate
+  #     timestamp: !Ref ForceUpdate
+  #     DB_HOST: !Ref DBHost
+  #     DB_USER: !Ref DBUser
+  #     DB_PASSWORD: !Ref DBPassword
+  #     DB_NAME: !Ref DBName
+  #     DB_PORT: !Ref DBPort
+  #     DB_SSL_ENABLED: !Ref DBSslEnabled
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
@@ -163,6 +428,22 @@ Outputs:
   CamionFunctionArn:
     Description: "ARN de la función Camion"
     Value: !GetAtt CamionFunction.Arn
-  JornadaFunctionArn:
-    Description: "ARN de la función Jornada"
-    Value: !GetAtt JornadaFunction.Arn
+  ConductorFunctionArn:
+    Description: "ARN de la función Conductor"
+    Value: !GetAtt ConductorFunction.Arn
+  ContratoFunctionArn:
+    Description: "ARN de la función Contrato"
+    Value: !GetAtt ContratoFunction.Arn
+  UnidadFunctionArn:
+    Description: "ARN de la función Unidad"
+    Value: !GetAtt UnidadFunction.Arn
+  # JornadaFunctionArn - COMENTADA
+  # JornadaFunctionArn:
+  #   Description: "ARN de la función Jornada"
+  #   Value: !GetAtt JornadaFunction.Arn
+  AuthFunctionArn:
+    Description: "ARN de la función Auth"
+    Value: !GetAtt AuthFunction.Arn
+  MigratorFunctionArn:
+    Description: "ARN de la función Migrator"
+    Value: !GetAtt MigratorFunction.Arn

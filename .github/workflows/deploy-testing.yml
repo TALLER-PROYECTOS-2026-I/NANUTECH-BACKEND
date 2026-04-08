@@ -12,8 +12,10 @@ permissions:
 
 jobs:
   deploy:
+    name: 🚀 Deploy to AWS - Testing
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    environment: testing
 
     steps:
       - name: Checkout repository
@@ -23,7 +25,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1 
+          aws-region: us-east-1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -41,6 +43,8 @@ jobs:
 
       - name: Deploy SAM application
         run: |
+          FORCE_UPDATE=$(date +%s)
+          
           sam deploy \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
@@ -54,4 +58,69 @@ jobs:
               DBName=${{ secrets.DB_NAME }} \
               DBUser=${{ secrets.DB_USER }} \
               DBPassword=${{ secrets.DB_PASSWORD }} \
-              DBPort=${{ secrets.DB_PORT }}
+              DBPort=${{ secrets.DB_PORT }} \
+              DBSslEnabled=${{ secrets.DB_SSL_ENABLED || 'true' }} \
+              AuthProvider=${{ secrets.AUTH_PROVIDER || 'cognito' }} \
+              CognitoUserPoolId=${{ secrets.COGNITO_USER_POOL_ID }} \
+              CognitoClientId=${{ secrets.COGNITO_CLIENT_ID }} \
+              SessionTimeoutSeconds=${{ secrets.SESSION_TIMEOUT_SECONDS || '7200' }} \
+              PrivateSubnets=${{ secrets.SUBNET_IDS }} \
+              LambdaSecurityGroup=${{ secrets.LAMBDA_SG_ID }} \
+              ForceUpdate=${FORCE_UPDATE}
+
+      - name: Wait for stack to be ready
+        run: |
+          echo "⏳ Esperando 30 segundos para que el stack esté completamente listo..."
+          sleep 30
+
+      - name: Run migrations with timeout
+        run: |
+          echo "📦 Ejecutando migraciones (timeout de 6 minutos)..."
+          
+          # Ejecutar migración con timeout de 6 minutos (360 segundos)
+          timeout 360 aws lambda invoke \
+            --function-name testing-migrator \
+            --region us-east-1 \
+            --cli-binary-format raw-in-base64-out \
+            --payload '{"action": "migrate"}' \
+            migration-response.json
+          
+          # Guardar el código de salida
+          EXIT_CODE=$?
+          
+          # Verificar si hubo timeout (código 124)
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "❌ Error: Las migraciones tomaron más de 6 minutos"
+            exit 1
+          fi
+          
+          # Verificar si hubo otro error
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ Error al invocar la Lambda (código: $EXIT_CODE)"
+            exit $EXIT_CODE
+          fi
+          
+          # Mostrar respuesta
+          echo "📋 Respuesta de la Lambda:"
+          cat migration-response.json
+          echo ""
+          
+          # Verificar si hubo error en la migración
+          if grep -q '"success":false' migration-response.json; then
+            echo "❌ Error: Las migraciones fallaron"
+            exit 1
+          fi
+          
+          echo "✅ Migraciones completadas exitosamente"
+
+      - name: Verify deployment
+        run: |
+          echo "✅ Deployment completado"
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name nanutech-backend-testing \
+            --region us-east-1 \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
+            --output text)
+          
+          echo "🌐 API Endpoint: ${API_URL}"
+          echo "✅ Todo listo!"
