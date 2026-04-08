@@ -35,51 +35,20 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install yaml validation tool
-        run: pip install pyyaml
-
-      - name: Validate SAM template
-        run: |
-          echo "🔍 Verificando template.yaml..."
-          
-          # Listar archivos para debug
-          ls -la
-          
-          # Verificar existencia
-          if [ ! -f "template.yaml" ]; then
-            echo "❌ ERROR: No se encuentra template.yaml"
-            exit 1
-          fi
-          
-          # Validar YAML
-          python3 -c "
-          import yaml, sys
-          try:
-            with open('template.yaml', 'r') as f:
-              data = yaml.safe_load(f)
-              if 'Resources' not in data:
-                print('ERROR: No se encuentra sección Resources')
-                sys.exit(1)
-              print('✅ Template válido - Resources encontrado')
-          except Exception as e:
-            print(f'ERROR: {e}')
-            sys.exit(1)
-          "
-
       - name: Install AWS SAM CLI
         run: pip install aws-sam-cli
 
       - name: Build SAM application
         run: |
-          # Usar template explícito
-          sam build --template-file template.yaml
+          echo "🔨 Building SAM application..."
+          sam build
 
       - name: Deploy SAM application
         run: |
           FORCE_UPDATE=$(date +%s)
           
+          echo "🚀 Deploying to AWS..."
           sam deploy \
-            --template-file .aws-sam/build/template.yaml \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
             --stack-name nanutech-backend-testing \
@@ -102,3 +71,14 @@ jobs:
               PrivateSubnets=${{ secrets.PRIVATE_SUBNETS || secrets.SUBNET_IDS }} \
               LambdaSecurityGroup=${{ secrets.LAMBDA_SECURITY_GROUP || secrets.LAMBDA_SG_ID }} \
               ForceUpdate=${FORCE_UPDATE}
+
+      - name: Verify deployment
+        run: |
+          echo "✅ Deployment completed!"
+          echo ""
+          echo "📋 API Endpoint:"
+          aws cloudformation describe-stacks \
+            --stack-name nanutech-backend-testing \
+            --region us-east-1 \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
+            --output text
