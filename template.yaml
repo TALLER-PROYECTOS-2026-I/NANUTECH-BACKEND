@@ -5,10 +5,6 @@ Transform:
   - AWS::Serverless-2016-10-31
 
 Parameters:
-  AwsRegion:
-    Type: String
-  AwsDefaultRegion:
-    Type: String
   StageName:
     Type: String
     Default: dev
@@ -68,8 +64,6 @@ Globals:
       - x86_64
     Environment:
       Variables:
-        AWS_REGION: !Ref AwsRegion
-        AWS_DEFAULT_REGION: !Ref AwsDefaultRegion
         NODE_ENV: !Ref StageName
         DB_HOST: !Ref DBHost
         DB_USER: !Ref DBUser

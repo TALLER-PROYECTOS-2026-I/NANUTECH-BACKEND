@@ -66,9 +66,7 @@ jobs:
               SessionTimeoutSeconds=${{ secrets.SESSION_TIMEOUT_SECONDS || '7200' }} \
               PrivateSubnets=${{ secrets.SUBNET_IDS }} \
               LambdaSecurityGroup=${{ secrets.LAMBDA_SG_ID }} \
-              ForceUpdate=${FORCE_UPDATE} \
-              AwsRegion=${{ secrets.AWS_REGION }} \
-              AwsDefaultRegion=${{ secrets.AWS_DEFAULT_REGION }} 
+              ForceUpdate=${FORCE_UPDATE}
 
       - name: Wait for stack to be ready
         run: |
