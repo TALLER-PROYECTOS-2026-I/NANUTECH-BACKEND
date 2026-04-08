@@ -1,161 +1,387 @@
-name: Deploy to AWS (Testing)
+AWSTemplateFormatVersion: 2010-09-09
+Description: API para gestión de camiones - Nanutech Backend
 
-on:
-  pull_request:
-    types: [closed]
-    branches:
-      - testing
+Transform:
+  - AWS::Serverless-2016-10-31
 
-permissions:
-  id-token: write
-  contents: read
 
-jobs:
-  deploy:
-    name: 🚀 Deploy to AWS - Testing
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    environment: testing
+Parameters:
+  StageName:
+    Type: String
+    Default: dev
+    Description: "dev: 'dev' | testing: 'testing' | production: ''"
+  DBHost:
+    Type: String
+    Default: "database-demo.c56g84wquc58.us-east-2.rds.amazonaws.com"
+  DBUser:
+    Type: String
+    Default: "backend_user"
+  DBPassword:
+    Type: String
+    Default: "Backend123!"
+    NoEcho: true
+  DBName:
+    Type: String
+    Default: "postgres"
+  DBPort:
+    Type: String
+    Default: "5432"
+  AuthProvider:
+    Type: String
+    Default: "local"
+  CognitoUserPoolId:
+    Type: String
+    Default: ""
+  CognitoClientId:
+    Type: String
+    Default: ""
+  SessionTimeoutSeconds:
+    Type: String
+    Default: "7200"
+  AuthTokenSecret:
+    Type: String
+    Default: "nanutech-local-auth-secret"
+    NoEcho: true
+  DBSslEnabled:
+    Type: String
+    Default: "false"
+  # Nuevos parámetros para VPC
+  PrivateSubnets:
+    Type: CommaDelimitedList
+    Description: "IDs de las subredes privadas para las Lambdas"
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: "ID del Security Group para las Lambdas"
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: nodejs20.x
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        NODE_ENV: !Ref StageName
+        DB_HOST: !Ref DBHost
+        DB_USER: !Ref DBUser
+        DB_PASSWORD: !Ref DBPassword
+        DB_NAME: !Ref DBName
+        DB_PORT: !Ref DBPort
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+        NODE_OPTIONS: "--enable-source-maps"
+        AUTH_PROVIDER: !Ref AuthProvider
+        COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+        COGNITO_CLIENT_ID: !Ref CognitoClientId
+        SESSION_TIMEOUT_SECONDS: !Ref SessionTimeoutSeconds
+        AUTH_TOKEN_SECRET: !Ref AuthTokenSecret
+        DB_SSL_ENABLED: !Ref DBSslEnabled
+    LoggingConfig:
+      LogFormat: JSON
+    Tags:
+      Environment: !Ref StageName
+      Proyecto: Nanutech-Backend
+    Tracing: Active
+    # Configuración VPC para todas las funciones
+    VpcConfig:
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+      SubnetIds: !Ref PrivateSubnets
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+Resources:
+  NanutechApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "nanutech-api-${StageName}"
+      StageName: !Ref StageName
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+      TracingEnabled: true
+      Tags:
+        Environment: !Ref StageName
+        Proyecto: Nanutech-Backend
 
-      - name: Install dependencies
-        run: npm install
+  getAllItemsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/functions/camion-services/get-all-items.getAllItemsHandler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /items
+            Method: GET
 
-      - name: Install AWS SAM CLI
-        run: pip install aws-sam-cli
+  CamionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-camiones"
+      CodeUri: .
+      Handler: src/functions/camion-services/camionHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        GetAll:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones
+            Method: GET
+        GetById:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones/{id}
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: camion
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/camion-services/camionHandler.mjs
 
-      - name: Build SAM application
-        run: sam build
+  ConductorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-conductores"
+      CodeUri: .
+      Handler: src/functions/conductor-services/conductorHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        GetAll:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /conductores
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: conductor
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/conductor-services/conductorHandler.mjs
 
-      - name: Delete old Stage triggers (Fix for duplicate stage issue)
-        run: |
-          echo "🗑️ Eliminando triggers viejos del stage 'Stage'..."
-          REST_API_ID="f6lrwole81"
-          
-          # Obtener los triggers actuales de la Lambda
-          CURRENT_POLICY=$(aws lambda get-policy --function-name testing-auth --region us-east-1 2>/dev/null || echo "{}")
-          
-          # Si existen triggers con "Stage", forzar actualización eliminando la política
-          if echo "$CURRENT_POLICY" | grep -q "/Stage/"; then
-            echo "⚠️ Detectados triggers con stage 'Stage', forzando limpieza..."
-            # No podemos eliminar triggers individuales fácilmente, así que forzamos recreación
-            touch .aws-sam/force-update-triggers
-          else
-            echo "✅ No se detectaron triggers con stage 'Stage'"
-          fi
+  JornadaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-jornadas"
+      CodeUri: .
+      Handler: src/functions/jornada-services/jornadaHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        Create:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas
+            Method: POST
+      Tags:
+        Environment: !Ref StageName
+        Servicio: jornada
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/jornada-services/jornadaHandler.mjs
 
-      - name: Deploy SAM application (Forced Update)
-        run: |
-          # Generar timestamp único para forzar actualización
-          FORCE_UPDATE=$(date +%s)
-          
-          echo "🚀 Desplegando con ForceUpdate=${FORCE_UPDATE}"
-          
-          sam deploy \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
-            --stack-name nanutech-backend-testing \
-            --capabilities CAPABILITY_IAM \
-            --region us-east-1 \
-            --resolve-s3 \
-            --parameter-overrides \
-              StageName=testing \
-              DBHost=${{ secrets.DB_HOST }} \
-              DBName=${{ secrets.DB_NAME }} \
-              DBUser=${{ secrets.DB_USER }} \
-              DBPassword=${{ secrets.DB_PASSWORD }} \
-              DBPort=${{ secrets.DB_PORT }} \
-              DBSslEnabled=${{ secrets.DB_SSL_ENABLED || 'true' }} \
-              AuthProvider=${{ secrets.AUTH_PROVIDER || 'local' }} \
-              CognitoUserPoolId=${{ secrets.COGNITO_USER_POOL_ID || '' }} \
-              CognitoClientId=${{ secrets.COGNITO_CLIENT_ID || '' }} \
-              SessionTimeoutSeconds=${{ secrets.SESSION_TIMEOUT_SECONDS || '7200' }} \
-              AuthTokenSecret=${{ secrets.AUTH_TOKEN_SECRET || 'nanutech-local-auth-secret' }} \
-              PrivateSubnets=${{ secrets.PRIVATE_SUBNETS || secrets.SUBNET_IDS }} \
-              LambdaSecurityGroup=${{ secrets.LAMBDA_SECURITY_GROUP || secrets.LAMBDA_SG_ID }} \
-              ForceUpdate=${FORCE_UPDATE}
+  ContratoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-contratos"
+      CodeUri: .
+      Handler: src/functions/contrato-services/contratoHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        GetVigentes:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /contratos/vigentes
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: contrato
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/contrato-services/contratoHandler.mjs
 
-      - name: Verify API Gateway stages
-        run: |
-          echo "🔍 Verificando stages desplegados..."
-          REST_API_ID="f6lrwole81"
-          
-          # Listar stages
-          aws apigateway get-stages --rest-api-id ${REST_API_ID} --region us-east-1
-          
-          # Verificar que el stage 'testing' existe
-          STAGES=$(aws apigateway get-stages --rest-api-id ${REST_API_ID} --region us-east-1 --query 'item[].stageName' --output text)
-          
-          if echo "$STAGES" | grep -q "testing"; then
-            echo "✅ Stage 'testing' encontrado"
-          else
-            echo "❌ Stage 'testing' NO encontrado"
-            exit 1
-          fi
-          
-          # Si existe stage 'Stage', mostrar advertencia
-          if echo "$STAGES" | grep -q "Stage"; then
-            echo "⚠️ ADVERTENCIA: El stage 'Stage' todavía existe"
-            echo "   Puedes eliminarlo manualmente con:"
-            echo "   aws apigateway delete-stage --rest-api-id ${REST_API_ID} --stage-name Stage --region us-east-1"
-          fi
+  UnidadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-unidades"
+      CodeUri: .
+      Handler: src/functions/unidad-services/unidadHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        GetDisponibles:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /unidades/disponibles
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: unidad
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/unidad-services/unidadHandler.mjs
 
-      - name: Update Lambda triggers to correct stage
-        run: |
-          echo "🔄 Actualizando triggers de Lambda al stage correcto..."
-          REST_API_ID="f6lrwole81"
-          FUNCTION_NAME="testing-auth"
-          
-          # Obtener la política actual
-          CURRENT_POLICY=$(aws lambda get-policy --function-name ${FUNCTION_NAME} --region us-east-1 2>/dev/null || echo "{}")
-          
-          # Extraer el Statement ID de la política actual
-          STATEMENT_ID=$(echo "$CURRENT_POLICY" | grep -o '"Sid":"[^"]*"' | head -1 | cut -d'"' -f4)
-          
-          # Si hay una política con stage incorrecto, eliminarla
-          if echo "$CURRENT_POLICY" | grep -q "/Stage/"; then
-            echo "⚠️ Eliminando política vieja con stage 'Stage'..."
-            aws lambda remove-permission \
-              --function-name ${FUNCTION_NAME} \
-              --statement-id ${STATEMENT_ID} \
-              --region us-east-1 2>/dev/null || true
-            
-            # Forzar recreación en el próximo deploy
-            echo "✅ Política vieja eliminada, los triggers se recrearán automáticamente"
-          else
-            echo "✅ Los triggers ya usan el stage correcto"
-          fi
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-auth"
+      CodeUri: .
+      Handler: src/functions/auth-services/authHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminInitiateAuth
+                - cognito-idp:InitiateAuth
+                - cognito-idp:ForgotPassword
+                - cognito-idp:ConfirmForgotPassword
+                - cognito-idp:GetUser
+              Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}"
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+          AUTH_PROVIDER: !Ref AuthProvider
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          SESSION_TIMEOUT_SECONDS: !Ref SessionTimeoutSeconds
+          AUTH_TOKEN_SECRET: !Ref AuthTokenSecret
+          DB_HOST: !Ref DBHost
+          DB_USER: !Ref DBUser
+          DB_PASSWORD: !Ref DBPassword
+          DB_NAME: !Ref DBName
+          DB_PORT: !Ref DBPort
+          DB_SSL_ENABLED: !Ref DBSslEnabled
+      Events:
+        Login:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/login
+            Method: POST
+        ForgotPassword:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/forgot-password
+            Method: POST
+        ConfirmForgotPassword:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/forgot-password/confirm
+            Method: POST
+        GetCurrentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auth/me
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: auth
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/auth-services/authHandler.mjs
 
-      - name: Final verification
-        run: |
-          echo "🎉 Despliegue completado!"
-          echo ""
-          echo "📋 Endpoints disponibles:"
-          echo "   POST   https://f6lrwole81.execute-api.us-east-1.amazonaws.com/testing/auth/login"
-          echo "   POST   https://f6lrwole81.execute-api.us-east-1.amazonaws.com/testing/auth/forgot-password"
-          echo "   POST   https://f6lrwole81.execute-api.us-east-1.amazonaws.com/testing/auth/forgot-password/confirm"
-          echo "   GET    https://f6lrwole81.execute-api.us-east-1.amazonaws.com/testing/auth/me"
-          echo "   GET    https://f6lrwole81.execute-api.us-east-1.amazonaws.com/testing/camiones"
-          echo "   GET    https://f6lrwole81.execute-api.us-east-1.amazonaws.com/testing/conductores"
-          echo "   GET    https://f6lrwole81.execute-api.us-east-1.amazonaws.com/testing/contratos/vigentes"
-          echo "   POST   https://f6lrwole81.execute-api.us-east-1.amazonaws.com/testing/jornadas"
-          echo "   GET    https://f6lrwole81.execute-api.us-east-1.amazonaws.com/testing/unidades/disponibles"
-          echo ""
-          echo "🔧 Prueba rápida:"
-          echo "   curl -X POST https://f6lrwole81.execute-api.us-east-1.amazonaws.com/testing/auth/login \\"
-          echo "     -H 'Content-Type: application/json' \\"
-          echo "     -d '{\"email\":\"test@test.com\",\"password\":\"123456\"}'"
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name: !Sub "ApplicationInsights-SAM-${AWS::StackName}"
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName: !Ref ApplicationResourceGroup
+      AutoConfigurationEnabled: true
+
+Outputs:
+  ApiEndpoint:
+    Description: "URL del endpoint de API Gateway"
+    Value: !Sub "https://${NanutechApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}"
+  CamionFunctionArn:
+    Description: "ARN de la función Camion"
+    Value: !GetAtt CamionFunction.Arn
+  ConductorFunctionArn:
+    Description: "ARN de la función Conductor"
+    Value: !GetAtt ConductorFunction.Arn
+  ContratoFunctionArn:
+    Description: "ARN de la función Contrato"
+    Value: !GetAtt ContratoFunction.Arn
+  UnidadFunctionArn:
+    Description: "ARN de la función Unidad"
+    Value: !GetAtt UnidadFunction.Arn
+  JornadaFunctionArn:
+    Description: "ARN de la función Jornada"
+    Value: !GetAtt JornadaFunction.Arn
+  AuthFunctionArn:
+    Description: "ARN de la función Auth"
+    Value: !GetAtt AuthFunction.Arn
