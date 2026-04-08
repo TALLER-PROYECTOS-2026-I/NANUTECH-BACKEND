@@ -48,7 +48,7 @@ jobs:
           sam deploy \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --stack-name nanutech-backend-testing \
+            --stack-name nanutech-backend-test \
             --capabilities CAPABILITY_IAM \
             --region us-east-1 \
             --resolve-s3 \
