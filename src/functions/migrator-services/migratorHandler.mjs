@@ -189,7 +189,66 @@ async function cleanDatabase() {
   }
 }
 
-async function runMigrations(shouldClean = true) {
+async function runSeed() {
+  console.log('🌱 ========== INICIANDO SEED DE DATOS ==========');
+  const startTime = Date.now();
+  
+  const dbConfig = getDbConfig();
+  let pool = null;
+  
+  try {
+    pool = new pg.Pool(dbConfig);
+    
+    // Leer archivo seed.sql
+    const seedDir = path.join(process.cwd(), 'db/seed');
+    const seedFile = path.join(seedDir, 'seed.sql');
+    
+    console.log(`📂 Buscando archivo seed en: ${seedFile}`);
+    
+    const content = await readFile(seedFile, 'utf8');
+    console.log(`✅ Archivo seed.sql encontrado (${content.length} bytes)`);
+    
+    // Extraer la sección UP (entre -- migrate:up y -- migrate:down)
+    let seedSQL = '';
+    const upMatch = content.match(/--\s*migrate:up([\s\S]*?)--\s*migrate:down/i);
+    
+    if (upMatch) {
+      seedSQL = upMatch[1].trim();
+      console.log('✅ Sección -- migrate:up encontrada');
+    } else {
+      // Si no encuentra el formato, usa todo el archivo
+      console.log('⚠️ No se encontró sección -- migrate:up, usando archivo completo');
+      seedSQL = content;
+    }
+    
+    if (!seedSQL) {
+      throw new Error('No hay SQL para ejecutar en seed.sql');
+    }
+    
+    console.log(`📝 SQL a ejecutar (${seedSQL.length} bytes)`);
+    console.log('🌱 Insertando datos de prueba...');
+    
+    // Ejecutar seed
+    await pool.query(seedSQL);
+    
+    const duration = Date.now() - startTime;
+    console.log(`✅ Seed completado exitosamente en ${duration / 1000} segundos`);
+    console.log('🌱 ========== SEED FINALIZADO ==========');
+    
+    return { seeded: true, seedTime: duration };
+    
+  } catch (error) {
+    console.error('❌ Error durante seed:', error.message);
+    throw error;
+  } finally {
+    if (pool) {
+      await pool.end();
+      console.log('🔌 Conexión cerrada');
+    }
+  }
+}
+
+async function runMigrations(shouldClean = true, shouldSeed = false) {
   console.log('🔄 Iniciando proceso de migraciones...');
   const startTime = Date.now();
 
@@ -234,7 +293,7 @@ async function runMigrations(shouldClean = true) {
         'SELECT id FROM pgmigrations WHERE name = $1', [file]
       );
       
-      if (rows.length > 0) {
+      if (rows.length > 0 && !shouldClean) {
         console.log(`⏭️  Saltando (ya aplicada): ${file}`);
         skippedCount++;
         continue;
@@ -243,14 +302,13 @@ async function runMigrations(shouldClean = true) {
       console.log(`📦 Aplicando: ${file}`);
       const content = await readFile(path.join(migrationsDir, file), 'utf8');
 
-      // Extraer la sección UP (entre -- migrate:up y -- migrate:down)
+      // Extraer la sección UP
       let upSql = '';
       const upMatch = content.match(/--\s*migrate:up([\s\S]*?)--\s*migrate:down/i);
       
       if (upMatch) {
         upSql = upMatch[1].trim();
       } else {
-        // Intento alternativo para formato simple
         const altMatch = content.match(/--\s*Up([\s\S]*?)(?:--\s*Down|$)/i);
         if (altMatch) {
           upSql = altMatch[1].trim();
@@ -266,7 +324,11 @@ async function runMigrations(shouldClean = true) {
 
       try {
         await pool.query(upSql);
-        await pool.query('INSERT INTO pgmigrations (name) VALUES ($1)', [file]);
+        
+        if (!shouldClean) {
+          await pool.query('INSERT INTO pgmigrations (name) VALUES ($1)', [file]);
+        }
+        
         console.log(`  ✅ ${file} aplicada correctamente`);
         appliedCount++;
       } catch (err) {
@@ -275,16 +337,36 @@ async function runMigrations(shouldClean = true) {
       }
     }
 
+    // Si fue limpieza total, registrar TODAS las migraciones
+    if (shouldClean) {
+      console.log('📝 Registrando todas las migraciones ejecutadas...');
+      for (const file of files) {
+        await pool.query(
+          'INSERT INTO pgmigrations (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', 
+          [file]
+        );
+      }
+    }
+
     const duration = Date.now() - startTime;
     console.log(`✅ Migraciones completadas en ${duration / 1000}s`);
     console.log(`📊 Resumen: ${appliedCount} aplicadas, ${skippedCount} saltadas`);
+    
+    // Ejecutar seed si está habilitado
+    let seedResult = null;
+    if (shouldSeed) {
+      console.log('🌱 Ejecutando seed de datos de prueba...');
+      seedResult = await runSeed();
+    }
     
     return { 
       success: true, 
       message: `Migrations completed in ${duration / 1000}s. Applied: ${appliedCount}, Skipped: ${skippedCount}`,
       cleaned: shouldClean,
+      seeded: shouldSeed,
       applied: appliedCount,
-      skipped: skippedCount
+      skipped: skippedCount,
+      seedResult: seedResult
     };
 
   } catch (error) {
@@ -325,8 +407,10 @@ export const handler = async (event, context) => {
     let result;
     if (shouldMigrate) {
       const shouldClean = event.clean !== false && event.clean !== 'false';
+      const shouldSeed = event.seed === true || event.seed === 'true';
       console.log(`🧹 Limpiar base de datos antes de migrar: ${shouldClean}`);
-      result = await runMigrations(shouldClean);
+      console.log(`🌱 Ejecutar seed después de migrar: ${shouldSeed}`);
+      result = await runMigrations(shouldClean, shouldSeed);
     } else {
       console.log('ℹ️ No se requiere migración (RequestType: Delete)');
       result = { success: true, message: 'No migration needed', skipped: true };
