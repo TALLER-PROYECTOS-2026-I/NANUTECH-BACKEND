@@ -2,10 +2,8 @@ import https from 'https';
 import http from 'http';
 import url from 'url';
 import pg from 'pg';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const migrate = require('node-pg-migrate');
+import { readdir, readFile } from 'fs/promises';
+import path from 'path';
 
 const MIGRATION_TIMEOUT_MS = 360000;
 
@@ -103,7 +101,7 @@ async function cleanDatabase() {
     await client.query('SET session_replication_role = replica;');
     console.log('🔓 Restricciones deshabilitadas temporalmente');
     
-    // 1. Eliminar todas las vistas
+    // Eliminar todas las vistas
     console.log('📋 Eliminando vistas...');
     const views = await client.query(`
       SELECT viewname FROM pg_views WHERE schemaname = 'public'
@@ -118,7 +116,7 @@ async function cleanDatabase() {
       }
     }
     
-    // 2. Eliminar todas las funciones
+    // Eliminar todas las funciones
     console.log('📋 Eliminando funciones...');
     const functions = await client.query(`
       SELECT proname FROM pg_proc WHERE pronamespace = 'public'::regnamespace
@@ -133,13 +131,12 @@ async function cleanDatabase() {
       }
     }
     
-    // 3. Eliminar todas las tablas (en orden inverso para respetar dependencias)
+    // Eliminar todas las tablas (en orden inverso)
     console.log('📋 Eliminando tablas...');
     const tables = await client.query(`
       SELECT tablename FROM pg_tables WHERE schemaname = 'public'
     `);
     
-    // Invertir orden para eliminar hijas primero
     const tableNames = tables.rows.map(r => r.tablename).reverse();
     
     if (tableNames.length === 0) {
@@ -157,7 +154,7 @@ async function cleanDatabase() {
       }
     }
     
-    // 4. Eliminar todos los tipos ENUM
+    // Eliminar todos los tipos ENUM
     console.log('📋 Eliminando tipos ENUM...');
     const enumTypes = await client.query(`
       SELECT typname 
@@ -173,15 +170,6 @@ async function cleanDatabase() {
       } catch (err) {
         console.log(`  ⚠️ Error eliminando tipo ${enumType.typname}: ${err.message}`);
       }
-    }
-    
-    // 5. Eliminar tabla de migraciones
-    console.log('📋 Eliminando tabla de migraciones...');
-    try {
-      await client.query(`DROP TABLE IF EXISTS pgmigrations CASCADE;`);
-      console.log('  ✅ Tabla de migraciones eliminada');
-    } catch (err) {
-      console.log(`  ⚠️ Error eliminando tabla de migraciones: ${err.message}`);
     }
     
     // Re-habilitar restricciones
@@ -206,17 +194,10 @@ async function runMigrations(shouldClean = true) {
   const startTime = Date.now();
 
   const dbConfig = getDbConfig();
-  console.log(`📊 Conectando a: ${dbConfig.host}/${dbConfig.database}`);
-
-  if (!dbConfig.host || !dbConfig.user || !dbConfig.password || !dbConfig.database) {
-    throw new Error('Configuración de base de datos incompleta');
-  }
-
   let pool = null;
 
   try {
     pool = new pg.Pool(dbConfig);
-
     const testClient = await pool.connect();
     console.log('✅ Conexión exitosa a la base de datos');
     testClient.release();
@@ -224,38 +205,95 @@ async function runMigrations(shouldClean = true) {
     if (shouldClean) {
       await cleanDatabase();
       console.log('✅ Base de datos limpiada correctamente');
-    } else {
-      console.log('ℹ️ Omitiendo limpieza de base de datos (shouldClean=false)');
     }
 
-    console.log('📦 Ejecutando migraciones...');
-    
-    await migrate({
-      dbClient: pool,
-      direction: 'up',
-      migrationsTable: 'pgmigrations',
-      dir: 'db/migrations',
-      count: Infinity,
-      verbose: true,
-      createMigrationsSchema: true,
-    });
+    // Crear tabla de control de migraciones
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pgmigrations (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        run_on TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Leer archivos SQL ordenados
+    const migrationsDir = path.join(process.cwd(), 'db/migrations');
+    const files = (await readdir(migrationsDir))
+      .filter(f => f.endsWith('.sql'))
+      .sort();
+
+    console.log(`📋 Archivos de migración encontrados: ${files.length}`);
+    files.forEach(f => console.log(`   - ${f}`));
+
+    let appliedCount = 0;
+    let skippedCount = 0;
+
+    for (const file of files) {
+      // Verificar si ya fue aplicada
+      const { rows } = await pool.query(
+        'SELECT id FROM pgmigrations WHERE name = $1', [file]
+      );
+      
+      if (rows.length > 0) {
+        console.log(`⏭️  Saltando (ya aplicada): ${file}`);
+        skippedCount++;
+        continue;
+      }
+
+      console.log(`📦 Aplicando: ${file}`);
+      const content = await readFile(path.join(migrationsDir, file), 'utf8');
+
+      // Extraer la sección UP (entre -- migrate:up y -- migrate:down)
+      let upSql = '';
+      const upMatch = content.match(/--\s*migrate:up([\s\S]*?)--\s*migrate:down/i);
+      
+      if (upMatch) {
+        upSql = upMatch[1].trim();
+      } else {
+        // Intento alternativo para formato simple
+        const altMatch = content.match(/--\s*Up([\s\S]*?)(?:--\s*Down|$)/i);
+        if (altMatch) {
+          upSql = altMatch[1].trim();
+        } else {
+          throw new Error(`No se encontró sección '-- migrate:up' en ${file}`);
+        }
+      }
+
+      if (!upSql) {
+        console.log(`  ⚠️ Advertencia: No hay SQL en ${file}, saltando`);
+        continue;
+      }
+
+      try {
+        await pool.query(upSql);
+        await pool.query('INSERT INTO pgmigrations (name) VALUES ($1)', [file]);
+        console.log(`  ✅ ${file} aplicada correctamente`);
+        appliedCount++;
+      } catch (err) {
+        console.error(`  ❌ Error aplicando ${file}: ${err.message}`);
+        throw err;
+      }
+    }
 
     const duration = Date.now() - startTime;
-    console.log(`✅ Migraciones completadas exitosamente en ${duration / 1000} segundos`);
+    console.log(`✅ Migraciones completadas en ${duration / 1000}s`);
+    console.log(`📊 Resumen: ${appliedCount} aplicadas, ${skippedCount} saltadas`);
+    
     return { 
       success: true, 
-      message: `Migrations completed in ${duration / 1000}s`,
-      cleaned: shouldClean
+      message: `Migrations completed in ${duration / 1000}s. Applied: ${appliedCount}, Skipped: ${skippedCount}`,
+      cleaned: shouldClean,
+      applied: appliedCount,
+      skipped: skippedCount
     };
 
   } catch (error) {
-    const duration = Date.now() - startTime;
-    console.error(`❌ Error después de ${duration / 1000}s:`, error.message);
+    console.error(`❌ Error:`, error.message);
     throw error;
   } finally {
     if (pool) {
       await pool.end();
-      console.log('🔌 Conexión a base de datos cerrada');
+      console.log('🔌 Conexión cerrada');
     }
   }
 }
