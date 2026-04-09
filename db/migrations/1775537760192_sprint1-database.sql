@@ -53,7 +53,7 @@ END $$;
 -- 3. TABLAS
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS usuarios (
+CREATE TABLE usuarios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cognito_sub VARCHAR(100) UNIQUE,
     correo VARCHAR(120) NOT NULL UNIQUE,
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS unidades (
+CREATE TABLE unidades (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     placa VARCHAR(20) NOT NULL UNIQUE,
     marca VARCHAR(50),
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS unidades (
     CONSTRAINT chk_unidades_capacidad CHECK (capacidad_ton IS NULL OR capacidad_ton >= 0)
 );
 
-CREATE TABLE IF NOT EXISTS contratos (
+CREATE TABLE contratos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     codigo VARCHAR(30) NOT NULL UNIQUE,
     cliente VARCHAR(120) NOT NULL,
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS contratos (
     CONSTRAINT chk_contratos_tarifa CHECK (tarifa IS NULL OR tarifa >= 0)
 );
 
-CREATE TABLE IF NOT EXISTS jornadas (
+CREATE TABLE jornadas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     conductor_id UUID NOT NULL,
     unidad_id UUID NOT NULL,
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS jornadas (
     CONSTRAINT chk_jornadas_km CHECK (km_recorridos >= 0)
 );
 
-CREATE TABLE IF NOT EXISTS alertas_jornada (
+CREATE TABLE alertas_jornada (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     jornada_id UUID NOT NULL,
     tipo tipo_alerta NOT NULL,
@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS alertas_jornada (
     )
 );
 
-CREATE TABLE IF NOT EXISTS ubicaciones_jornada (
+CREATE TABLE ubicaciones_jornada (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     jornada_id UUID NOT NULL,
     latitud NUMERIC(10,7) NOT NULL,
@@ -166,29 +166,29 @@ CREATE TABLE IF NOT EXISTS ubicaciones_jornada (
 -- 4. ÍNDICES
 -- ============================================
 
-CREATE INDEX IF NOT EXISTS idx_usuarios_rol ON usuarios(rol);
-CREATE INDEX IF NOT EXISTS idx_usuarios_estado ON usuarios(estado);
-CREATE INDEX IF NOT EXISTS idx_unidades_estado ON unidades(estado);
-CREATE INDEX IF NOT EXISTS idx_contratos_estado ON contratos(estado);
-CREATE INDEX IF NOT EXISTS idx_jornadas_fecha ON jornadas(fecha_jornada);
-CREATE INDEX IF NOT EXISTS idx_jornadas_estado ON jornadas(estado);
-CREATE INDEX IF NOT EXISTS idx_jornadas_conductor ON jornadas(conductor_id);
-CREATE INDEX IF NOT EXISTS idx_jornadas_unidad ON jornadas(unidad_id);
-CREATE INDEX IF NOT EXISTS idx_jornadas_contrato ON jornadas(contrato_id);
-CREATE INDEX IF NOT EXISTS idx_alertas_jornada ON alertas_jornada(jornada_id);
-CREATE INDEX IF NOT EXISTS idx_alertas_tipo ON alertas_jornada(tipo);
-CREATE INDEX IF NOT EXISTS idx_alertas_fecha_hora ON alertas_jornada(fecha_hora);
-CREATE INDEX IF NOT EXISTS idx_ubicaciones_jornada ON ubicaciones_jornada(jornada_id);
-CREATE INDEX IF NOT EXISTS idx_ubicaciones_fecha_hora ON ubicaciones_jornada(fecha_hora);
+CREATE INDEX idx_usuarios_rol ON usuarios(rol);
+CREATE INDEX idx_usuarios_estado ON usuarios(estado);
+CREATE INDEX idx_unidades_estado ON unidades(estado);
+CREATE INDEX idx_contratos_estado ON contratos(estado);
+CREATE INDEX idx_jornadas_fecha ON jornadas(fecha_jornada);
+CREATE INDEX idx_jornadas_estado ON jornadas(estado);
+CREATE INDEX idx_jornadas_conductor ON jornadas(conductor_id);
+CREATE INDEX idx_jornadas_unidad ON jornadas(unidad_id);
+CREATE INDEX idx_jornadas_contrato ON jornadas(contrato_id);
+CREATE INDEX idx_alertas_jornada ON alertas_jornada(jornada_id);
+CREATE INDEX idx_alertas_tipo ON alertas_jornada(tipo);
+CREATE INDEX idx_alertas_fecha_hora ON alertas_jornada(fecha_hora);
+CREATE INDEX idx_ubicaciones_jornada ON ubicaciones_jornada(jornada_id);
+CREATE INDEX idx_ubicaciones_fecha_hora ON ubicaciones_jornada(fecha_hora);
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_jornada_activa_unidad ON jornadas (unidad_id)
+CREATE UNIQUE INDEX uq_jornada_activa_unidad ON jornadas (unidad_id)
     WHERE estado IN ('REGISTRADA', 'EN_PROCESO');
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_jornada_activa_chofer ON jornadas (conductor_id)
+CREATE UNIQUE INDEX uq_jornada_activa_chofer ON jornadas (conductor_id)
     WHERE estado IN ('REGISTRADA', 'EN_PROCESO');
 
 -- ============================================
--- 5. TRIGGERS
+-- 5. FUNCIONES Y TRIGGERS
 -- ============================================
 
 CREATE OR REPLACE FUNCTION fn_set_updated_at()
@@ -199,33 +199,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DO $$ BEGIN
-    CREATE TRIGGER tg_usuarios_updated_at
-        BEFORE UPDATE ON usuarios
-        FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+CREATE TRIGGER tg_usuarios_updated_at
+    BEFORE UPDATE ON usuarios
+    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 
-DO $$ BEGIN
-    CREATE TRIGGER tg_unidades_updated_at
-        BEFORE UPDATE ON unidades
-        FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+CREATE TRIGGER tg_unidades_updated_at
+    BEFORE UPDATE ON unidades
+    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 
-DO $$ BEGIN
-    CREATE TRIGGER tg_contratos_updated_at
-        BEFORE UPDATE ON contratos
-        FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+CREATE TRIGGER tg_contratos_updated_at
+    BEFORE UPDATE ON contratos
+    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 
-DO $$ BEGIN
-    CREATE TRIGGER tg_jornadas_updated_at
-        BEFORE UPDATE ON jornadas
-        FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+CREATE TRIGGER tg_jornadas_updated_at
+    BEFORE UPDATE ON jornadas
+    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 
 -- ============================================
 -- 6. VISTAS
@@ -270,42 +258,42 @@ ORDER BY j.fecha_jornada DESC, j.created_at DESC;
 -- migrate:down
 -- ============================================
 
-DROP VIEW IF EXISTS vw_seguimiento_jornadas;
+DROP VIEW IF EXISTS vw_seguimiento_jornadas CASCADE;
 
-DROP TRIGGER IF EXISTS tg_jornadas_updated_at ON jornadas;
-DROP TRIGGER IF EXISTS tg_contratos_updated_at ON contratos;
-DROP TRIGGER IF EXISTS tg_unidades_updated_at ON unidades;
-DROP TRIGGER IF EXISTS tg_usuarios_updated_at ON usuarios;
-DROP FUNCTION IF EXISTS fn_set_updated_at;
+DROP TRIGGER IF EXISTS tg_jornadas_updated_at ON jornadas CASCADE;
+DROP TRIGGER IF EXISTS tg_contratos_updated_at ON contratos CASCADE;
+DROP TRIGGER IF EXISTS tg_unidades_updated_at ON unidades CASCADE;
+DROP TRIGGER IF EXISTS tg_usuarios_updated_at ON usuarios CASCADE;
+DROP FUNCTION IF EXISTS fn_set_updated_at CASCADE;
 
-DROP INDEX IF EXISTS uq_jornada_activa_chofer;
-DROP INDEX IF EXISTS uq_jornada_activa_unidad;
-DROP INDEX IF EXISTS idx_ubicaciones_fecha_hora;
-DROP INDEX IF EXISTS idx_ubicaciones_jornada;
-DROP INDEX IF EXISTS idx_alertas_fecha_hora;
-DROP INDEX IF EXISTS idx_alertas_tipo;
-DROP INDEX IF EXISTS idx_alertas_jornada;
-DROP INDEX IF EXISTS idx_jornadas_contrato;
-DROP INDEX IF EXISTS idx_jornadas_unidad;
-DROP INDEX IF EXISTS idx_jornadas_conductor;
-DROP INDEX IF EXISTS idx_jornadas_estado;
-DROP INDEX IF EXISTS idx_jornadas_fecha;
-DROP INDEX IF EXISTS idx_contratos_estado;
-DROP INDEX IF EXISTS idx_unidades_estado;
-DROP INDEX IF EXISTS idx_usuarios_estado;
-DROP INDEX IF EXISTS idx_usuarios_rol;
+DROP INDEX IF EXISTS uq_jornada_activa_chofer CASCADE;
+DROP INDEX IF EXISTS uq_jornada_activa_unidad CASCADE;
+DROP INDEX IF EXISTS idx_ubicaciones_fecha_hora CASCADE;
+DROP INDEX IF EXISTS idx_ubicaciones_jornada CASCADE;
+DROP INDEX IF EXISTS idx_alertas_fecha_hora CASCADE;
+DROP INDEX IF EXISTS idx_alertas_tipo CASCADE;
+DROP INDEX IF EXISTS idx_alertas_jornada CASCADE;
+DROP INDEX IF EXISTS idx_jornadas_contrato CASCADE;
+DROP INDEX IF EXISTS idx_jornadas_unidad CASCADE;
+DROP INDEX IF EXISTS idx_jornadas_conductor CASCADE;
+DROP INDEX IF EXISTS idx_jornadas_estado CASCADE;
+DROP INDEX IF EXISTS idx_jornadas_fecha CASCADE;
+DROP INDEX IF EXISTS idx_contratos_estado CASCADE;
+DROP INDEX IF EXISTS idx_unidades_estado CASCADE;
+DROP INDEX IF EXISTS idx_usuarios_estado CASCADE;
+DROP INDEX IF EXISTS idx_usuarios_rol CASCADE;
 
-DROP TABLE IF EXISTS ubicaciones_jornada;
-DROP TABLE IF EXISTS alertas_jornada;
-DROP TABLE IF EXISTS jornadas;
-DROP TABLE IF EXISTS contratos;
-DROP TABLE IF EXISTS unidades;
-DROP TABLE IF EXISTS usuarios;
+DROP TABLE IF EXISTS ubicaciones_jornada CASCADE;
+DROP TABLE IF EXISTS alertas_jornada CASCADE;
+DROP TABLE IF EXISTS jornadas CASCADE;
+DROP TABLE IF EXISTS contratos CASCADE;
+DROP TABLE IF EXISTS unidades CASCADE;
+DROP TABLE IF EXISTS usuarios CASCADE;
 
-DROP TYPE IF EXISTS tipo_registro_ubicacion;
-DROP TYPE IF EXISTS tipo_alerta;
-DROP TYPE IF EXISTS estado_jornada;
-DROP TYPE IF EXISTS estado_contrato;
-DROP TYPE IF EXISTS estado_unidad;
-DROP TYPE IF EXISTS estado_usuario;
-DROP TYPE IF EXISTS rol_usuario;
+DROP TYPE IF EXISTS tipo_registro_ubicacion CASCADE;
+DROP TYPE IF EXISTS tipo_alerta CASCADE;
+DROP TYPE IF EXISTS estado_jornada CASCADE;
+DROP TYPE IF EXISTS estado_contrato CASCADE;
+DROP TYPE IF EXISTS estado_unidad CASCADE;
+DROP TYPE IF EXISTS estado_usuario CASCADE;
+DROP TYPE IF EXISTS rol_usuario CASCADE;
