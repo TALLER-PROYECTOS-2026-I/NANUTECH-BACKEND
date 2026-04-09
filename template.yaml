@@ -103,7 +103,56 @@ Resources:
       Tags:
         Environment: !Ref StageName
         Proyecto: Nanutech-Backend
-
+        
+  JornadaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-jornadas"
+      CodeUri: .
+      Handler: src/functions/jornada-services/jornadaHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        Create:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas
+            Method: POST
+        GetCurrent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/actual/{conductorId}
+            Method: GET
+        StartTurn:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/iniciar
+            Method: POST
+        FinishTurn:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/finalizar
+            Method: POST
+      Tags:
+        Environment: !Ref StageName
+        Servicio: jornada
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/jornada-services/jornadaHandler.mjs
+ 
   CamionFunction:
     Type: AWS::Serverless::Function
     Properties:
