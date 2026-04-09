@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: API para gestión de camiones - Nanutech Backend
-
+ # Nombre del stage (dev, test, prod) que se usará para desplegar la API
 Transform:
   - AWS::Serverless-2016-10-31
 
