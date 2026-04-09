@@ -73,7 +73,7 @@ jobs:
           echo "⏳ Esperando 30 segundos para que el stack esté completamente listo..."
           sleep 30
 
-      - name: Run migrations with cascade cleanup (DELETE ALL DATA)
+      - name: Run migrations with cascade cleanup AND seed data
         run: |
           echo "========================================="
           echo "📦 EJECUTANDO MIGRACIONES CON LIMPIEZA TOTAL"
@@ -90,12 +90,13 @@ jobs:
           echo "🕐 Iniciando migraciones: ${TIMESTAMP}"
           
           echo "🧹 Limpieza en cascada habilitada - Eliminando todas las tablas y datos..."
+          echo "🌱 Después de las migraciones se insertarán datos de prueba"
           
           timeout 360 aws lambda invoke \
             --function-name testing-migrator \
             --region us-east-1 \
             --cli-binary-format raw-in-base64-out \
-            --payload '{"action": "migrate", "clean": true}' \
+            --payload '{"action": "migrate", "clean": true, "seed": true}' \
             migration-response.json
           
           EXIT_CODE=$?
@@ -139,14 +140,20 @@ jobs:
           if grep -q '"success":true' migration-response.json; then
             MESSAGE=$(grep -o '"message":"[^"]*"' migration-response.json | cut -d'"' -f4)
             CLEANED=$(grep -o '"cleaned":[^,}]*' migration-response.json | cut -d':' -f2)
+            SEEDED=$(grep -o '"seeded":[^,}]*' migration-response.json | cut -d':' -f2)
             
             echo "✅ Migraciones completadas exitosamente"
             echo "📊 Mensaje: ${MESSAGE}"
             echo "🧹 Limpieza realizada: ${CLEANED}"
+            echo "🌱 Seed realizado: ${SEEDED}"
             
             if [ "$CLEANED" = "true" ]; then
               echo "🗑️  TODOS los datos anteriores fueron eliminados"
               echo "✨ Base de datos completamente limpia y recreada"
+            fi
+            
+            if [ "$SEEDED" = "true" ]; then
+              echo "🌱 Datos de prueba insertados correctamente"
             fi
           fi
           
@@ -194,11 +201,16 @@ jobs:
           echo "   ✅ Las migraciones se ejecutaron con LIMPIEZA TOTAL (clean: true)"
           echo "   ✅ Todas las tablas fueron ELIMINADAS y RECREADAS desde cero"
           echo "   ✅ Los datos anteriores fueron ELIMINADOS permanentemente"
-          echo "   ✅ La base de datos está en un estado completamente limpio"
+          echo "   ✅ Se insertaron DATOS DE PRUEBA (seed)"
+          echo "   ✅ La base de datos está lista para pruebas"
           echo ""
           echo "🧪 Para probar la API:"
           echo "   curl ${API_URL}/camiones"
           echo "   curl ${API_URL}/conductores"
           echo "   curl ${API_URL}/contratos/vigentes"
           echo "   curl ${API_URL}/unidades/disponibles"
+          echo ""
+          echo "🔐 Credenciales de prueba:"
+          echo "   Admin: admin@nanutech.com"
+          echo "   Chofer: chofer1@nanutech.com"
           echo "========================================="
