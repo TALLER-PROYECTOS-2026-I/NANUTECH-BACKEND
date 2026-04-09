@@ -1,360 +1,299 @@
-import https from 'https';
-import http from 'http';
-import url from 'url';
-import pg from 'pg';
-import pgMigrate from 'node-pg-migrate';
+-- ============================================
+-- MIGRACIÓN INICIAL - NANUTECH BACKEND
+-- ============================================
 
-// Timeout de 6 minutos
-const MIGRATION_TIMEOUT_MS = 360000;
+-- migrate:up
 
-function getDbConfig() {
-  const config = {
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT || '5432'),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-  };
+-- ============================================
+-- 1. EXTENSIONES
+-- ============================================
 
-  const explicitSsl = process.env.DB_SSL_ENABLED?.toLowerCase();
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-  if (explicitSsl === 'true') {
-    config.ssl = {
-      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED?.toLowerCase() === 'true'
-    };
-    console.log('🔒 SSL habilitado para migrador');
-  } else if (explicitSsl === 'false') {
-    console.log('🔓 SSL deshabilitado para migrador');
-  } else {
-    config.ssl = { rejectUnauthorized: false };
-    console.log('🔒 SSL habilitado por defecto (modo flexible)');
-  }
+-- ============================================
+-- 2. TIPOS ENUM
+-- ============================================
 
-  return config;
-}
+DO $$ BEGIN
+    CREATE TYPE rol_usuario AS ENUM ('ADMIN', 'CHOFER');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-async function sendCloudFormationResponse(event, context, status, reason, data) {
-  const responseUrl = event.ResponseURL;
+DO $$ BEGIN
+    CREATE TYPE estado_usuario AS ENUM ('ACTIVO', 'INACTIVO', 'BLOQUEADO');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-  if (!responseUrl) {
-    console.log('⚠️ No ResponseURL encontrada');
-    return;
-  }
+DO $$ BEGIN
+    CREATE TYPE estado_unidad AS ENUM ('DISPONIBLE', 'EN_JORNADA', 'EN_AUXILIO', 'INACTIVA');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-  const responseBody = JSON.stringify({
-    Status: status,
-    Reason: reason || `Ver detalles en CloudWatch Logs: ${context.logGroupName}`,
-    PhysicalResourceId: context.logStreamName,
-    StackId: event.StackId,
-    RequestId: event.RequestId,
-    LogicalResourceId: event.LogicalResourceId,
-    Data: data || { success: status === 'SUCCESS' }
-  });
+DO $$ BEGIN
+    CREATE TYPE estado_contrato AS ENUM ('VIGENTE', 'VENCIDO', 'SUSPENDIDO');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-  console.log(`📤 Enviando respuesta a CloudFormation: ${status}`);
+DO $$ BEGIN
+    CREATE TYPE estado_jornada AS ENUM ('REGISTRADA', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-  const parsedUrl = url.parse(responseUrl);
-  const options = {
-    hostname: parsedUrl.hostname,
-    path: parsedUrl.path,
-    method: 'PUT',
-    timeout: 10000,
-    headers: {
-      'Content-Type': '',
-      'Content-Length': Buffer.byteLength(responseBody)
-    }
-  };
+DO $$ BEGIN
+    CREATE TYPE tipo_alerta AS ENUM ('PANICO', 'AUXILIO_MECANICO');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-  return new Promise((resolve, reject) => {
-    const protocol = parsedUrl.protocol === 'https:' ? https : http;
-    const req = protocol.request(options, (res) => {
-      console.log(`✅ Respuesta enviada, statusCode: ${res.statusCode}`);
-      resolve();
-    });
+DO $$ BEGIN
+    CREATE TYPE tipo_registro_ubicacion AS ENUM ('INICIO', 'FIN', 'ALERTA', 'TRACKING');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-    req.on('error', (error) => {
-      console.error('❌ Error:', error);
-      reject(error);
-    });
+-- ============================================
+-- 3. TABLAS
+-- ============================================
 
-    req.write(responseBody);
-    req.end();
-  });
-}
+CREATE TABLE usuarios (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cognito_sub VARCHAR(100) UNIQUE,
+    correo VARCHAR(120) NOT NULL UNIQUE,
+    nombres VARCHAR(80) NOT NULL,
+    apellidos VARCHAR(80) NOT NULL,
+    rol rol_usuario NOT NULL,
+    telefono VARCHAR(20),
+    dni VARCHAR(15) UNIQUE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    estado estado_usuario NOT NULL DEFAULT 'ACTIVO',
+    ultimo_acceso TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
 
-/**
- * Limpia completamente la base de datos eliminando todas las tablas,
- * tipos ENUM, funciones y triggers en el orden correcto
- */
-async function cleanDatabase() {
-  console.log('🧹 Iniciando limpieza completa de la base de datos...');
-  const startTime = Date.now();
-  
-  const dbConfig = getDbConfig();
-  let pool = null;
-  let client = null;
-  
-  try {
-    pool = new pg.Pool(dbConfig);
-    client = await pool.connect();
-    
-    console.log('📡 Conexión establecida para limpieza');
-    
-    // Deshabilitar temporalmente las restricciones para evitar errores de dependencias circulares
-    await client.query('SET session_replication_role = replica;');
-    console.log('🔓 Restricciones deshabilitadas temporalmente');
-    
-    // 1. Eliminar vistas
-    const viewsQuery = `
-      SELECT tablename 
-      FROM pg_views 
-      WHERE schemaname = 'public';
-    `;
-    const { rows: views } = await client.query(viewsQuery);
-    
-    for (const view of views) {
-      try {
-        await client.query(`DROP VIEW IF EXISTS ${view.tablename} CASCADE;`);
-        console.log(`✅ Vista eliminada: ${view.tablename}`);
-      } catch (err) {
-        console.log(`⚠️ Error eliminando vista ${view.tablename}: ${err.message}`);
-      }
-    }
-    
-    // 2. Eliminar triggers
-    const triggersQuery = `
-      SELECT trigger_name, event_object_table 
-      FROM information_schema.triggers 
-      WHERE trigger_schema = 'public';
-    `;
-    const { rows: triggers } = await client.query(triggersQuery);
-    
-    for (const trigger of triggers) {
-      try {
-        await client.query(`DROP TRIGGER IF EXISTS ${trigger.trigger_name} ON ${trigger.event_object_table} CASCADE;`);
-        console.log(`✅ Trigger eliminado: ${trigger.trigger_name}`);
-      } catch (err) {
-        console.log(`⚠️ Error eliminando trigger ${trigger.trigger_name}: ${err.message}`);
-      }
-    }
-    
-    // 3. Eliminar funciones
-    const functionsQuery = `
-      SELECT proname, oid 
-      FROM pg_proc 
-      WHERE pronamespace = 'public'::regnamespace 
-      AND proname NOT IN ('fn_set_updated_at');
-    `;
-    const { rows: functions } = await client.query(functionsQuery);
-    
-    for (const func of functions) {
-      try {
-        await client.query(`DROP FUNCTION IF EXISTS ${func.proname} CASCADE;`);
-        console.log(`✅ Función eliminada: ${func.proname}`);
-      } catch (err) {
-        console.log(`⚠️ Error eliminando función ${func.proname}: ${err.message}`);
-      }
-    }
-    
-    // 4. Eliminar todas las tablas del esquema public en orden inverso (hijas primero)
-    const tablesQuery = `
-      SELECT tablename 
-      FROM pg_tables 
-      WHERE schemaname = 'public' 
-      ORDER BY tablename DESC;
-    `;
-    
-    const { rows: tables } = await client.query(tablesQuery);
-    
-    if (tables.length === 0) {
-      console.log('ℹ️ No se encontraron tablas para limpiar');
-    } else {
-      console.log(`📋 Tablas a eliminar (${tables.length}): ${tables.map(r => r.tablename).join(', ')}`);
-      
-      // Eliminar cada tabla con CASCADE
-      for (const table of tables) {
-        const tableName = table.tablename;
-        try {
-          await client.query(`DROP TABLE IF EXISTS ${tableName} CASCADE;`);
-          console.log(`✅ Tabla eliminada: ${tableName}`);
-        } catch (err) {
-          console.log(`⚠️ Error eliminando ${tableName}: ${err.message}`);
-        }
-      }
-    }
-    
-    // 5. Eliminar tipos ENUM
-    const enumTypesQuery = `
-      SELECT typname 
-      FROM pg_type 
-      WHERE typcategory = 'E' 
-      AND typnamespace = 'public'::regnamespace;
-    `;
-    
-    const { rows: enumTypes } = await client.query(enumTypesQuery);
-    
-    for (const enumType of enumTypes) {
-      const typeName = enumType.typname;
-      try {
-        await client.query(`DROP TYPE IF EXISTS ${typeName} CASCADE;`);
-        console.log(`✅ Tipo ENUM eliminado: ${typeName}`);
-      } catch (err) {
-        console.log(`⚠️ Error eliminando tipo ${typeName}: ${err.message}`);
-      }
-    }
-    
-    // 6. Limpiar la tabla de migraciones si existe
-    try {
-      await client.query(`DROP TABLE IF EXISTS pgmigrations CASCADE;`);
-      console.log('✅ Tabla de migraciones eliminada');
-    } catch (err) {
-      console.log(`⚠️ Error eliminando tabla de migraciones: ${err.message}`);
-    }
-    
-    // Re-habilitar restricciones
-    await client.query('SET session_replication_role = origin;');
-    console.log('🔒 Restricciones re-habilitadas');
-    
-    const duration = Date.now() - startTime;
-    console.log(`✅ Limpieza completada exitosamente en ${duration / 1000} segundos`);
-    
-  } catch (error) {
-    console.error('❌ Error durante limpieza:', error);
-    throw error;
-  } finally {
-    if (client) client.release();
-    if (pool) await pool.end();
-  }
-}
+CREATE TABLE unidades (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    placa VARCHAR(20) NOT NULL UNIQUE,
+    marca VARCHAR(50),
+    modelo VARCHAR(50),
+    anio INTEGER,
+    capacidad_ton NUMERIC(10,2),
+    estado estado_unidad NOT NULL DEFAULT 'DISPONIBLE',
+    gps_habilitado BOOLEAN NOT NULL DEFAULT TRUE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_unidades_anio CHECK (anio IS NULL OR anio BETWEEN 1990 AND 2100),
+    CONSTRAINT chk_unidades_capacidad CHECK (capacidad_ton IS NULL OR capacidad_ton >= 0)
+);
 
-async function runMigrations(shouldClean = true) {
-  console.log('🔄 Iniciando proceso de migraciones...');
-  const startTime = Date.now();
+CREATE TABLE contratos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo VARCHAR(30) NOT NULL UNIQUE,
+    cliente VARCHAR(120) NOT NULL,
+    descripcion TEXT,
+    fecha_inicio DATE NOT NULL,
+    fecha_fin DATE,
+    tarifa NUMERIC(12,2),
+    moneda VARCHAR(10) DEFAULT 'PEN',
+    estado estado_contrato NOT NULL DEFAULT 'VIGENTE',
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_contratos_fechas CHECK (fecha_fin IS NULL OR fecha_fin >= fecha_inicio),
+    CONSTRAINT chk_contratos_tarifa CHECK (tarifa IS NULL OR tarifa >= 0)
+);
 
-  const dbConfig = getDbConfig();
-  console.log(`📊 Conectando a: ${dbConfig.host}/${dbConfig.database}`);
+CREATE TABLE jornadas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conductor_id UUID NOT NULL,
+    unidad_id UUID NOT NULL,
+    contrato_id UUID NOT NULL,
+    creado_por UUID NOT NULL,
+    fecha_jornada DATE NOT NULL DEFAULT CURRENT_DATE,
+    hora_inicio TIMESTAMP NULL,
+    hora_fin TIMESTAMP NULL,
+    origen VARCHAR(150),
+    destino VARCHAR(150),
+    km_recorridos NUMERIC(10,2) NOT NULL DEFAULT 0,
+    observaciones TEXT,
+    estado estado_jornada NOT NULL DEFAULT 'REGISTRADA',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_jornadas_conductor FOREIGN KEY (conductor_id) REFERENCES usuarios(id),
+    CONSTRAINT fk_jornadas_unidad FOREIGN KEY (unidad_id) REFERENCES unidades(id),
+    CONSTRAINT fk_jornadas_contrato FOREIGN KEY (contrato_id) REFERENCES contratos(id),
+    CONSTRAINT fk_jornadas_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id),
+    CONSTRAINT chk_jornadas_horas CHECK (hora_fin IS NULL OR hora_inicio IS NULL OR hora_fin >= hora_inicio),
+    CONSTRAINT chk_jornadas_km CHECK (km_recorridos >= 0)
+);
 
-  if (!dbConfig.host || !dbConfig.user || !dbConfig.password || !dbConfig.database) {
-    throw new Error('Configuración de base de datos incompleta');
-  }
+CREATE TABLE alertas_jornada (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    jornada_id UUID NOT NULL,
+    tipo tipo_alerta NOT NULL,
+    detalle TEXT,
+    latitud NUMERIC(10,7) NOT NULL,
+    longitud NUMERIC(10,7) NOT NULL,
+    fecha_hora TIMESTAMP NOT NULL DEFAULT NOW(),
+    atendida BOOLEAN NOT NULL DEFAULT FALSE,
+    atendida_por UUID NULL,
+    atendida_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_alertas_jornada FOREIGN KEY (jornada_id) REFERENCES jornadas(id) ON DELETE CASCADE,
+    CONSTRAINT fk_alertas_atendida_por FOREIGN KEY (atendida_por) REFERENCES usuarios(id),
+    CONSTRAINT chk_alertas_latitud CHECK (latitud BETWEEN -90 AND 90),
+    CONSTRAINT chk_alertas_longitud CHECK (longitud BETWEEN -180 AND 180),
+    CONSTRAINT chk_alertas_atencion CHECK (
+        (atendida = FALSE) OR (atendida = TRUE AND atendida_at IS NOT NULL)
+    )
+);
 
-  let pool = null;
+CREATE TABLE ubicaciones_jornada (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    jornada_id UUID NOT NULL,
+    latitud NUMERIC(10,7) NOT NULL,
+    longitud NUMERIC(10,7) NOT NULL,
+    fecha_hora TIMESTAMP NOT NULL DEFAULT NOW(),
+    tipo_registro tipo_registro_ubicacion NOT NULL,
+    velocidad_kmh NUMERIC(8,2),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_ubicaciones_jornada FOREIGN KEY (jornada_id) REFERENCES jornadas(id) ON DELETE CASCADE,
+    CONSTRAINT chk_ubicaciones_latitud CHECK (latitud BETWEEN -90 AND 90),
+    CONSTRAINT chk_ubicaciones_longitud CHECK (longitud BETWEEN -180 AND 180),
+    CONSTRAINT chk_ubicaciones_velocidad CHECK (velocidad_kmh IS NULL OR velocidad_kmh >= 0)
+);
 
-  try {
-    pool = new pg.Pool(dbConfig);
+-- ============================================
+-- 4. ÍNDICES
+-- ============================================
 
-    const testClient = await pool.connect();
-    console.log('✅ Conexión exitosa a la base de datos');
-    testClient.release();
+CREATE INDEX idx_usuarios_rol ON usuarios(rol);
+CREATE INDEX idx_usuarios_estado ON usuarios(estado);
+CREATE INDEX idx_unidades_estado ON unidades(estado);
+CREATE INDEX idx_contratos_estado ON contratos(estado);
+CREATE INDEX idx_jornadas_fecha ON jornadas(fecha_jornada);
+CREATE INDEX idx_jornadas_estado ON jornadas(estado);
+CREATE INDEX idx_jornadas_conductor ON jornadas(conductor_id);
+CREATE INDEX idx_jornadas_unidad ON jornadas(unidad_id);
+CREATE INDEX idx_jornadas_contrato ON jornadas(contrato_id);
+CREATE INDEX idx_alertas_jornada ON alertas_jornada(jornada_id);
+CREATE INDEX idx_alertas_tipo ON alertas_jornada(tipo);
+CREATE INDEX idx_alertas_fecha_hora ON alertas_jornada(fecha_hora);
+CREATE INDEX idx_ubicaciones_jornada ON ubicaciones_jornada(jornada_id);
+CREATE INDEX idx_ubicaciones_fecha_hora ON ubicaciones_jornada(fecha_hora);
 
-    // Limpiar la base de datos antes de migrar si está habilitado
-    if (shouldClean) {
-      await cleanDatabase();
-      console.log('✅ Base de datos limpiada correctamente');
-    } else {
-      console.log('ℹ️ Omitiendo limpieza de base de datos (shouldClean=false)');
-    }
+CREATE UNIQUE INDEX uq_jornada_activa_unidad ON jornadas (unidad_id)
+    WHERE estado IN ('REGISTRADA', 'EN_PROCESO');
 
-    // Ejecutar migraciones
-    console.log('📦 Ejecutando migraciones...');
-    const runner = pgMigrate.default || pgMigrate;
+CREATE UNIQUE INDEX uq_jornada_activa_chofer ON jornadas (conductor_id)
+    WHERE estado IN ('REGISTRADA', 'EN_PROCESO');
 
-    await runner({
-      dbClient: pool,
-      direction: 'up',
-      migrationsTable: 'pgmigrations',
-      dir: 'db/migrations',
-      count: Infinity,
-      verbose: true,
-      createMigrationsSchema: true,
-    });
+-- ============================================
+-- 5. FUNCIONES Y TRIGGERS
+-- ============================================
 
-    const duration = Date.now() - startTime;
-    console.log(`✅ Migraciones completadas exitosamente en ${duration / 1000} segundos`);
-    return { 
-      success: true, 
-      message: `Migrations completed in ${duration / 1000}s`,
-      cleaned: shouldClean
-    };
+CREATE OR REPLACE FUNCTION fn_set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    console.error(`❌ Error después de ${duration / 1000}s:`, error.message);
-    throw error;
-  } finally {
-    if (pool) {
-      await pool.end();
-      console.log('🔌 Conexión a base de datos cerrada');
-    }
-  }
-}
+CREATE TRIGGER tg_usuarios_updated_at
+    BEFORE UPDATE ON usuarios
+    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 
-export const handler = async (event, context) => {
-  console.log('📥 Event recibido:', JSON.stringify(event, null, 2));
-  console.log(`🔧 Function: ${context.functionName}, LogGroup: ${context.logGroupName}`);
+CREATE TRIGGER tg_unidades_updated_at
+    BEFORE UPDATE ON unidades
+    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 
-  let isCloudFormationCustomResource = false;
-  let shouldMigrate = false;
+CREATE TRIGGER tg_contratos_updated_at
+    BEFORE UPDATE ON contratos
+    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 
-  try {
-    // Detectar si es Custom Resource de CloudFormation
-    if (event.RequestType && event.ResponseURL) {
-      isCloudFormationCustomResource = true;
-      shouldMigrate = event.RequestType === 'Create' || event.RequestType === 'Update';
-      console.log(`🔷 Custom Resource - RequestType: ${event.RequestType}, ShouldMigrate: ${shouldMigrate}`);
-    }
+CREATE TRIGGER tg_jornadas_updated_at
+    BEFORE UPDATE ON jornadas
+    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 
-    // Invocación directa con action=migrate
-    if (event.action === 'migrate') {
-      shouldMigrate = true;
-      console.log('🔷 Invocación directa con action=migrate');
-    }
+-- ============================================
+-- 6. VISTAS
+-- ============================================
 
-    // Invocación por defecto
-    if (!event.action && !event.RequestType) {
-      shouldMigrate = true;
-      console.log('🔷 Invocación por defecto');
-    }
+CREATE OR REPLACE VIEW vw_seguimiento_jornadas AS
+SELECT
+    j.id,
+    j.fecha_jornada,
+    CONCAT(u.nombres, ' ', u.apellidos) AS nombre_chofer,
+    un.placa AS placa_camion,
+    c.codigo AS codigo_contrato,
+    c.cliente,
+    j.origen,
+    j.destino,
+    j.hora_inicio,
+    j.hora_fin,
+    CASE
+        WHEN j.hora_inicio IS NOT NULL AND j.hora_fin IS NOT NULL
+            THEN (j.hora_fin - j.hora_inicio)
+        ELSE NULL
+    END AS duracion_total,
+    j.km_recorridos,
+    j.estado,
+    j.observaciones,
+    EXISTS (
+        SELECT 1 FROM alertas_jornada a
+        WHERE a.jornada_id = j.id AND a.tipo = 'PANICO'
+    ) AS tiene_panico,
+    EXISTS (
+        SELECT 1 FROM alertas_jornada a
+        WHERE a.jornada_id = j.id AND a.tipo = 'AUXILIO_MECANICO'
+    ) AS tiene_auxilio,
+    (SELECT COUNT(*) FROM alertas_jornada a WHERE a.jornada_id = j.id) AS total_alertas
+FROM jornadas j
+INNER JOIN usuarios u ON u.id = j.conductor_id
+INNER JOIN unidades un ON un.id = j.unidad_id
+INNER JOIN contratos c ON c.id = j.contrato_id
+ORDER BY j.fecha_jornada DESC, j.created_at DESC;
 
-    let result;
-    if (shouldMigrate) {
-      // Determinar si se debe limpiar la base de datos antes de migrar
-      // Por defecto: true, a menos que se especifique clean=false
-      const shouldClean = event.clean !== false && event.clean !== 'false';
-      console.log(`🧹 Limpiar base de datos antes de migrar: ${shouldClean}`);
-      result = await runMigrations(shouldClean);
-    } else {
-      console.log('ℹ️ No se requiere migración (RequestType: Delete)');
-      result = { success: true, message: 'No migration needed', skipped: true };
-    }
+-- ============================================
+-- migrate:down
+-- ============================================
 
-    if (isCloudFormationCustomResource) {
-      await sendCloudFormationResponse(event, context, 'SUCCESS', 'Migraciones completadas exitosamente', result);
-    }
+DROP VIEW IF EXISTS vw_seguimiento_jornadas CASCADE;
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(result)
-    };
+DROP TRIGGER IF EXISTS tg_jornadas_updated_at ON jornadas CASCADE;
+DROP TRIGGER IF EXISTS tg_contratos_updated_at ON contratos CASCADE;
+DROP TRIGGER IF EXISTS tg_unidades_updated_at ON unidades CASCADE;
+DROP TRIGGER IF EXISTS tg_usuarios_updated_at ON usuarios CASCADE;
+DROP FUNCTION IF EXISTS fn_set_updated_at CASCADE;
 
-  } catch (error) {
-    console.error('❌ Error fatal:', error);
+DROP INDEX IF EXISTS uq_jornada_activa_chofer CASCADE;
+DROP INDEX IF EXISTS uq_jornada_activa_unidad CASCADE;
+DROP INDEX IF EXISTS idx_ubicaciones_fecha_hora CASCADE;
+DROP INDEX IF EXISTS idx_ubicaciones_jornada CASCADE;
+DROP INDEX IF EXISTS idx_alertas_fecha_hora CASCADE;
+DROP INDEX IF EXISTS idx_alertas_tipo CASCADE;
+DROP INDEX IF EXISTS idx_alertas_jornada CASCADE;
+DROP INDEX IF EXISTS idx_jornadas_contrato CASCADE;
+DROP INDEX IF EXISTS idx_jornadas_unidad CASCADE;
+DROP INDEX IF EXISTS idx_jornadas_conductor CASCADE;
+DROP INDEX IF EXISTS idx_jornadas_estado CASCADE;
+DROP INDEX IF EXISTS idx_jornadas_fecha CASCADE;
+DROP INDEX IF EXISTS idx_contratos_estado CASCADE;
+DROP INDEX IF EXISTS idx_unidades_estado CASCADE;
+DROP INDEX IF EXISTS idx_usuarios_estado CASCADE;
+DROP INDEX IF EXISTS idx_usuarios_rol CASCADE;
 
-    if (isCloudFormationCustomResource) {
-      try {
-        await sendCloudFormationResponse(event, context, 'FAILED', error.message, { error: error.message, success: false });
-      } catch (cfnError) {
-        console.error('❌ Error enviando respuesta FAILED a CloudFormation:', cfnError);
-      }
-    }
+DROP TABLE IF EXISTS ubicaciones_jornada CASCADE;
+DROP TABLE IF EXISTS alertas_jornada CASCADE;
+DROP TABLE IF EXISTS jornadas CASCADE;
+DROP TABLE IF EXISTS contratos CASCADE;
+DROP TABLE IF EXISTS unidades CASCADE;
+DROP TABLE IF EXISTS usuarios CASCADE;
 
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        success: false,
-        message: error.message,
-        error: error.toString()
-      })
-    };
-  }
-};
+DROP TYPE IF EXISTS tipo_registro_ubicacion CASCADE;
+DROP TYPE IF EXISTS tipo_alerta CASCADE;
+DROP TYPE IF EXISTS estado_jornada CASCADE;
+DROP TYPE IF EXISTS estado_contrato CASCADE;
+DROP TYPE IF EXISTS estado_unidad CASCADE;
+DROP TYPE IF EXISTS estado_usuario CASCADE;
+DROP TYPE IF EXISTS rol_usuario CASCADE;
