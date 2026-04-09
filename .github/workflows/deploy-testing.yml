@@ -76,16 +76,23 @@ jobs:
           echo "⏳ Esperando 30 segundos para que el stack esté completamente listo..."
           sleep 30
 
-      - name: Run migrations with cascade cleanup
+      - name: Run migrations with cascade cleanup (DELETE ALL DATA)
         run: |
           echo "========================================="
-          echo "📦 EJECUTANDO MIGRACIONES CON LIMPIEZA CASCADE"
+          echo "📦 EJECUTANDO MIGRACIONES CON LIMPIEZA TOTAL"
+          echo "========================================="
+          echo "⚠️  ⚠️  ⚠️  ADVERTENCIA  ⚠️  ⚠️  ⚠️"
+          echo "⚠️  Se ELIMINARÁN TODOS los datos existentes"
+          echo "⚠️  Se ELIMINARÁN todas las tablas"
+          echo "⚠️  Se ELIMINARÁN todos los tipos ENUM"
+          echo "⚠️  Se ELIMINARÁN todas las funciones"
+          echo "⚠️  Esta acción es IRREVERSIBLE"
           echo "========================================="
           
           TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
           echo "🕐 Iniciando migraciones: ${TIMESTAMP}"
           
-          echo "🧹 Limpieza en cascada habilitada - Se eliminarán todas las tablas existentes"
+          echo "🧹 Limpieza en cascada habilitada - Eliminando todas las tablas y datos..."
           
           timeout 360 aws lambda invoke \
             --function-name testing-migrator \
@@ -98,11 +105,17 @@ jobs:
           
           if [ $EXIT_CODE -eq 124 ]; then
             echo "❌ Error: Las migraciones tomaron más de 6 minutos (timeout)"
+            echo "🔍 Revisa los logs en CloudWatch:"
+            echo "   aws logs tail /aws/lambda/testing-migrator --follow"
             exit 1
           fi
           
           if [ $EXIT_CODE -ne 0 ]; then
             echo "❌ Error al invocar la Lambda (código: $EXIT_CODE)"
+            echo "🔍 Posibles causas:"
+            echo "   - La función Lambda no existe"
+            echo "   - Permisos insuficientes"
+            echo "   - Problemas de VPC/conexión a la base de datos"
             exit $EXIT_CODE
           fi
           
@@ -116,6 +129,13 @@ jobs:
           
           if grep -q '"success":false' migration-response.json; then
             echo "❌ Error: Las migraciones fallaron"
+            echo ""
+            echo "🔍 Para depurar:"
+            echo "   1. Revisa los logs en CloudWatch:"
+            echo "      aws logs describe-log-groups --log-group-name-prefix /aws/lambda/testing-migrator"
+            echo "   2. Verifica la sintaxis del SQL en db/migrations/"
+            echo "   3. Comprueba las conexiones a la base de datos"
+            echo "   4. Revisa que la Lambda tenga acceso a la VPC"
             exit 1
           fi
           
@@ -126,6 +146,11 @@ jobs:
             echo "✅ Migraciones completadas exitosamente"
             echo "📊 Mensaje: ${MESSAGE}"
             echo "🧹 Limpieza realizada: ${CLEANED}"
+            
+            if [ "$CLEANED" = "true" ]; then
+              echo "🗑️  TODOS los datos anteriores fueron eliminados"
+              echo "✨ Base de datos completamente limpia y recreada"
+            fi
           fi
           
           echo ""
@@ -167,4 +192,16 @@ jobs:
           echo "🌐 API Endpoint: ${API_URL}"
           echo "🔧 Migrator Function ARN: ${MIGRATOR_ARN}"
           echo "🕐 Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo ""
+          echo "📝 NOTAS IMPORTANTES:"
+          echo "   ✅ Las migraciones se ejecutaron con LIMPIEZA TOTAL (clean: true)"
+          echo "   ✅ Todas las tablas fueron ELIMINADAS y RECREADAS desde cero"
+          echo "   ✅ Los datos anteriores fueron ELIMINADOS permanentemente"
+          echo "   ✅ La base de datos está en un estado completamente limpio"
+          echo ""
+          echo "🧪 Para probar la API:"
+          echo "   curl ${API_URL}/camiones"
+          echo "   curl ${API_URL}/conductores"
+          echo "   curl ${API_URL}/contratos/vigentes"
+          echo "   curl ${API_URL}/unidades/disponibles"
           echo "========================================="
