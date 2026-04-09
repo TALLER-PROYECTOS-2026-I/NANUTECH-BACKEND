@@ -2,7 +2,10 @@ import https from 'https';
 import http from 'http';
 import url from 'url';
 import pg from 'pg';
-import migrate from 'node-pg-migrate';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { migrate } = require('node-pg-migrate');
 
 const MIGRATION_TIMEOUT_MS = 360000;
 
