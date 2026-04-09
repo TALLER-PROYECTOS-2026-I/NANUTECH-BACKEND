@@ -73,16 +73,26 @@ jobs:
           echo "⏳ Esperando 30 segundos para que el stack esté completamente listo..."
           sleep 30
 
-      - name: Run migrations with timeout
+      - name: Run migrations with cascade cleanup
         run: |
-          echo "📦 Ejecutando migraciones (timeout de 6 minutos)..."
+          echo "========================================="
+          echo "📦 EJECUTANDO MIGRACIONES CON LIMPIEZA CASCADE"
+          echo "========================================="
           
-          # Ejecutar migración con timeout de 6 minutos (360 segundos)
+          # Obtener timestamp para logs
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+          echo "🕐 Iniciando migraciones: ${TIMESTAMP}"
+          
+          # Ejecutar migración con limpieza completa en cascada
+          # clean=true: Elimina todas las tablas, tipos ENUM, funciones y triggers antes de migrar
+          # Esto asegura que no haya conflictos con estructuras existentes
+          echo "🧹 Limpieza en cascada habilitada - Se eliminarán todas las tablas existentes"
+          
           timeout 360 aws lambda invoke \
             --function-name testing-migrator \
             --region us-east-1 \
             --cli-binary-format raw-in-base64-out \
-            --payload '{"action": "migrate"}' \
+            --payload '{"action": "migrate", "clean": true}' \
             migration-response.json
           
           # Guardar el código de salida
@@ -90,39 +100,119 @@ jobs:
           
           # Verificar si hubo timeout (código 124)
           if [ $EXIT_CODE -eq 124 ]; then
-            echo "❌ Error: Las migraciones tomaron más de 6 minutos"
+            echo "❌ Error: Las migraciones tomaron más de 6 minutos (timeout)"
+            echo "🔍 Revisa los logs en CloudWatch para más detalles"
             exit 1
           fi
           
           # Verificar si hubo otro error
           if [ $EXIT_CODE -ne 0 ]; then
             echo "❌ Error al invocar la Lambda (código: $EXIT_CODE)"
+            echo "🔍 Posibles causas:"
+            echo "   - La función Lambda no existe"
+            echo "   - Permisos insuficientes"
+            echo "   - Problemas de VPC/conexión a la base de datos"
             exit $EXIT_CODE
           fi
           
-          # Mostrar respuesta
-          echo "📋 Respuesta de la Lambda:"
+          # Mostrar respuesta completa
+          echo ""
+          echo "========================================="
+          echo "📋 RESPUESTA DE LA LAMBDA:"
+          echo "========================================="
           cat migration-response.json
           echo ""
+          echo "========================================="
           
           # Verificar si hubo error en la migración
           if grep -q '"success":false' migration-response.json; then
             echo "❌ Error: Las migraciones fallaron"
+            echo ""
+            echo "🔍 Para depurar:"
+            echo "   1. Revisa los logs en CloudWatch:"
+            echo "      aws logs describe-log-groups --log-group-name-prefix /aws/lambda/testing-migrator"
+            echo "   2. Verifica la sintaxis del SQL"
+            echo "   3. Comprueba las conexiones a la base de datos"
             exit 1
           fi
           
-          echo "✅ Migraciones completadas exitosamente"
+          # Extraer mensaje de éxito si existe
+          if grep -q '"success":true' migration-response.json; then
+            MESSAGE=$(grep -o '"message":"[^"]*"' migration-response.json | cut -d'"' -f4)
+            CLEANED=$(grep -o '"cleaned":[^,}]*' migration-response.json | cut -d':' -f2)
+            
+            echo "✅ Migraciones completadas exitosamente"
+            echo "📊 Mensaje: ${MESSAGE}"
+            echo "🧹 Limpieza realizada: ${CLEANED}"
+          fi
+          
+          echo ""
+          echo "========================================="
+          echo "🎉 PROCESO DE MIGRACIÓN FINALIZADO"
+          echo "========================================="
 
       - name: Verify deployment
         run: |
-          echo "✅ Deployment completado"
+          echo ""
+          echo "========================================="
+          echo "🔍 VERIFICANDO DEPLOYMENT"
+          echo "========================================="
+          
+          # Obtener información del stack
+          STACK_STATUS=$(aws cloudformation describe-stacks \
+            --stack-name nanutech-backend-testing \
+            --region us-east-1 \
+            --query 'Stacks[0].StackStatus' \
+            --output text)
+          
+          echo "📊 Estado del stack: ${STACK_STATUS}"
+          
+          # Obtener API URL
           API_URL=$(aws cloudformation describe-stacks \
             --stack-name nanutech-backend-testing \
             --region us-east-1 \
             --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
             --output text)
           
-          echo "🌐 API Endpoint: ${API_URL}"
-          echo "✅ Todo listo!"
-
+          # Obtener ARN de la función migrator
+          MIGRATOR_ARN=$(aws cloudformation describe-stacks \
+            --stack-name nanutech-backend-testing \
+            --region us-east-1 \
+            --query 'Stacks[0].Outputs[?OutputKey==`MigratorFunctionArn`].OutputValue' \
+            --output text)
           
+          echo ""
+          echo "========================================="
+          echo "✅ DEPLOYMENT COMPLETADO EXITOSAMENTE"
+          echo "========================================="
+          echo "🌐 API Endpoint: ${API_URL}"
+          echo "🔧 Migrator Function ARN: ${MIGRATOR_ARN}"
+          echo "🕐 Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo ""
+          echo "📝 Notas importantes:"
+          echo "   - Las migraciones se ejecutaron con limpieza en cascada"
+          echo "   - Todas las tablas fueron recreadas desde cero"
+          echo "   - Los datos anteriores fueron eliminados"
+          echo ""
+          echo "🧪 Para probar la API:"
+          echo "   curl ${API_URL}/camiones"
+          echo "========================================="
+
+      - name: (Opcional) Enviar notificación a Slack
+        if: always()
+        run: |
+          # Este paso es opcional - descomentar si tienes webhook de Slack
+          # WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
+          # if [ -n "$WEBHOOK_URL" ]; then
+          #   STATUS="${{ job.status }}"
+          #   if [ "$STATUS" == "success" ]; then
+          #     MESSAGE="✅ Despliegue exitoso a TESTING con migraciones en cascada"
+          #   else
+          #     MESSAGE="❌ Falló el despliegue a TESTING"
+          #   fi
+          #   
+          #   curl -X POST -H 'Content-type: application/json' \
+          #     --data "{\"text\":\"${MESSAGE}\nAPI: ${API_URL}\"}" \
+          #     $WEBHOOK_URL
+          # fi
+          echo "ℹ️ Notificación Slack deshabilitada (configurar SLACK_WEBHOOK_URL para habilitar)"
