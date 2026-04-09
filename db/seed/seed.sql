@@ -14,14 +14,7 @@ DELETE FROM unidades;
 DELETE FROM usuarios;
 
 -- ============================================
--- PASO 2: RESETEAR SECUENCIAS (si las hay)
--- ============================================
-
--- Si tienes secuencias, resetealas
--- ALTER SEQUENCE usuarios_id_seq RESTART WITH 1;
-
--- ============================================
--- PASO 3: INSERTAR DATOS DE PRUEBA
+-- PASO 2: INSERTAR DATOS DE PRUEBA
 -- ============================================
 
 -- Usuario ADMIN
@@ -69,7 +62,11 @@ SELECT
   120.5,
   'COMPLETADA';
 
--- Alerta
+-- ============================================
+-- ALERTA CORREGIDA
+-- ============================================
+
+-- Alerta NO atendida (atendida = false, no necesita atendida_at)
 INSERT INTO alertas_jornada (id, jornada_id, tipo, detalle, latitud, longitud, fecha_hora, atendida)
 SELECT 
   gen_random_uuid(),
@@ -79,11 +76,29 @@ SELECT
   -12.043333,
   -77.028333,
   NOW() - INTERVAL '2 hours',
-  true
+  false
 FROM jornadas 
 LIMIT 1;
 
--- Ubicaciones (10 registros)
+INSERT INTO alertas_jornada (id, jornada_id, tipo, detalle, latitud, longitud, fecha_hora, atendida, atendida_at, atendida_por)
+SELECT 
+  gen_random_uuid(),
+  id,
+  'PANICO',
+  'Conductor reportó emergencia',
+  -12.043333,
+  -77.028333,
+  NOW() - INTERVAL '2 hours',
+  true,
+  NOW() - INTERVAL '1 hour',  -- atendida_at
+  (SELECT id FROM usuarios WHERE correo = 'admin@nanutech.com')  -- atendida_por
+FROM jornadas 
+LIMIT 1;
+
+-- ============================================
+-- UBICACIONES (10 registros)
+-- ============================================
+
 INSERT INTO ubicaciones_jornada (id, jornada_id, latitud, longitud, fecha_hora, tipo_registro, velocidad_kmh)
 SELECT 
   gen_random_uuid(),
