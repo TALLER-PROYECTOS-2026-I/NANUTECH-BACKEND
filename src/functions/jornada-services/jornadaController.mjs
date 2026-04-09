@@ -4,23 +4,24 @@ import {
   errorResponse,
 } from "../../shared/utils/response/response.mjs";
 
-const parseJsonBody = (body) => {
-  if (!body) return {};
+function parseJsonBody(event) {
+  if (!event.body) return {};
 
   try {
-    return JSON.parse(body);
-  } catch (error) {
-    const parsingError = new Error("Cuerpo de solicitud invalido");
-    parsingError.statusCode = 400;
-    parsingError.code = "INVALID_REQUEST_BODY";
-    throw parsingError;
+    return JSON.parse(event.body);
+  } catch {
+    const error = new Error("El cuerpo de la solicitud no es un JSON válido.");
+    error.statusCode = 400;
+    error.code = "INVALID_REQUEST_BODY";
+    throw error;
   }
-};
+}
 
-const resolveErrorResponse = (error) =>
-  errorResponse(error.message, error.statusCode || 500, {
+function resolveErrorResponse(error) {
+  return errorResponse(error.message, error.statusCode || 500, {
     code: error.code || "JORNADA_ERROR",
   });
+}
 
 export const createJornadaController = async (event) => {
   try {
@@ -37,12 +38,12 @@ export const createJornadaController = async (event) => {
 
 export const getCurrentJornadaController = async (event) => {
   try {
+    const jornadaService = new JornadaService();
     const conductorId =
       event.pathParameters?.conductorId ||
       event.queryStringParameters?.conductor_id;
-    const jornadaService = new JornadaService();
-    const jornada = await jornadaService.getCurrentJornada(conductorId);
 
+    const jornada = await jornadaService.getCurrentJornada(conductorId);
     return successResponse(jornada, "Jornada actual obtenida exitosamente.");
   } catch (error) {
     console.error("Error en getCurrentJornadaController:", error);
@@ -52,7 +53,7 @@ export const getCurrentJornadaController = async (event) => {
 
 export const startTurnController = async (event) => {
   try {
-    const body = parseJsonBody(event.body);
+    const body = parseJsonBody(event);
     const jornadaService = new JornadaService();
     const jornada = await jornadaService.startTurn(body);
 
@@ -65,7 +66,7 @@ export const startTurnController = async (event) => {
 
 export const finishTurnController = async (event) => {
   try {
-    const body = parseJsonBody(event.body);
+    const body = parseJsonBody(event);
     const jornadaService = new JornadaService();
     const jornada = await jornadaService.finishTurn(body);
 

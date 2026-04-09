@@ -1,12 +1,12 @@
-import { errorResponse } from "../../shared/utils/response/response.mjs";
 import {
   createJornadaController,
-  finishTurnController,
   getCurrentJornadaController,
   startTurnController,
+  finishTurnController,
 } from "./jornadaController.mjs";
+import { errorResponse } from "../../shared/utils/response/response.mjs";
 
-const routes = {
+const ROUTES = {
   "POST /jornadas": createJornadaController,
   "GET /jornadas/actual/{conductorId}": getCurrentJornadaController,
   "POST /jornadas/iniciar": startTurnController,
@@ -14,14 +14,16 @@ const routes = {
 };
 
 export const handler = async (event) => {
-  const routeKey = `${event.httpMethod} ${event.resource}`;
-  const controller = routes[routeKey];
+  const method = event.requestContext?.http?.method || event.httpMethod;
+  const resource = event.resource || event.rawPath;
+  const routeKey = `${method} ${resource}`;
 
-  if (!controller) {
+  const routeHandler = ROUTES[routeKey];
+  if (!routeHandler) {
     return errorResponse("Ruta no encontrada", 404, {
       code: "ROUTE_NOT_FOUND",
     });
   }
 
-  return await controller(event);
+  return routeHandler(event);
 };

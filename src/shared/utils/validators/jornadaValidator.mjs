@@ -1,33 +1,30 @@
 const VALID_CREATE_STATES = new Set(["REGISTRADA", "EN_PROCESO"]);
 
-const requireString = (value, message) => {
-  if (typeof value !== "string" || value.trim() === "") {
-    throw new Error(message);
+function requireString(value, fieldName) {
+  if (value === undefined || value === null || `${value}`.trim() === "") {
+    throw new Error(`El ${fieldName} es requerido`);
   }
 
-  return value.trim();
-};
+  return `${value}`.trim();
+}
 
-const normalizeOptionalString = (value) => {
+function normalizeOptionalString(value) {
   if (value === undefined || value === null) return null;
-  if (typeof value !== "string") {
-    throw new Error("Las observaciones deben ser texto");
-  }
 
-  const normalized = value.trim();
+  const normalized = `${value}`.trim();
   return normalized === "" ? null : normalized;
-};
+}
 
-const normalizeOptionalNumber = (value) => {
-  if (value === undefined || value === null || value === "") return 0;
+function normalizeOptionalNumber(value, fieldName) {
+  if (value === undefined || value === null || value === "") return null;
 
-  const numeric = Number(value);
-  if (Number.isNaN(numeric) || numeric < 0) {
-    throw new Error("Los kilometros recorridos son invalidos");
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) {
+    throw new Error(`El ${fieldName} es inválido`);
   }
 
-  return numeric;
-};
+  return parsed;
+}
 
 export class JornadaValidator {
   static validateCreateJornada(data) {
@@ -35,36 +32,36 @@ export class JornadaValidator {
       throw new Error("Datos de jornada invalidos");
     }
 
-    const estado = data.estado ? requireString(data.estado, "El estado es invalido").toUpperCase() : "REGISTRADA";
+    const estado = data.estado ? `${data.estado}`.trim().toUpperCase() : "REGISTRADA";
     if (!VALID_CREATE_STATES.has(estado)) {
-      throw new Error("El estado de la jornada es invalido");
+      throw new Error("El estado de la jornada es inválido");
     }
 
     return {
-      conductor_id: requireString(data.conductor_id, "El conductor_id es requerido"),
-      unidad_id: requireString(data.unidad_id, "El unidad_id es requerido"),
-      contrato_id: requireString(data.contrato_id, "El contrato_id es requerido"),
-      creado_por: requireString(data.creado_por, "El creado_por es requerido"),
-      fecha_jornada: data.fecha_jornada ? requireString(data.fecha_jornada, "La fecha_jornada es invalida") : null,
-      origen: data.origen ? requireString(data.origen, "El origen es invalido") : null,
-      destino: data.destino ? requireString(data.destino, "El destino es invalido") : null,
-      km_recorridos: normalizeOptionalNumber(data.km_recorridos),
+      conductor_id: requireString(data.conductor_id, "conductor_id"),
+      unidad_id: requireString(data.unidad_id, "unidad_id"),
+      contrato_id: requireString(data.contrato_id, "contrato_id"),
+      creado_por: requireString(data.creado_por, "creado_por"),
+      fecha_jornada: normalizeOptionalString(data.fecha_jornada),
+      origen: normalizeOptionalString(data.origen),
+      destino: normalizeOptionalString(data.destino),
+      km_recorridos: normalizeOptionalNumber(data.km_recorridos, "km_recorridos"),
       observaciones: normalizeOptionalString(data.observaciones),
       estado,
     };
   }
 
   static validateConductorId(conductorId) {
-    return requireString(conductorId, "El conductor_id es requerido");
+    return requireString(conductorId, "conductor_id");
   }
 
   static validateJornadaId(jornadaId) {
-    return requireString(jornadaId, "El jornada_id es requerido");
+    return requireString(jornadaId, "jornada_id");
   }
 
   static validateStartTurn(data) {
     if (!data || typeof data !== "object") {
-      throw new Error("Datos de inicio de turno invalidos");
+      throw new Error("Datos para iniciar turno inválidos");
     }
 
     return {
@@ -74,7 +71,7 @@ export class JornadaValidator {
 
   static validateFinishTurn(data) {
     if (!data || typeof data !== "object") {
-      throw new Error("Datos de fin de turno invalidos");
+      throw new Error("Datos para finalizar turno inválidos");
     }
 
     return {

@@ -41,24 +41,6 @@ export class Jornada {
 
   static fromDatabase(row) {
     if (!row) return null;
-
-    return new Jornada({
-      id: row.id,
-      conductor_id: row.conductor_id,
-      unidad_id: row.unidad_id,
-      contrato_id: row.contrato_id,
-      creado_por: row.creado_por,
-      fecha_jornada: row.fecha_jornada,
-      hora_inicio: row.hora_inicio,
-      hora_fin: row.hora_fin,
-      origen: row.origen,
-      destino: row.destino,
-      km_recorridos: row.km_recorridos,
-      observaciones: row.observaciones,
-      estado: row.estado,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      duracion_total_segundos: row.duracion_total_segundos ?? null,
-    });
+    return new Jornada(row);
   }
 }

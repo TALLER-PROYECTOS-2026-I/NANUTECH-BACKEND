@@ -23,6 +23,7 @@ const BASE_SELECT = `
 export class JornadaRepository {
   async create(jornadaData) {
     const client = await getClient();
+
     try {
       const query = `
         INSERT INTO jornadas (
@@ -55,6 +56,7 @@ export class JornadaRepository {
           created_at,
           updated_at;
       `;
+
       const values = [
         jornadaData.conductor_id,
         jornadaData.unidad_id,
@@ -67,6 +69,7 @@ export class JornadaRepository {
         jornadaData.observaciones,
         jornadaData.estado,
       ];
+
       const result = await client.query(query, values);
       return result.rows[0] || null;
     } finally {
@@ -121,17 +124,66 @@ export class JornadaRepository {
     }
   }
 
+  async findById(jornadaId) {
+    const client = await getClient();
+
+    try {
+      const query = `${BASE_SELECT} WHERE id = $1 LIMIT 1;`;
+      const result = await client.query(query, [jornadaId]);
+      return result.rows[0] || null;
+    } finally {
+      client.release();
+    }
+  }
+
+  async findCurrentByConductorId(conductorId) {
+    const client = await getClient();
+
+    try {
+      const query = `
+        ${BASE_SELECT}
+        WHERE conductor_id = $1
+          AND estado IN ('REGISTRADA', 'EN_PROCESO')
+        ORDER BY created_at DESC
+        LIMIT 1;
+      `;
+      const result = await client.query(query, [conductorId]);
+      return result.rows[0] || null;
+    } finally {
+      client.release();
+    }
+  }
+
+  async checkUnidadActiva(unidadId) {
+    const client = await getClient();
+
+    try {
+      const query = `
+        SELECT id
+        FROM jornadas
+        WHERE unidad_id = $1
+          AND estado IN ('REGISTRADA', 'EN_PROCESO')
+        LIMIT 1;
+      `;
+      const result = await client.query(query, [unidadId]);
+      return result.rows.length > 0;
+    } finally {
+      client.release();
+    }
+  }
+
   async checkConductorActivo(conductorId) {
     const client = await getClient();
+
     try {
-      const result = await client.query(
-        `SELECT id
-         FROM jornadas
-         WHERE conductor_id = $1
-           AND estado IN ('REGISTRADA', 'EN_PROCESO')
-         LIMIT 1;`,
-        [conductorId],
-      );
+      const query = `
+        SELECT id
+        FROM jornadas
+        WHERE conductor_id = $1
+          AND estado IN ('REGISTRADA', 'EN_PROCESO')
+        LIMIT 1;
+      `;
+      const result = await client.query(query, [conductorId]);
       return result.rows.length > 0;
     } finally {
       client.release();
@@ -140,31 +192,33 @@ export class JornadaRepository {
 
   async startTurn(jornadaId) {
     const client = await getClient();
+
     try {
-      const result = await client.query(
-        `UPDATE jornadas
-         SET
-           hora_inicio = NOW(),
-           estado = 'EN_PROCESO'
-         WHERE id = $1
-         RETURNING
-           id,
-           conductor_id,
-           unidad_id,
-           contrato_id,
-           creado_por,
-           fecha_jornada,
-           hora_inicio,
-           hora_fin,
-           origen,
-           destino,
-           km_recorridos,
-           observaciones,
-           estado,
-           created_at,
-           updated_at;`,
-        [jornadaId],
-      );
+      const query = `
+        UPDATE jornadas
+        SET
+          hora_inicio = NOW(),
+          estado = 'EN_PROCESO',
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING
+          id,
+          conductor_id,
+          unidad_id,
+          contrato_id,
+          creado_por,
+          fecha_jornada,
+          hora_inicio,
+          hora_fin,
+          origen,
+          destino,
+          km_recorridos,
+          observaciones,
+          estado,
+          created_at,
+          updated_at;
+      `;
+      const result = await client.query(query, [jornadaId]);
       return result.rows[0] || null;
     } finally {
       client.release();
@@ -173,37 +227,35 @@ export class JornadaRepository {
 
   async finishTurn(jornadaId, observaciones) {
     const client = await getClient();
+
     try {
-      const result = await client.query(
-        `UPDATE jornadas
-         SET
-           hora_fin = NOW(),
-           estado = 'COMPLETADA',
-           observaciones = COALESCE($2, observaciones)
-         WHERE id = $1
-         RETURNING
-           id,
-           conductor_id,
-           unidad_id,
-           contrato_id,
-           creado_por,
-           fecha_jornada,
-           hora_inicio,
-           hora_fin,
-           origen,
-           destino,
-           km_recorridos,
-           observaciones,
-           estado,
-           created_at,
-           updated_at,
-           CASE
-             WHEN hora_inicio IS NOT NULL AND hora_fin IS NOT NULL
-               THEN EXTRACT(EPOCH FROM (hora_fin - hora_inicio))::BIGINT
-             ELSE NULL
-           END AS duracion_total_segundos;`,
-        [jornadaId, observaciones],
-      );
+      const query = `
+        UPDATE jornadas
+        SET
+          hora_fin = NOW(),
+          estado = 'COMPLETADA',
+          observaciones = COALESCE($2, observaciones),
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING
+          id,
+          conductor_id,
+          unidad_id,
+          contrato_id,
+          creado_por,
+          fecha_jornada,
+          hora_inicio,
+          hora_fin,
+          origen,
+          destino,
+          km_recorridos,
+          observaciones,
+          estado,
+          created_at,
+          updated_at,
+          EXTRACT(EPOCH FROM (hora_fin - hora_inicio))::BIGINT AS duracion_total_segundos;
+      `;
+      const result = await client.query(query, [jornadaId, observaciones]);
       return result.rows[0] || null;
     } finally {
       client.release();
