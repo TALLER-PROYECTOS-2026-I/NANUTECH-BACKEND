@@ -2,7 +2,7 @@ import https from 'https';
 import http from 'http';
 import url from 'url';
 import pg from 'pg';
-import { migrate } from 'node-pg-migrate';
+import migrate from 'node-pg-migrate';
 
 const MIGRATION_TIMEOUT_MS = 360000;
 
