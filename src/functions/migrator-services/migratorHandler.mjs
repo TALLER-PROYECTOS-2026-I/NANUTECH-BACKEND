@@ -5,7 +5,7 @@ import pg from 'pg';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const { migrate } = require('node-pg-migrate');
+const migrate = require('node-pg-migrate');
 
 const MIGRATION_TIMEOUT_MS = 360000;
 
