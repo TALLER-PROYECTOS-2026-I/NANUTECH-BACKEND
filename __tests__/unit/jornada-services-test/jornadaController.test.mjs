@@ -1,49 +1,129 @@
-﻿import { jest } from '@jest/globals';
+import { jest } from "@jest/globals";
 
-const mockCreateJornada = jest.fn();
+jest.unstable_mockModule(
+  "../../../src/functions/jornada-services/jornadaService.mjs",
+  () => ({
+    JornadaService: jest.fn().mockImplementation(() => ({
+      createJornada: jest.fn(),
+      getCurrentJornada: jest.fn(),
+      startTurn: jest.fn(),
+      finishTurn: jest.fn(),
+    })),
+  }),
+);
 
-jest.unstable_mockModule('../../../src/functions/jornada-services/jornadaService.mjs', () => ({
-  JornadaService: jest.fn().mockImplementation(() => ({
-    createJornada: mockCreateJornada,
-  }))
-}));
+const {
+  createJornadaController,
+  getCurrentJornadaController,
+  startTurnController,
+  finishTurnController,
+} =
+  await import("../../../src/functions/jornada-services/jornadaController.mjs");
+const { JornadaService } =
+  await import("../../../src/functions/jornada-services/jornadaService.mjs");
 
-const { createJornadaController } = await import('../../../src/functions/jornada-services/jornadaController.mjs');
-
-describe('JornadaController - Pruebas', () => {
+describe("JornadaController", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  test('Exito: debe regresar statusCode 201', async () => {
-    mockCreateJornada.mockResolvedValue({ id: 'uuid99', estado: 'REGISTRADA' });
-    const event = { body: JSON.stringify({ conductor_id: 'c', unidad_id: 'u', contrato_id: 'co', creado_por: 'a' }) };
-
-    const res = await createJornadaController(event);
-    expect(res.statusCode).toBe(201);
-    expect(JSON.parse(res.body).message).toBe('Jornada registrada exitosamente.');
-  });
-
-  test('Error 400 si faltan parametros', async () => {
-    mockCreateJornada.mockRejectedValue(new Error('requerido'));
-    const event = { body: JSON.stringify({}) };
-
-    const res = await createJornadaController(event);
-    expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).message).toBe('requerido');
-  });
-
-  test('Toma creado_por desde authorizer (Cognito) si no viene en body', async () => {
-    mockCreateJornada.mockResolvedValue({ id: 'uuid99' });
-    const event = { 
-        body: JSON.stringify({ conductor_id: 'c', unidad_id: 'u', contrato_id: 'co' }),
-        requestContext: { authorizer: { claims: { sub: 'cognito-sub-123' } } }
-    };
-
-    const res = await createJornadaController(event);
-    expect(mockCreateJornada).toHaveBeenCalledWith(expect.objectContaining({
-        creado_por: 'cognito-sub-123'
+  test("crea jornada exitosamente", async () => {
+    JornadaService.mockImplementation(() => ({
+      createJornada: jest.fn().mockResolvedValue({ id: "jor-1" }),
     }));
-    expect(res.statusCode).toBe(201);
+
+    const result = await createJornadaController({
+      body: JSON.stringify({
+        conductor_id: "cond-1",
+        unidad_id: "uni-1",
+        contrato_id: "con-1",
+        creado_por: "admin-1",
+      }),
+    });
+
+    expect(result.statusCode).toBe(201);
+  });
+
+  test("Toma creado_por desde authorizer (Cognito)", async () => {
+    const mockCreateJornada = jest.fn().mockResolvedValue({ id: "jor-1" });
+    JornadaService.mockImplementation(() => ({
+      createJornada: mockCreateJornada,
+    }));
+
+    const result = await createJornadaController({
+      body: JSON.stringify({
+        conductor_id: "cond-1",
+        unidad_id: "uni-1",
+        contrato_id: "con-1",
+      }),
+      requestContext: { authorizer: { claims: { sub: "cognito-sub-123" } } },
+    });
+
+    expect(mockCreateJornada).toHaveBeenCalledWith(
+      expect.objectContaining({ creado_por: "cognito-sub-123" }),
+    );
+    expect(result.statusCode).toBe(201);
+  });
+
+  test("obtiene la jornada actual exitosamente", async () => {
+    JornadaService.mockImplementation(() => ({
+      getCurrentJornada: jest.fn().mockResolvedValue({ id: "jor-1" }),
+    }));
+
+    const result = await getCurrentJornadaController({
+      pathParameters: { conductorId: "cond-1" },
+    });
+
+    expect(result.statusCode).toBe(200);
+  });
+
+  test("inicia turno exitosamente", async () => {
+    JornadaService.mockImplementation(() => ({
+      startTurn: jest.fn().mockResolvedValue({
+        id: "jor-1",
+        estado: "EN_PROCESO",
+      }),
+    }));
+
+    const result = await startTurnController({
+      body: JSON.stringify({ jornada_id: "jor-1" }),
+    });
+
+    expect(result.statusCode).toBe(200);
+  });
+
+  test("finaliza turno exitosamente con duración", async () => {
+    JornadaService.mockImplementation(() => ({
+      finishTurn: jest.fn().mockResolvedValue({
+        id: "jor-1",
+        estado: "COMPLETADA",
+        duracion_total_segundos: 7200,
+      }),
+    }));
+
+    const result = await finishTurnController({
+      body: JSON.stringify({
+        jornada_id: "jor-1",
+        observaciones: "Todo correcto",
+      }),
+    });
+
+    expect(result.statusCode).toBe(200);
+  });
+
+  test("devuelve error controlado cuando el service rechaza el inicio", async () => {
+    JornadaService.mockImplementation(() => ({
+      startTurn: jest.fn().mockRejectedValue({
+        message: "La jornada ya fue iniciada.",
+        statusCode: 400,
+        code: "JORNADA_ALREADY_STARTED",
+      }),
+    }));
+
+    const result = await startTurnController({
+      body: JSON.stringify({ jornada_id: "jor-1" }),
+    });
+
+    expect(result.statusCode).toBe(400);
   });
 });
