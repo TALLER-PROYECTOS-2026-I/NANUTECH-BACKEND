@@ -79,53 +79,6 @@ export class JornadaRepository {
 
   async findById(jornadaId) {
     const client = await getClient();
-    try {
-      const result = await client.query(
-        `${BASE_SELECT} WHERE id = $1 LIMIT 1;`,
-        [jornadaId],
-      );
-      return result.rows[0] || null;
-    } finally {
-      client.release();
-    }
-  }
-
-  async findCurrentByConductorId(conductorId) {
-    const client = await getClient();
-    try {
-      const result = await client.query(
-        `${BASE_SELECT}
-         WHERE conductor_id = $1
-           AND estado IN ('REGISTRADA', 'EN_PROCESO')
-         ORDER BY created_at DESC
-         LIMIT 1;`,
-        [conductorId],
-      );
-      return result.rows[0] || null;
-    } finally {
-      client.release();
-    }
-  }
-
-  async checkUnidadActiva(unidadId) {
-    const client = await getClient();
-    try {
-      const result = await client.query(
-        `SELECT id
-         FROM jornadas
-         WHERE unidad_id = $1
-           AND estado IN ('REGISTRADA', 'EN_PROCESO')
-         LIMIT 1;`,
-        [unidadId],
-      );
-      return result.rows.length > 0;
-    } finally {
-      client.release();
-    }
-  }
-
-  async findById(jornadaId) {
-    const client = await getClient();
 
     try {
       const query = `${BASE_SELECT} WHERE id = $1 LIMIT 1;`;

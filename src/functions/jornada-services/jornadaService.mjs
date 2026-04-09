@@ -47,7 +47,9 @@ export class JornadaService {
 
   async getCurrentJornada(conductorId) {
     const validatedConductorId = JornadaValidator.validateConductorId(conductorId);
-    const jornada = await this.repository.findCurrentByConductorId(validatedConductorId);
+    const jornada = await this.repository.findCurrentByConductorId(
+      validatedConductorId,
+    );
 
     // El dashboard deja de mostrar jornada cuando ya no existe una pendiente o en proceso.
     return jornada ? Jornada.fromDatabase(jornada) : null;
@@ -112,90 +114,5 @@ export class JornadaService {
 
     const updated = await this.repository.finishTurn(jornadaId, observaciones);
     return Jornada.fromDatabase(updated);
-  }
-
-  async getCurrentJornada(conductorId) {
-    try {
-      const validatedConductorId =
-        JornadaValidator.validateConductorId(conductorId);
-      const jornada = await this.repository.findCurrentByConductorId(
-        validatedConductorId,
-      );
-
-      return Jornada.fromDatabase(jornada);
-    } catch (error) {
-      console.error("Error en getCurrentJornada service:", error);
-      throw error;
-    }
-  }
-
-  async startTurn(payload) {
-    try {
-      const { jornada_id } = JornadaValidator.validateStartTurn(payload);
-      const jornada = await this.repository.findById(jornada_id);
-
-      if (!jornada) {
-        throw createJornadaError(
-          "Jornada no encontrada",
-          404,
-          "JORNADA_NOT_FOUND",
-        );
-      }
-
-      if (jornada.estado === "EN_PROCESO") {
-        throw createJornadaError(
-          "La jornada ya fue iniciada",
-          400,
-          "JORNADA_ALREADY_STARTED",
-        );
-      }
-
-      if (!ACTIVE_STATES.has(jornada.estado)) {
-        throw createJornadaError(
-          "La jornada no puede iniciarse en su estado actual",
-          400,
-          "JORNADA_INVALID_STATE",
-        );
-      }
-
-      const updatedJornada = await this.repository.startTurn(jornada_id);
-      return Jornada.fromDatabase(updatedJornada);
-    } catch (error) {
-      console.error("Error en startTurn service:", error);
-      throw error;
-    }
-  }
-
-  async finishTurn(payload) {
-    try {
-      const { jornada_id, observaciones } =
-        JornadaValidator.validateFinishTurn(payload);
-      const jornada = await this.repository.findById(jornada_id);
-
-      if (!jornada) {
-        throw createJornadaError(
-          "Jornada no encontrada",
-          404,
-          "JORNADA_NOT_FOUND",
-        );
-      }
-
-      if (jornada.estado !== "EN_PROCESO") {
-        throw createJornadaError(
-          "La jornada solo puede finalizarse si esta en proceso",
-          400,
-          "JORNADA_NOT_IN_PROGRESS",
-        );
-      }
-
-      const updatedJornada = await this.repository.finishTurn(
-        jornada_id,
-        observaciones,
-      );
-      return Jornada.fromDatabase(updatedJornada);
-    } catch (error) {
-      console.error("Error en finishTurn service:", error);
-      throw error;
-    }
   }
 }

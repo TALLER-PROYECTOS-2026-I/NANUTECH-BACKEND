@@ -25,7 +25,7 @@ function resolveErrorResponse(error) {
 
 export const createJornadaController = async (event) => {
   try {
-    const body = parseJsonBody(event.body);
+    const body = parseJsonBody(event);
     const jornadaService = new JornadaService();
     const jornada = await jornadaService.createJornada(body);
 
