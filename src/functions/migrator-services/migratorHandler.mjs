@@ -2,7 +2,6 @@ import https from 'https';
 import http from 'http';
 import url from 'url';
 import pg from 'pg';
-// ✅ CORRECCIÓN 1: Importar el objeto completo del módulo
 import pgMigrate from 'node-pg-migrate';
 
 // Timeout de 6 minutos
@@ -83,8 +82,153 @@ async function sendCloudFormationResponse(event, context, status, reason, data) 
   });
 }
 
-async function runMigrations() {
-  console.log('🔄 Iniciando migraciones...');
+/**
+ * Limpia completamente la base de datos eliminando todas las tablas,
+ * tipos ENUM, funciones y triggers en el orden correcto
+ */
+async function cleanDatabase() {
+  console.log('🧹 Iniciando limpieza completa de la base de datos...');
+  const startTime = Date.now();
+  
+  const dbConfig = getDbConfig();
+  let pool = null;
+  let client = null;
+  
+  try {
+    pool = new pg.Pool(dbConfig);
+    client = await pool.connect();
+    
+    console.log('📡 Conexión establecida para limpieza');
+    
+    // Deshabilitar temporalmente las restricciones para evitar errores de dependencias circulares
+    await client.query('SET session_replication_role = replica;');
+    console.log('🔓 Restricciones deshabilitadas temporalmente');
+    
+    // 1. Eliminar vistas
+    const viewsQuery = `
+      SELECT tablename 
+      FROM pg_views 
+      WHERE schemaname = 'public';
+    `;
+    const { rows: views } = await client.query(viewsQuery);
+    
+    for (const view of views) {
+      try {
+        await client.query(`DROP VIEW IF EXISTS ${view.tablename} CASCADE;`);
+        console.log(`✅ Vista eliminada: ${view.tablename}`);
+      } catch (err) {
+        console.log(`⚠️ Error eliminando vista ${view.tablename}: ${err.message}`);
+      }
+    }
+    
+    // 2. Eliminar triggers
+    const triggersQuery = `
+      SELECT trigger_name, event_object_table 
+      FROM information_schema.triggers 
+      WHERE trigger_schema = 'public';
+    `;
+    const { rows: triggers } = await client.query(triggersQuery);
+    
+    for (const trigger of triggers) {
+      try {
+        await client.query(`DROP TRIGGER IF EXISTS ${trigger.trigger_name} ON ${trigger.event_object_table} CASCADE;`);
+        console.log(`✅ Trigger eliminado: ${trigger.trigger_name}`);
+      } catch (err) {
+        console.log(`⚠️ Error eliminando trigger ${trigger.trigger_name}: ${err.message}`);
+      }
+    }
+    
+    // 3. Eliminar funciones
+    const functionsQuery = `
+      SELECT proname, oid 
+      FROM pg_proc 
+      WHERE pronamespace = 'public'::regnamespace 
+      AND proname NOT IN ('fn_set_updated_at');
+    `;
+    const { rows: functions } = await client.query(functionsQuery);
+    
+    for (const func of functions) {
+      try {
+        await client.query(`DROP FUNCTION IF EXISTS ${func.proname} CASCADE;`);
+        console.log(`✅ Función eliminada: ${func.proname}`);
+      } catch (err) {
+        console.log(`⚠️ Error eliminando función ${func.proname}: ${err.message}`);
+      }
+    }
+    
+    // 4. Eliminar todas las tablas del esquema public en orden inverso (hijas primero)
+    const tablesQuery = `
+      SELECT tablename 
+      FROM pg_tables 
+      WHERE schemaname = 'public' 
+      ORDER BY tablename DESC;
+    `;
+    
+    const { rows: tables } = await client.query(tablesQuery);
+    
+    if (tables.length === 0) {
+      console.log('ℹ️ No se encontraron tablas para limpiar');
+    } else {
+      console.log(`📋 Tablas a eliminar (${tables.length}): ${tables.map(r => r.tablename).join(', ')}`);
+      
+      // Eliminar cada tabla con CASCADE
+      for (const table of tables) {
+        const tableName = table.tablename;
+        try {
+          await client.query(`DROP TABLE IF EXISTS ${tableName} CASCADE;`);
+          console.log(`✅ Tabla eliminada: ${tableName}`);
+        } catch (err) {
+          console.log(`⚠️ Error eliminando ${tableName}: ${err.message}`);
+        }
+      }
+    }
+    
+    // 5. Eliminar tipos ENUM
+    const enumTypesQuery = `
+      SELECT typname 
+      FROM pg_type 
+      WHERE typcategory = 'E' 
+      AND typnamespace = 'public'::regnamespace;
+    `;
+    
+    const { rows: enumTypes } = await client.query(enumTypesQuery);
+    
+    for (const enumType of enumTypes) {
+      const typeName = enumType.typname;
+      try {
+        await client.query(`DROP TYPE IF EXISTS ${typeName} CASCADE;`);
+        console.log(`✅ Tipo ENUM eliminado: ${typeName}`);
+      } catch (err) {
+        console.log(`⚠️ Error eliminando tipo ${typeName}: ${err.message}`);
+      }
+    }
+    
+    // 6. Limpiar la tabla de migraciones si existe
+    try {
+      await client.query(`DROP TABLE IF EXISTS pgmigrations CASCADE;`);
+      console.log('✅ Tabla de migraciones eliminada');
+    } catch (err) {
+      console.log(`⚠️ Error eliminando tabla de migraciones: ${err.message}`);
+    }
+    
+    // Re-habilitar restricciones
+    await client.query('SET session_replication_role = origin;');
+    console.log('🔒 Restricciones re-habilitadas');
+    
+    const duration = Date.now() - startTime;
+    console.log(`✅ Limpieza completada exitosamente en ${duration / 1000} segundos`);
+    
+  } catch (error) {
+    console.error('❌ Error durante limpieza:', error);
+    throw error;
+  } finally {
+    if (client) client.release();
+    if (pool) await pool.end();
+  }
+}
+
+async function runMigrations(shouldClean = true) {
+  console.log('🔄 Iniciando proceso de migraciones...');
   const startTime = Date.now();
 
   const dbConfig = getDbConfig();
@@ -100,10 +244,19 @@ async function runMigrations() {
     pool = new pg.Pool(dbConfig);
 
     const testClient = await pool.connect();
-    console.log('✅ Conexión exitosa');
+    console.log('✅ Conexión exitosa a la base de datos');
     testClient.release();
 
-    // ✅ CORRECCIÓN 2: Extraer la función de forma segura para ES Modules
+    // Limpiar la base de datos antes de migrar si está habilitado
+    if (shouldClean) {
+      await cleanDatabase();
+      console.log('✅ Base de datos limpiada correctamente');
+    } else {
+      console.log('ℹ️ Omitiendo limpieza de base de datos (shouldClean=false)');
+    }
+
+    // Ejecutar migraciones
+    console.log('📦 Ejecutando migraciones...');
     const runner = pgMigrate.default || pgMigrate;
 
     await runner({
@@ -117,8 +270,12 @@ async function runMigrations() {
     });
 
     const duration = Date.now() - startTime;
-    console.log(`✅ Migraciones completadas en ${duration / 1000} segundos`);
-    return { success: true, message: `Migrations completed in ${duration / 1000}s` };
+    console.log(`✅ Migraciones completadas exitosamente en ${duration / 1000} segundos`);
+    return { 
+      success: true, 
+      message: `Migrations completed in ${duration / 1000}s`,
+      cleaned: shouldClean
+    };
 
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -127,6 +284,7 @@ async function runMigrations() {
   } finally {
     if (pool) {
       await pool.end();
+      console.log('🔌 Conexión a base de datos cerrada');
     }
   }
 }
@@ -160,7 +318,11 @@ export const handler = async (event, context) => {
 
     let result;
     if (shouldMigrate) {
-      result = await runMigrations();
+      // Determinar si se debe limpiar la base de datos antes de migrar
+      // Por defecto: true, a menos que se especifique clean=false
+      const shouldClean = event.clean !== false && event.clean !== 'false';
+      console.log(`🧹 Limpiar base de datos antes de migrar: ${shouldClean}`);
+      result = await runMigrations(shouldClean);
     } else {
       console.log('ℹ️ No se requiere migración (RequestType: Delete)');
       result = { success: true, message: 'No migration needed', skipped: true };
