@@ -98,31 +98,31 @@ VALUES
    'CONT-001', 'Empresa A SAC',
    'Transporte de minerales',
    '2024-01-01', '2025-12-31',
-   5000.00, 'PEN', 'VIGENTE', true),
+   5000.00, 'PEN', 'VIGENTE', TRUE),
 
   ('20000000-0000-0000-0000-000000000002',
    'CONT-002', 'Empresa B EIRL',
    'Transporte de insumos',
    '2024-01-01', '2025-12-31',
-   3500.00, 'PEN', 'VIGENTE', true),
+   3500.00, 'PEN', 'VIGENTE', TRUE),
 
   ('20000000-0000-0000-0000-000000000003',
    'CONT-003', 'Empresa C SRL',
    'Transporte de productos terminados',
    '2024-02-01', '2025-12-31',
-   4200.00, 'PEN', 'VIGENTE', true),
+   4200.00, 'PEN', 'VIGENTE', TRUE),
 
   ('20000000-0000-0000-0000-000000000004',
    'CONT-004', 'Empresa D SA',
    'Transporte internacional',
    '2023-01-01', '2023-12-31',
-   8000.00, 'USD', 'VENCIDO', false),
+   8000.00, 'USD', 'VENCIDO', TRUE),
 
   ('20000000-0000-0000-0000-000000000005',
    'CONT-005', 'Empresa E SAC',
    'Contrato marco sin fecha fin definida',
    '2024-06-01', NULL,
-   6000.00, 'PEN', 'SUSPENDIDO', true);
+   6000.00, 'PEN', 'SUSPENDIDO',TRUE);
 
 -- ============================================
 -- PASO 5: JORNADAS (CORREGIDO - usando SELECT para obtener IDs correctos)
