@@ -11,14 +11,21 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: 📦 Install & Build
+  deploy:
+    name: 🚀 Deploy to AWS - Testing
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    environment: testing
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -34,40 +41,10 @@ jobs:
       - name: Build SAM application
         run: sam build
 
-      - name: Upload SAM build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sam-build
-          path: .aws-sam/
-          retention-days: 1
-
-  deploy:
-    name: 🚀 Deploy to AWS - Testing
-    needs: build
-    runs-on: ubuntu-latest
-    environment: testing
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download SAM build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: sam-build
-          path: .aws-sam/
-
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
-
-      - name: Install AWS SAM CLI
-        run: pip install aws-sam-cli
-
       - name: Deploy SAM application
         run: |
+          FORCE_UPDATE=$(date +%s)
+          
           sam deploy \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
@@ -88,20 +65,8 @@ jobs:
               CognitoClientId=${{ secrets.COGNITO_CLIENT_ID }} \
               SessionTimeoutSeconds=${{ secrets.SESSION_TIMEOUT_SECONDS || '7200' }} \
               PrivateSubnets=${{ secrets.SUBNET_IDS }} \
-              LambdaSecurityGroup=${{ secrets.LAMBDA_SG_ID }}
-
-  migrate:
-    name: 🗄️ Run Migrations & Seed
-    needs: deploy
-    runs-on: ubuntu-latest
-    environment: testing
-
-    steps:
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+              LambdaSecurityGroup=${{ secrets.LAMBDA_SG_ID }} \
+              ForceUpdate=${FORCE_UPDATE}
 
       - name: Wait for stack to be ready
         run: |
@@ -113,95 +78,117 @@ jobs:
           echo "========================================="
           echo "📦 EJECUTANDO MIGRACIONES CON LIMPIEZA TOTAL"
           echo "========================================="
+          echo "⚠️  ⚠️  ⚠️  ADVERTENCIA  ⚠️  ⚠️  ⚠️"
           echo "⚠️  Se ELIMINARÁN TODOS los datos existentes"
           echo "⚠️  Se ELIMINARÁN todas las tablas"
           echo "⚠️  Se ELIMINARÁN todos los tipos ENUM"
+          echo "⚠️  Se ELIMINARÁN todas las funciones"
           echo "⚠️  Esta acción es IRREVERSIBLE"
           echo "========================================="
-
+          
           TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
           echo "🕐 Iniciando migraciones: ${TIMESTAMP}"
-
+          
+          echo "🧹 Limpieza en cascada habilitada - Eliminando todas las tablas y datos..."
+          echo "🌱 Después de las migraciones se insertarán datos de prueba"
+          
           timeout 360 aws lambda invoke \
             --function-name testing-migrator \
             --region us-east-1 \
             --cli-binary-format raw-in-base64-out \
             --payload '{"action": "migrate", "clean": true, "seed": true}' \
             migration-response.json
-
+          
           EXIT_CODE=$?
-
+          
           if [ $EXIT_CODE -eq 124 ]; then
             echo "❌ Error: Las migraciones tomaron más de 6 minutos (timeout)"
+            echo "🔍 Revisa los logs en CloudWatch:"
+            echo "   aws logs tail /aws/lambda/testing-migrator --follow"
             exit 1
           fi
-
+          
           if [ $EXIT_CODE -ne 0 ]; then
             echo "❌ Error al invocar la Lambda (código: $EXIT_CODE)"
+            echo "🔍 Posibles causas:"
+            echo "   - La función Lambda no existe"
+            echo "   - Permisos insuficientes"
+            echo "   - Problemas de VPC/conexión a la base de datos"
             exit $EXIT_CODE
           fi
-
+          
+          echo ""
+          echo "========================================="
           echo "📋 RESPUESTA DE LA LAMBDA:"
+          echo "========================================="
           cat migration-response.json
           echo ""
-
+          echo "========================================="
+          
           if grep -q '"success":false' migration-response.json; then
             echo "❌ Error: Las migraciones fallaron"
+            echo ""
+            echo "🔍 Para depurar:"
+            echo "   1. Revisa los logs en CloudWatch:"
+            echo "      aws logs describe-log-groups --log-group-name-prefix /aws/lambda/testing-migrator"
+            echo "   2. Verifica la sintaxis del SQL en db/migrations/"
+            echo "   3. Comprueba las conexiones a la base de datos"
+            echo "   4. Revisa que la Lambda tenga acceso a la VPC"
             exit 1
           fi
-
+          
           if grep -q '"success":true' migration-response.json; then
             MESSAGE=$(grep -o '"message":"[^"]*"' migration-response.json | cut -d'"' -f4)
             CLEANED=$(grep -o '"cleaned":[^,}]*' migration-response.json | cut -d':' -f2)
             SEEDED=$(grep -o '"seeded":[^,}]*' migration-response.json | cut -d':' -f2)
-
+            
             echo "✅ Migraciones completadas exitosamente"
             echo "📊 Mensaje: ${MESSAGE}"
             echo "🧹 Limpieza realizada: ${CLEANED}"
             echo "🌱 Seed realizado: ${SEEDED}"
+            
+            if [ "$CLEANED" = "true" ]; then
+              echo "🗑️  TODOS los datos anteriores fueron eliminados"
+              echo "✨ Base de datos completamente limpia y recreada"
+            fi
+            
+            if [ "$SEEDED" = "true" ]; then
+              echo "🌱 Datos de prueba insertados correctamente"
+            fi
           fi
-
+          
+          echo ""
+          echo "========================================="
           echo "🎉 PROCESO DE MIGRACIÓN FINALIZADO"
-
-  verify:
-    name: ✅ Verify Deployment
-    needs: migrate
-    runs-on: ubuntu-latest
-    environment: testing
-
-    steps:
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          echo "========================================="
 
       - name: Verify deployment
         run: |
+          echo ""
           echo "========================================="
           echo "🔍 VERIFICANDO DEPLOYMENT"
           echo "========================================="
-
+          
           STACK_STATUS=$(aws cloudformation describe-stacks \
             --stack-name nanutech-backend-testing \
             --region us-east-1 \
             --query 'Stacks[0].StackStatus' \
             --output text)
-
+          
           echo "📊 Estado del stack: ${STACK_STATUS}"
-
+          
           API_URL=$(aws cloudformation describe-stacks \
             --stack-name nanutech-backend-testing \
             --region us-east-1 \
             --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
             --output text)
-
+          
           MIGRATOR_ARN=$(aws cloudformation describe-stacks \
             --stack-name nanutech-backend-testing \
             --region us-east-1 \
             --query 'Stacks[0].Outputs[?OutputKey==`MigratorFunctionArn`].OutputValue' \
             --output text)
-
+          
           echo ""
           echo "========================================="
           echo "✅ DEPLOYMENT COMPLETADO EXITOSAMENTE"
@@ -209,6 +196,13 @@ jobs:
           echo "🌐 API Endpoint: ${API_URL}"
           echo "🔧 Migrator Function ARN: ${MIGRATOR_ARN}"
           echo "🕐 Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo ""
+          echo "📝 NOTAS IMPORTANTES:"
+          echo "   ✅ Las migraciones se ejecutaron con LIMPIEZA TOTAL (clean: true)"
+          echo "   ✅ Todas las tablas fueron ELIMINADAS y RECREADAS desde cero"
+          echo "   ✅ Los datos anteriores fueron ELIMINADOS permanentemente"
+          echo "   ✅ Se insertaron DATOS DE PRUEBA (seed)"
+          echo "   ✅ La base de datos está lista para pruebas"
           echo ""
           echo "🧪 Para probar la API:"
           echo "   curl ${API_URL}/camiones"
