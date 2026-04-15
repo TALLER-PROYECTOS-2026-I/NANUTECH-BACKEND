@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: API para gestión de camiones - Nanutech Backend
- # Nombre del stage (dev, test, prod) que se usará para desplegar la API la API
+# Nombre del stage (dev, test, prod) que se usará para desplegar la API
 Transform:
   - AWS::Serverless-2016-10-31
 
@@ -50,10 +50,6 @@ Parameters:
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: "ID del Security Group para las Lambdas"
-  ForceUpdate:
-    Type: String
-    Default: "0"
-    Description: "Force update timestamp for custom resource"
 
 Globals:
   Function:
@@ -103,7 +99,7 @@ Resources:
       Tags:
         Environment: !Ref StageName
         Proyecto: Nanutech-Backend
-        
+
   JornadaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -152,7 +148,7 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/functions/jornada-services/jornadaHandler.mjs
- 
+
   CamionFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -372,10 +368,6 @@ Resources:
           DB_NAME: !Ref DBName
           DB_PORT: !Ref DBPort
           DB_SSL_ENABLED: !Ref DBSslEnabled
-      VpcConfig:
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroup
-        SubnetIds: !Ref PrivateSubnets
 
   MigratorFunctionPermission:
     Type: AWS::Lambda::Permission
@@ -384,7 +376,6 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: cloudformation.amazonaws.com
       SourceArn: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"
-
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
