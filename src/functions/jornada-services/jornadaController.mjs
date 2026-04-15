@@ -13,11 +13,17 @@ export const createJornadaController = async (event) => {
         || event.requestContext.authorizer.jwt?.claims?.sub;
     }
     const jornada = await new JornadaService().createJornada(body);
-    return successResponse(jornada, "Jornada registrada exitosamente.", 201);
+    return successResponse(jornada, "Jornada registrada exitosamente.");
   } catch (error) {
-    console.error("Error en createJornadaController:", error);
-    return resolveErrorResponse(error);
+  console.error("Error en createJornadaController:", error);
+  // Agrega esta condición antes de resolveErrorResponse:
+  if (error.message?.includes("requerido") || 
+      error.message?.includes("activa") ||
+      error.message?.includes("inválido")) {
+    return errorResponse(error.message, 400);
   }
+  return resolveErrorResponse(error);
+}
 };
 
 export const getAllJornadasController = async (_event) => {

@@ -11,8 +11,6 @@ export class JornadaService {
       const validatedData = JornadaValidator.validateCreateJornada(jornadaData);
       const unidadOcupada = await this.repository.checkUnidadActiva(validatedData.unidad_id);
       if (unidadOcupada) throw new Error("La unidad ya tiene una jornada activa.");
-      const conductorActivo = await this.repository.checkConductorActivo(validatedData.conductor_id);
-      if (conductorActivo) throw new Error("El conductor ya tiene una jornada activa.");
       return await this.repository.create(validatedData);
     } catch (error) {
       console.error("Error en createJornada service:", error);

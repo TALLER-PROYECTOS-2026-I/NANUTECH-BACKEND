@@ -25,7 +25,7 @@ export class JornadaRepository {
         jornadaData.conductor_id, jornadaData.unidad_id,
         jornadaData.contrato_id, jornadaData.creado_por,
         jornadaData.fecha_jornada, jornadaData.origen,
-        jornadaData.destino, jornadaData.km_recorridos,
+        jornadaData.destino, jornadaData.km_recorridos ?? 0,
         jornadaData.observaciones, jornadaData.estado,
       ];
       const result = await client.query(query, values);
