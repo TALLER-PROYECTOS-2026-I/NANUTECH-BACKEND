@@ -1,40 +1,35 @@
 export class Jornada {
-  constructor(
-    id,
-    id_conductor,
-    id_unidad,
-    id_contrato,
-    estado,
-    fecha_registro,
-  ) {
+  constructor(id, conductor_id, unidad_id, contrato_id, creado_por,
+              fecha_jornada, hora_inicio, hora_fin, origen, destino,
+              km_recorridos, observaciones, estado, created_at, updated_at) {
     this.id = id;
-    this.id_conductor = id_conductor;
-    this.id_unidad = id_unidad;
-    this.id_contrato = id_contrato;
+    this.conductor_id = conductor_id;
+    this.unidad_id = unidad_id;
+    this.contrato_id = contrato_id;
+    this.creado_por = creado_por;
+    this.fecha_jornada = fecha_jornada;
+    this.hora_inicio = hora_inicio;
+    this.hora_fin = hora_fin;
+    this.origen = origen;
+    this.destino = destino;
+    this.km_recorridos = km_recorridos;
+    this.observaciones = observaciones;
     this.estado = estado;
-    this.fecha_registro = fecha_registro;
-  }
-
-  toJSON() {
-    return {
-      id: this.id,
-      id_conductor: this.id_conductor,
-      id_unidad: this.id_unidad,
-      id_contrato: this.id_contrato,
-      estado: this.estado,
-      fecha_registro: this.fecha_registro,
-    };
+    this.created_at = created_at;
+    this.updated_at = updated_at;
   }
 
   static fromDatabase(row) {
     if (!row) return null;
     return new Jornada(
-      row.id,
-      row.id_conductor,
-      row.id_unidad,
-      row.id_contrato,
-      row.estado,
-      row.fecha_registro,
+      row.id, row.conductor_id, row.unidad_id, row.contrato_id,
+      row.creado_por, row.fecha_jornada, row.hora_inicio, row.hora_fin,
+      row.origen, row.destino, row.km_recorridos, row.observaciones,
+      row.estado, row.created_at, row.updated_at
     );
+  }
+
+  static fromDatabaseList(rows) {
+    return rows.map(row => Jornada.fromDatabase(row));
   }
 }
