@@ -5,9 +5,11 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1021.0",
     "@aws-sdk/client-dynamodb": "^3.398.0",
     "@aws-sdk/lib-dynamodb": "^3.398.0",
     "esbuild": "^0.27.4",
+    "node-pg-migrate": "6.2.2",
     "pg": "^8.20.0"
   },
   "devDependencies": {
@@ -21,7 +23,16 @@
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config=jest.config.mjs",
     "test:unit": "npm run test -- __tests__/unit",
     "test:integration": "npm run test -- __tests__/integration --runInBand",
-    "test:coverage": "npm run test -- --coverage"
+    "test:coverage": "npm run test -- --coverage",
+    "migrate:up": "node-pg-migrate up     --migrations-dir db/migrations",
+    "migrate:down": "node-pg-migrate down   --migrations-dir db/migrations",
+    "migrate:status": "node-pg-migrate status --migrations-dir db/migrations",
+    "migrate:create": "node-pg-migrate create --migrations-dir db/migrations --migration-file-language sql"
+  },
+  "node-pg-migrate": {
+    "databaseUrl": "DATABASE_URL",
+    "migrationsTable": "pgmigrations",
+    "dir": "db/migrations"
   },
   "jest": {
     "testMatch": [

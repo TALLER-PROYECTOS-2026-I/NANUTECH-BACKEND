@@ -12,8 +12,10 @@ permissions:
 
 jobs:
   deploy:
+    name: 🚀 Deploy to AWS - Testing
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    environment: testing
 
     steps:
       - name: Checkout repository
@@ -23,7 +25,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1 
+          aws-region: us-east-1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -31,7 +33,7 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Install AWS SAM CLI
         run: pip install aws-sam-cli
@@ -41,6 +43,8 @@ jobs:
 
       - name: Deploy SAM application
         run: |
+          FORCE_UPDATE=$(date +%s)
+          
           sam deploy \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
@@ -54,4 +58,159 @@ jobs:
               DBName=${{ secrets.DB_NAME }} \
               DBUser=${{ secrets.DB_USER }} \
               DBPassword=${{ secrets.DB_PASSWORD }} \
-              DBPort=${{ secrets.DB_PORT }}
+              DBPort=${{ secrets.DB_PORT }} \
+              DBSslEnabled=${{ secrets.DB_SSL_ENABLED || 'true' }} \
+              AuthProvider=${{ secrets.AUTH_PROVIDER || 'cognito' }} \
+              CognitoUserPoolId=${{ secrets.COGNITO_USER_POOL_ID }} \
+              CognitoClientId=${{ secrets.COGNITO_CLIENT_ID }} \
+              SessionTimeoutSeconds=${{ secrets.SESSION_TIMEOUT_SECONDS || '7200' }} \
+              PrivateSubnets=${{ secrets.SUBNET_IDS }} \
+              LambdaSecurityGroup=${{ secrets.LAMBDA_SG_ID }} \
+              ForceUpdate=${FORCE_UPDATE}
+
+      - name: Wait for stack to be ready
+        run: |
+          echo "⏳ Esperando 30 segundos para que el stack esté completamente listo..."
+          sleep 30
+
+      - name: Run migrations with cascade cleanup AND seed data
+        run: |
+          echo "========================================="
+          echo "📦 EJECUTANDO MIGRACIONES CON LIMPIEZA TOTAL"
+          echo "========================================="
+          echo "⚠️  ⚠️  ⚠️  ADVERTENCIA  ⚠️  ⚠️  ⚠️"
+          echo "⚠️  Se ELIMINARÁN TODOS los datos existentes"
+          echo "⚠️  Se ELIMINARÁN todas las tablas"
+          echo "⚠️  Se ELIMINARÁN todos los tipos ENUM"
+          echo "⚠️  Se ELIMINARÁN todas las funciones"
+          echo "⚠️  Esta acción es IRREVERSIBLE"
+          echo "========================================="
+          
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+          echo "🕐 Iniciando migraciones: ${TIMESTAMP}"
+          
+          echo "🧹 Limpieza en cascada habilitada - Eliminando todas las tablas y datos..."
+          echo "🌱 Después de las migraciones se insertarán datos de prueba"
+          
+          timeout 360 aws lambda invoke \
+            --function-name testing-migrator \
+            --region us-east-1 \
+            --cli-binary-format raw-in-base64-out \
+            --payload '{"action": "migrate", "clean": true, "seed": true}' \
+            migration-response.json
+          
+          EXIT_CODE=$?
+          
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "❌ Error: Las migraciones tomaron más de 6 minutos (timeout)"
+            echo "🔍 Revisa los logs en CloudWatch:"
+            echo "   aws logs tail /aws/lambda/testing-migrator --follow"
+            exit 1
+          fi
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ Error al invocar la Lambda (código: $EXIT_CODE)"
+            echo "🔍 Posibles causas:"
+            echo "   - La función Lambda no existe"
+            echo "   - Permisos insuficientes"
+            echo "   - Problemas de VPC/conexión a la base de datos"
+            exit $EXIT_CODE
+          fi
+          
+          echo ""
+          echo "========================================="
+          echo "📋 RESPUESTA DE LA LAMBDA:"
+          echo "========================================="
+          cat migration-response.json
+          echo ""
+          echo "========================================="
+          
+          if grep -q '"success":false' migration-response.json; then
+            echo "❌ Error: Las migraciones fallaron"
+            echo ""
+            echo "🔍 Para depurar:"
+            echo "   1. Revisa los logs en CloudWatch:"
+            echo "      aws logs describe-log-groups --log-group-name-prefix /aws/lambda/testing-migrator"
+            echo "   2. Verifica la sintaxis del SQL en db/migrations/"
+            echo "   3. Comprueba las conexiones a la base de datos"
+            echo "   4. Revisa que la Lambda tenga acceso a la VPC"
+            exit 1
+          fi
+          
+          if grep -q '"success":true' migration-response.json; then
+            MESSAGE=$(grep -o '"message":"[^"]*"' migration-response.json | cut -d'"' -f4)
+            CLEANED=$(grep -o '"cleaned":[^,}]*' migration-response.json | cut -d':' -f2)
+            SEEDED=$(grep -o '"seeded":[^,}]*' migration-response.json | cut -d':' -f2)
+            
+            echo "✅ Migraciones completadas exitosamente"
+            echo "📊 Mensaje: ${MESSAGE}"
+            echo "🧹 Limpieza realizada: ${CLEANED}"
+            echo "🌱 Seed realizado: ${SEEDED}"
+            
+            if [ "$CLEANED" = "true" ]; then
+              echo "🗑️  TODOS los datos anteriores fueron eliminados"
+              echo "✨ Base de datos completamente limpia y recreada"
+            fi
+            
+            if [ "$SEEDED" = "true" ]; then
+              echo "🌱 Datos de prueba insertados correctamente"
+            fi
+          fi
+          
+          echo ""
+          echo "========================================="
+          echo "🎉 PROCESO DE MIGRACIÓN FINALIZADO"
+          echo "========================================="
+
+      - name: Verify deployment
+        run: |
+          echo ""
+          echo "========================================="
+          echo "🔍 VERIFICANDO DEPLOYMENT"
+          echo "========================================="
+          
+          STACK_STATUS=$(aws cloudformation describe-stacks \
+            --stack-name nanutech-backend-testing \
+            --region us-east-1 \
+            --query 'Stacks[0].StackStatus' \
+            --output text)
+          
+          echo "📊 Estado del stack: ${STACK_STATUS}"
+          
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name nanutech-backend-testing \
+            --region us-east-1 \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
+            --output text)
+          
+          MIGRATOR_ARN=$(aws cloudformation describe-stacks \
+            --stack-name nanutech-backend-testing \
+            --region us-east-1 \
+            --query 'Stacks[0].Outputs[?OutputKey==`MigratorFunctionArn`].OutputValue' \
+            --output text)
+          
+          echo ""
+          echo "========================================="
+          echo "✅ DEPLOYMENT COMPLETADO EXITOSAMENTE"
+          echo "========================================="
+          echo "🌐 API Endpoint: ${API_URL}"
+          echo "🔧 Migrator Function ARN: ${MIGRATOR_ARN}"
+          echo "🕐 Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo ""
+          echo "📝 NOTAS IMPORTANTES:"
+          echo "   ✅ Las migraciones se ejecutaron con LIMPIEZA TOTAL (clean: true)"
+          echo "   ✅ Todas las tablas fueron ELIMINADAS y RECREADAS desde cero"
+          echo "   ✅ Los datos anteriores fueron ELIMINADOS permanentemente"
+          echo "   ✅ Se insertaron DATOS DE PRUEBA (seed)"
+          echo "   ✅ La base de datos está lista para pruebas"
+          echo ""
+          echo "🧪 Para probar la API:"
+          echo "   curl ${API_URL}/camiones"
+          echo "   curl ${API_URL}/conductores"
+          echo "   curl ${API_URL}/contratos/vigentes"
+          echo "   curl ${API_URL}/unidades/disponibles"
+          echo ""
+          echo "🔐 Credenciales de prueba:"
+          echo "   Admin: admin@nanutech.com"
+          echo "   Chofer: chofer1@nanutech.com"
+          echo "========================================="
