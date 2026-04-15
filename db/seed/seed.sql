@@ -29,7 +29,7 @@ VALUES
 
   ('00000000-0000-0000-0000-000000000002',
    'c4f84478-a051-707b-d0ee-ad4d95480a7c',
-   'chofer1@nanutech.com',
+   'chofer@nanutech.com',
    'Carlos', 'Gomez',
    'CHOFER', '999111222', '87654321',
    TRUE, 'ACTIVO',
