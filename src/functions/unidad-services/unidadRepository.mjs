@@ -8,10 +8,6 @@ export class UnidadRepository {
        FROM unidades
        WHERE activo = TRUE
          AND estado = 'DISPONIBLE'
-         AND id NOT IN (
-           SELECT unidad_id FROM jornadas 
-           WHERE estado IN ('REGISTRADA', 'EN_PROCESO')
-         )
        ORDER BY placa`
     );
     return result.rows;
