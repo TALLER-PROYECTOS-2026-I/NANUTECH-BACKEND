@@ -112,7 +112,6 @@ Resources:
       Handler: src/functions/jornada-services/jornadaHandler.handler
       Policies:
         - AWSLambdaBasicExecutionRole
-        - VPCAccessPolicy: {}
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -123,6 +122,12 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /jornadas
             Method: POST
+        GetAll:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas
+            Method: GET
         GetCurrent:
           Type: Api
           Properties:
