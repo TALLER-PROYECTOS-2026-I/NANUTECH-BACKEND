@@ -36,9 +36,7 @@ export const createJornadaController = async (event) => {
 
 export const getAllJornadasController = async (_event) => {
   try {
-    const jornadaService = new JornadaService();
-    const data = await jornadaService.getAllJornadas();
-
+    const data = await new JornadaService().getAllJornadas();
     return successResponse(data, "Jornadas obtenidas exitosamente.");
   } catch (error) {
     console.error("Error en getAllJornadasController:", error);
