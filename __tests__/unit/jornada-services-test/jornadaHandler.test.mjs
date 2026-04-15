@@ -4,6 +4,7 @@ jest.unstable_mockModule(
   "../../../src/functions/jornada-services/jornadaController.mjs",
   () => ({
     createJornadaController: jest.fn(),
+    getAllJornadasController: jest.fn(), 
     getCurrentJornadaController: jest.fn(),
     startTurnController: jest.fn(),
     finishTurnController: jest.fn(),

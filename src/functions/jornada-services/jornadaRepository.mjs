@@ -214,4 +214,35 @@ export class JornadaRepository {
       client.release();
     }
   }
+  async findAll() {
+  const client = await getClient();
+  try {
+    const result = await client.query(`
+      SELECT
+        j.id,
+        j.fecha_jornada AS fecha,
+        u.nombres || ' ' || u.apellidos AS conductor,
+        un.placa || ' - ' || un.marca || ' ' || un.modelo AS camion,
+        c.codigo AS contrato,
+        CASE
+          WHEN j.hora_inicio IS NOT NULL AND j.hora_fin IS NOT NULL
+            THEN TO_CHAR(j.hora_inicio, 'HH:MI AM') || ' - ' || TO_CHAR(j.hora_fin, 'HH:MI AM')
+          WHEN j.hora_inicio IS NOT NULL
+            THEN TO_CHAR(j.hora_inicio, 'HH:MI AM') || ' - En curso'
+          ELSE 'Sin iniciar'
+        END AS horario,
+        j.km_recorridos AS km,
+        j.estado,
+        j.observaciones
+      FROM jornadas j
+      JOIN usuarios u ON u.id = j.conductor_id
+      JOIN unidades un ON un.id = j.unidad_id
+      JOIN contratos c ON c.id = j.contrato_id
+      ORDER BY j.created_at DESC;
+    `);
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
 }

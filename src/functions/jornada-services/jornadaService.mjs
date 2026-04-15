@@ -115,4 +115,7 @@ export class JornadaService {
     const updated = await this.repository.finishTurn(jornadaId, observaciones);
     return Jornada.fromDatabase(updated);
   }
+  async getAllJornadas() {
+  return this.repository.findAll();
+}
 }
