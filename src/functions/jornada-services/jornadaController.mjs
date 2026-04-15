@@ -6,14 +6,12 @@ import {
 
 function parseJsonBody(event) {
   if (!event.body) return {};
-
   try {
     return JSON.parse(event.body);
   } catch {
-    const error = new Error("El cuerpo de la solicitud no es un JSON válido.");
-    error.statusCode = 400;
-    error.code = "INVALID_REQUEST_BODY";
-    throw error;
+    return errorResponse("El cuerpo de la solicitud no es un JSON válido.", 400, {
+      code: "INVALID_REQUEST_BODY",
+    });
   }
 }
 
@@ -36,14 +34,28 @@ export const createJornadaController = async (event) => {
   }
 };
 
+export const getAllJornadasController = async (_event) => {
+  try {
+    const jornadaService = new JornadaService();
+    const data = await jornadaService.getAllJornadas();
+
+    return successResponse(data, "Jornadas obtenidas exitosamente.");
+  } catch (error) {
+    console.error("Error en getAllJornadasController:", error);
+    return resolveErrorResponse(error);
+  }
+};
+
 export const getCurrentJornadaController = async (event) => {
   try {
     const jornadaService = new JornadaService();
+
     const conductorId =
       event.pathParameters?.conductorId ||
       event.queryStringParameters?.conductor_id;
 
     const jornada = await jornadaService.getCurrentJornada(conductorId);
+
     return successResponse(jornada, "Jornada actual obtenida exitosamente.");
   } catch (error) {
     console.error("Error en getCurrentJornadaController:", error);
