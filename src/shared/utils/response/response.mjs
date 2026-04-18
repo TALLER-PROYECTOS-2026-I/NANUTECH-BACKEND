@@ -14,6 +14,8 @@ export const createResponse = (statusCode, success, message, data = null) => {
     headers: {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "OPTIONS,POST,GET,PUT,DELETE",
+      "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Amz-Date,X-Api-Key"
     },
   };
 };
