@@ -88,6 +88,26 @@ VALUES
   ('10000000-0000-0000-0000-000000000005',
    'MNO-345', 'International', 'LT625', 2018, 12.00, 'INACTIVA', FALSE, FALSE);
 
+INSERT INTO unidades (id, placa, marca, modelo, anio, capacidad_ton, estado, gps_habilitado, activo)
+VALUES
+  ('20000000-0000-0000-0000-000000000001',
+   'BCD-111', 'Volvo', 'FH', 2021, 16.00, 'DISPONIBLE', TRUE, TRUE),
+
+  ('20000000-0000-0000-0000-000000000002',
+   'CDE-222', 'Scania', 'R450', 2022, 17.50, 'DISPONIBLE', TRUE, TRUE),
+
+  ('20000000-0000-0000-0000-000000000003',
+   'DEF-333', 'Mercedes Benz', 'Actros 2645', 2023, 18.20, 'DISPONIBLE', TRUE, TRUE),
+
+  ('20000000-0000-0000-0000-000000000004',
+   'EFG-444', 'Kenworth', 'T800', 2020, 19.00, 'DISPONIBLE', FALSE, TRUE),
+
+  ('20000000-0000-0000-0000-000000000005',
+   'FGH-555', 'International', 'RH', 2019, 14.80, 'DISPONIBLE', TRUE, TRUE),
+
+  ('20000000-0000-0000-0000-000000000006',
+   'GHI-666', 'MAN', 'TGX', 2022, 20.00, 'DISPONIBLE', TRUE, TRUE);
+
 -- ============================================
 -- PASO 4: CONTRATOS
 -- ============================================
