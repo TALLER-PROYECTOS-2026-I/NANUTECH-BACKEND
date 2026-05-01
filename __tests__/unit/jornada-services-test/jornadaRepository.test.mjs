@@ -68,7 +68,7 @@ describe("JornadaRepository", () => {
 
     const [query, values] = mockQuery.mock.calls[0];
     expect(query).toContain("conductor_id = $1");
-    expect(query).toContain("estado IN ('REGISTRADA', 'EN_PROCESO')");
+    expect(query).toContain("estado IN ('REGISTRADA', 'PENDIENTE', 'EN_PROCESO')");
     expect(values).toEqual(["cond-1"]);
   });
 
@@ -79,7 +79,7 @@ describe("JornadaRepository", () => {
 
     const [query, values] = mockQuery.mock.calls[0];
     expect(query).toContain("unidad_id = $1");
-    expect(query).toContain("estado IN ('REGISTRADA', 'EN_PROCESO')");
+    expect(query).toContain("estado IN ('REGISTRADA', 'PENDIENTE', 'EN_PROCESO')");
     expect(values).toEqual(["uni-1"]);
     expect(result).toBe(true);
   });

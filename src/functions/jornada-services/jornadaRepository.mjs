@@ -96,7 +96,7 @@ export class JornadaRepository {
       const query = `
         ${BASE_SELECT}
         WHERE conductor_id = $1
-          AND estado IN ('REGISTRADA', 'EN_PROCESO')
+          AND estado IN ('REGISTRADA', 'PENDIENTE', 'EN_PROCESO')
         ORDER BY created_at DESC
         LIMIT 1;
       `;
@@ -115,7 +115,7 @@ export class JornadaRepository {
         SELECT id
         FROM jornadas
         WHERE unidad_id = $1
-          AND estado IN ('REGISTRADA', 'EN_PROCESO')
+          AND estado IN ('REGISTRADA', 'PENDIENTE', 'EN_PROCESO')
         LIMIT 1;
       `;
       const result = await client.query(query, [unidadId]);
@@ -133,7 +133,7 @@ export class JornadaRepository {
         SELECT id
         FROM jornadas
         WHERE conductor_id = $1
-          AND estado IN ('REGISTRADA', 'EN_PROCESO')
+          AND estado IN ('REGISTRADA', 'PENDIENTE', 'EN_PROCESO')
         LIMIT 1;
       `;
       const result = await client.query(query, [conductorId]);
