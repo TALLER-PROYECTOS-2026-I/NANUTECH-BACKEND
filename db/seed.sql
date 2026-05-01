@@ -3,11 +3,11 @@
 -- =========================================================
 INSERT INTO usuarios (id, cognito_sub, correo, nombres, apellidos, rol, telefono, dni)
 VALUES
-('11111111-1111-1111-1111-111111111111', 'cognito-admin-001',   'admin@nanutech.com',    'Jimena', 'Rodriguez', 'ADMIN',   '999111222', '70000001'),
-('22222222-2222-2222-2222-222222222222', 'cognito-driver-001',  'chofer1@nanutech.com',  'Carlos', 'Mendoza',   'CHOFER',  '999222333', '70000002'),
-('33333333-3333-3333-3333-333333333333', 'cognito-driver-002',  'chofer2@nanutech.com',  'Luis',   'Ramirez',   'CHOFER',  '999333444', '70000003'),
-('44444444-4444-4444-4444-444444444444', 'cognito-driver-003',  'chofer3@nanutech.com',  'Jorge',  'Silva',     'CHOFER',  '999444555', '70000004'),
-('55555555-5555-5555-5555-555555555555', 'cognito-gerente-001', 'gerencia@nanutech.com', 'Laura',  'Vasquez',   'GERENTE', '999777888', '70000005');
+('11111111-1111-1111-1111-111111111111', '7438d4b8-0021-7065-dda7-7bbdfa75c929', 'admin@nanutech.com',    'Jimena', 'Rodriguez', 'ADMIN',   '999111222', '70000001'),
+('22222222-2222-2222-2222-222222222222', 'c4f84478-a051-707b-d0ee-ad4d95480a7c', 'chofer1@nanutech.com',  'Carlos', 'Mendoza',   'CHOFER',  '999222333', '70000002'),
+('33333333-3333-3333-3333-333333333333', 'cognito-sub-chofer-002',               'chofer2@nanutech.com',  'Luis',   'Ramirez',   'CHOFER',  '999333444', '70000003'),
+('44444444-4444-4444-4444-444444444444', 'cognito-sub-chofer-003',               'chofer3@nanutech.com',  'Jorge',  'Silva',     'CHOFER',  '999444555', '70000004'),
+('55555555-5555-5555-5555-555555555555', NULL,                                   'gerencia@nanutech.com', 'Laura',  'Vasquez',   'GERENTE', '999777888', '70000005');
 
 -- =========================================================
 -- CONDUCTORES
