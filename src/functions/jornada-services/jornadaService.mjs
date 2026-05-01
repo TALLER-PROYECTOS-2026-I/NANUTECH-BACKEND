@@ -2,7 +2,7 @@ import { JornadaRepository } from "./jornadaRepository.mjs";
 import { Jornada } from "./jornadaModel.mjs";
 import { JornadaValidator } from "../../shared/utils/validators/jornadaValidator.mjs";
 
-const ACTIVE_STATES = new Set(["REGISTRADA", "EN_PROCESO"]);
+const ACTIVE_STATES = new Set(["REGISTRADA", "PENDIENTE", "EN_PROCESO"]);
 
 function createJornadaError(message, statusCode = 400, code = "JORNADA_ERROR") {
   const error = new Error(message);
@@ -63,7 +63,7 @@ export class JornadaService {
       throw createJornadaError("La jornada no existe.", 404, "JORNADA_NOT_FOUND");
     }
 
-    // Solo se permite pasar de REGISTRADA a EN_PROCESO y la hora de inicio la fija el servidor.
+    // Solo se permite pasar de REGISTRADA/PENDIENTE a EN_PROCESO y la hora de inicio la fija el servidor.
     if (jornada.estado === "EN_PROCESO") {
       throw createJornadaError(
         "La jornada ya fue iniciada.",
@@ -80,9 +80,9 @@ export class JornadaService {
       );
     }
 
-    if (jornada.estado !== "REGISTRADA") {
+    if (!["REGISTRADA", "PENDIENTE"].includes(jornada.estado)) {
       throw createJornadaError(
-        "La jornada solo puede iniciarse desde REGISTRADA.",
+        "La jornada solo puede iniciarse desde REGISTRADA o PENDIENTE.",
         400,
         "JORNADA_INVALID_STATE",
       );

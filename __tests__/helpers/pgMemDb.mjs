@@ -1,76 +1,130 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { newDb } from "pg-mem";
 import {
   setPoolForTests,
   resetPoolForTests,
 } from "../../src/shared/config/database.mjs";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const pgMemSchemaSQL = `
+CREATE TABLE usuarios (
+  id UUID PRIMARY KEY,
+  cognito_sub VARCHAR(100),
+  correo VARCHAR(120) NOT NULL UNIQUE,
+  nombres VARCHAR(80) NOT NULL,
+  apellidos VARCHAR(80) NOT NULL,
+  rol VARCHAR(20) NOT NULL,
+  telefono VARCHAR(20),
+  dni VARCHAR(15),
+  activo BOOLEAN NOT NULL DEFAULT TRUE,
+  estado VARCHAR(20) NOT NULL DEFAULT 'ACTIVO',
+  ultimo_acceso TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
 
-async function loadSql(fileName) {
-  return fs.readFile(path.join(__dirname, "../../db", fileName), "utf8");
-}
+CREATE TABLE unidades (
+  id UUID PRIMARY KEY,
+  placa VARCHAR(20) NOT NULL UNIQUE,
+  marca VARCHAR(50),
+  modelo VARCHAR(50),
+  anio INTEGER,
+  capacidad_ton NUMERIC(10,2),
+  estado VARCHAR(30) NOT NULL DEFAULT 'DISPONIBLE',
+  gps_habilitado BOOLEAN NOT NULL DEFAULT TRUE,
+  activo BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE contratos (
+  id UUID PRIMARY KEY,
+  codigo VARCHAR(30) NOT NULL UNIQUE,
+  cliente VARCHAR(120) NOT NULL,
+  descripcion TEXT,
+  fecha_inicio DATE NOT NULL,
+  fecha_fin DATE,
+  tarifa NUMERIC(12,2),
+  moneda VARCHAR(10) DEFAULT 'PEN',
+  estado VARCHAR(20) NOT NULL DEFAULT 'VIGENTE',
+  activo BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE jornadas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conductor_id UUID NOT NULL REFERENCES usuarios(id),
+  unidad_id UUID NOT NULL REFERENCES unidades(id),
+  contrato_id UUID NOT NULL REFERENCES contratos(id),
+  creado_por UUID NOT NULL REFERENCES usuarios(id),
+  fecha_jornada DATE NOT NULL DEFAULT CURRENT_DATE,
+  hora_inicio TIMESTAMP,
+  hora_fin TIMESTAMP,
+  origen VARCHAR(150),
+  destino VARCHAR(150),
+  km_recorridos NUMERIC(10,2) NOT NULL DEFAULT 0,
+  observaciones TEXT,
+  estado VARCHAR(20) NOT NULL DEFAULT 'REGISTRADA',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE camiones (
+  id INTEGER PRIMARY KEY,
+  placa VARCHAR(20) NOT NULL UNIQUE,
+  marca VARCHAR(50),
+  modelo VARCHAR(50),
+  estado VARCHAR(30) NOT NULL DEFAULT 'disponible',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+`;
+
+const pgMemSeedSQL = `
+INSERT INTO usuarios (id, cognito_sub, correo, nombres, apellidos, rol, telefono, dni)
+VALUES
+('11111111-1111-1111-1111-111111111111', 'cognito-admin-001', 'admin@nanutech.com', 'Jimena', 'Rodriguez', 'ADMIN', '999111222', '70000001'),
+('22222222-2222-2222-2222-222222222222', 'cognito-driver-001', 'chofer1@nanutech.com', 'Carlos', 'Mendoza', 'CHOFER', '999222333', '70000002'),
+('33333333-3333-3333-3333-333333333333', 'cognito-driver-002', 'chofer2@nanutech.com', 'Luis', 'Ramirez', 'CHOFER', '999333444', '70000003');
+
+INSERT INTO unidades (id, placa, marca, modelo, anio, capacidad_ton, estado)
+VALUES
+('aaaa0001-0000-0000-0000-000000000001', 'ABC-123', 'Volvo', 'FH16', 2020, 20.00, 'DISPONIBLE'),
+('aaaa0002-0000-0000-0000-000000000002', 'DEF-456', 'Scania', 'R450', 2021, 18.00, 'EN_JORNADA');
+
+INSERT INTO contratos (id, codigo, cliente, descripcion, fecha_inicio, fecha_fin, tarifa, moneda, estado)
+VALUES
+('bbbb0001-0000-0000-0000-000000000001', 'CONT-2026-001', 'Minera del Sur', 'Transporte de carga minera', '2026-01-01', '2026-12-31', 15000.00, 'PEN', 'VIGENTE');
+
+INSERT INTO jornadas (id, conductor_id, unidad_id, contrato_id, creado_por, fecha_jornada, hora_inicio, origen, destino, km_recorridos, estado)
+VALUES
+('cccc0002-0000-0000-0000-000000000002', '33333333-3333-3333-3333-333333333333', 'aaaa0002-0000-0000-0000-000000000002', 'bbbb0001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', '2026-04-26', '2026-04-26 08:00:00', 'Lima', 'Ica', 120.80, 'EN_PROCESO');
+
+INSERT INTO camiones (id, placa, marca, modelo, estado)
+VALUES
+(1, 'ABC-123', 'Volvo', 'FH16', 'disponible'),
+(2, 'DEF-456', 'Scania', 'R450', 'en_uso');
+`;
 
 export async function startPgMem({ seed = true } = {}) {
   const db = newDb({ autoCreateForeignKeyIndices: true });
 
-  // ============================================
-  // REGISTRAR FUNCIONES FALTANTES PARA pg-mem
-  // ============================================
-
-  // 1. Registrar gen_random_uuid() (pgcrypto)
   db.public.registerFunction({
     name: "gen_random_uuid",
     args: [],
     returns: "uuid",
-    implementation: () => {
-      // Generar UUID v4 manualmente
-      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
-        /[xy]/g,
-        function (c) {
-          const r = (Math.random() * 16) | 0;
-          const v = c === "x" ? r : (r & 0x3) | 0x8;
-          return v.toString(16);
-        },
-      );
-    },
+    implementation: () =>
+      "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      }),
   });
 
-  // 2. Registrar uuid_generate_v4() (uuid-ossp) - por si acaso
-  db.public.registerFunction({
-    name: "uuid_generate_v4",
-    args: [],
-    returns: "uuid",
-    implementation: () => {
-      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
-        /[xy]/g,
-        function (c) {
-          const r = (Math.random() * 16) | 0;
-          const v = c === "x" ? r : (r & 0x3) | 0x8;
-          return v.toString(16);
-        },
-      );
-    },
-  });
-
-  // 3. Registrar la extensión pgcrypto para que CREATE EXTENSION no falle
-  // Esto hace que pg-mem "finja" que la extensión existe
-  db.registerExtension("pgcrypto", (schema) => {
-    // La extensión ya tiene las funciones registradas arriba
-    // Este callback se ejecuta cuando alguien hace CREATE EXTENSION
-  });
-
-  const schemaSql = await loadSql("schema.sql");
-  const seedSql = await loadSql("seed.sql");
-
-  // Ejecutar el schema (ahora CREATE EXTENSION no fallará)
-  db.public.none(schemaSql);
+  db.registerExtension("pgcrypto", () => {});
+  db.public.none(pgMemSchemaSQL);
 
   if (seed) {
-    db.public.none(seedSql);
+    db.public.none(pgMemSeedSQL);
   }
 
   const { Pool } = db.adapters.createPg();

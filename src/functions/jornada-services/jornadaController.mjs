@@ -18,7 +18,11 @@ function parseJsonBody(event) {
 }
 
 function resolveErrorResponse(error) {
-  return errorResponse(error.message, error.statusCode || 500, {
+  const statusCode =
+    error.statusCode ||
+    (/(requerido|inv[aá]lido|validaci[oó]n)/i.test(error.message) ? 400 : 500);
+
+  return errorResponse(error.message, statusCode, {
     code: error.code || "JORNADA_ERROR",
   });
 }

@@ -32,8 +32,19 @@ export class CamionValidator {
   }
 
   static validateEstado(estado) {
-    if (!estado) return "activo";
-    const estadosValidos = ["activo", "inactivo", "mantenimiento"];
+    if (!estado) return "disponible";
+    const estadosValidos = [
+      "activo",
+      "active",
+      "available",
+      "disponible",
+      "en_uso",
+      "en_jornada",
+      "en_auxilio",
+      "inactivo",
+      "mantenimiento",
+      "maintenance",
+    ];
     if (!estadosValidos.includes(estado.toLowerCase())) {
       throw new Error(ERROR_MESSAGES.CAMION_ESTADO_INVALID);
     }

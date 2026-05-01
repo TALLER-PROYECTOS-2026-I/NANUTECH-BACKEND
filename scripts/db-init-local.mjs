@@ -3,21 +3,8 @@ import { schemaSQL } from "../db/schema.mjs";
 import { seedSQL } from "../db/seed.mjs";
 
 const resetSQL = `
-DROP VIEW IF EXISTS vw_seguimiento_jornadas CASCADE;
-DROP TABLE IF EXISTS ubicaciones_jornada CASCADE;
-DROP TABLE IF EXISTS alertas_jornada CASCADE;
-DROP TABLE IF EXISTS jornadas CASCADE;
-DROP TABLE IF EXISTS contratos CASCADE;
-DROP TABLE IF EXISTS unidades CASCADE;
-DROP TABLE IF EXISTS usuarios CASCADE;
-DROP FUNCTION IF EXISTS fn_set_updated_at() CASCADE;
-DROP TYPE IF EXISTS tipo_registro_ubicacion CASCADE;
-DROP TYPE IF EXISTS tipo_alerta CASCADE;
-DROP TYPE IF EXISTS estado_jornada CASCADE;
-DROP TYPE IF EXISTS estado_contrato CASCADE;
-DROP TYPE IF EXISTS estado_unidad CASCADE;
-DROP TYPE IF EXISTS estado_usuario CASCADE;
-DROP TYPE IF EXISTS rol_usuario CASCADE;
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
 `;
 
 const showHelp = () => {
@@ -51,7 +38,6 @@ const run = async () => {
     client = await getClient();
 
     await client.query("BEGIN");
-    await client.query("CREATE EXTENSION IF NOT EXISTS pgcrypto");
 
     if (shouldReset) {
       console.log("==> Limpiando esquema previo");

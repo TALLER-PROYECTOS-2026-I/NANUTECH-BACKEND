@@ -1,4 +1,4 @@
-const VALID_CREATE_STATES = new Set(["REGISTRADA", "EN_PROCESO"]);
+const VALID_CREATE_STATES = new Set(["REGISTRADA", "PENDIENTE", "EN_PROCESO"]);
 
 function requireString(value, fieldName) {
   if (value === undefined || value === null || `${value}`.trim() === "") {
@@ -45,7 +45,7 @@ export class JornadaValidator {
       fecha_jornada: normalizeOptionalString(data.fecha_jornada),
       origen: normalizeOptionalString(data.origen),
       destino: normalizeOptionalString(data.destino),
-      km_recorridos: normalizeOptionalNumber(data.km_recorridos, "km_recorridos"),
+      km_recorridos: normalizeOptionalNumber(data.km_recorridos, "km_recorridos") ?? 0,
       observaciones: normalizeOptionalString(data.observaciones),
       estado,
     };

@@ -66,7 +66,7 @@ export class CamionRepository {
         `INSERT INTO camiones (placa, marca, modelo, estado)
          VALUES ($1, $2, $3, $4)
          RETURNING id, placa, marca, modelo, estado`,
-        [placa, marca, modelo, estado || "activo"],
+        [placa, marca, modelo, estado || "disponible"],
       );
       return result.rows[0];
     } catch (error) {
