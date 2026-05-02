@@ -174,6 +174,24 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /camiones/{id}
             Method: GET
+        CreateCamion:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones
+            Method: POST
+        GetPanelCamiones:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones/panel
+            Method: GET
+        ExportCamionesCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones/exportar/csv
+            Method: GET
       Tags:
         Environment: !Ref StageName
         Servicio: camion

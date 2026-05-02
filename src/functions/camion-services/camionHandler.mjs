@@ -2,11 +2,17 @@
 import {
   getAllCamionesController,
   getCamionByIdController,
+  createCamionController,
+  getPanelCamionesController,
+  exportCamionesCsvController,
 } from "./camionController.mjs";
 
 const routes = {
   "GET /camiones": getAllCamionesController,
   "GET /camiones/{id}": getCamionByIdController,
+  "POST /camiones": createCamionController,
+  "GET /camiones/panel": getPanelCamionesController,
+  "GET /camiones/exportar/csv": exportCamionesCsvController,
 };
 
 export const handler = async (event) => {
