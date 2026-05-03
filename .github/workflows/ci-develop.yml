@@ -243,17 +243,15 @@ jobs:
 
       - name: Generate HTML coverage report
         run: |
-          # Crear directorio de salida
           mkdir -p coverage/html-report
           
-          # Generar reporte HTML usando los datos existentes
           if [ -d ".nyc_output" ] && [ "$(ls -A .nyc_output)" ]; then
             npx nyc report --reporter=html --report-dir=coverage/html-report
           elif [ -f "coverage/coverage-final.json" ]; then
             npx nyc report --reporter=html --report-dir=coverage/html-report --temp-directory=./coverage
           else
-            # Crear un reporte de respaldo
-            cat > coverage/html-report/index.html << 'EOF'
+            # Heredoc con marcador único (HTMLEND)
+            cat > coverage/html-report/index.html << 'HTMLEND'
             <!DOCTYPE html>
             <html>
             <head><title>Coverage Report</title></head>
@@ -263,7 +261,7 @@ jobs:
             <p><a href="coverage-summary.json">Ver resumen JSON</a></p>
             </body>
             </html>
-            EOF
+            HTMLEND
           fi
           echo "✅ HTML coverage generated at coverage/html-report/index.html"
 
@@ -440,7 +438,7 @@ jobs:
     steps:
       - name: Write job summary
         run: |
-          cat >> $GITHUB_STEP_SUMMARY << ENDSUMMARY
+          cat >> $GITHUB_STEP_SUMMARY << 'ENDSUMMARY'
           ## 🛡️ Security & Quality Report — NANUTECH Backend
 
           ### 🔒 Security (Snyk)
