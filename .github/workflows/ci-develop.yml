@@ -1,39 +1,498 @@
-name: Run Tests
+name: Security & Quality Tests
 
 on:
   pull_request:
-    branches:
-      - develop
+    branches: [develop]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
 
 jobs:
-  test:
+  # ============================================
+  # SECURITY JOBS (SNYK)
+  # ============================================
+  
+  snyk-dependencies:
+    name: 🔒 Snyk - Dependencies (SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    outputs:
+      vuln_count: ${{ steps.snyk.outputs.vuln_count }}
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Snyk - Scan dependencies
+        id: snyk
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: >
+            --severity-threshold=high
+            --sarif-file-output=snyk-deps.sarif
+            --all-projects
+            --json-file-output=snyk-deps.json
+
+      - name: Parse Snyk results
+        run: |
+          if [ -f snyk-deps.json ]; then
+            VULN_COUNT=$(jq '.vulnerabilities | length' snyk-deps.json 2>/dev/null || echo "0")
+            echo "vuln_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+            echo "📊 Dependency vulnerabilities: $VULN_COUNT"
+          else
+            echo "vuln_count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-deps.sarif
+          category: snyk-dependencies
+      
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-deps-results
+          path: |
+            snyk-deps.sarif
+            snyk-deps.json
+          retention-days: 30
+
+  snyk-code:
+    name: 🔍 Snyk - Source Code (SAST)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    outputs:
+      issues_count: ${{ steps.snyk.outputs.issues }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Snyk - Scan source code
+        id: snyk
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: >
+            --severity-threshold=high
+            --sarif-file-output=snyk-code.sarif
+            --include-ignores
+            --json-file-output=snyk-code.json
+
+      - name: Parse Snyk results
+        run: |
+          if [ -f snyk-code.json ]; then
+            ISSUES=$(jq '.runs[0].results | length' snyk-code.json 2>/dev/null || echo "0")
+            echo "issues=$ISSUES" >> $GITHUB_OUTPUT
+            echo "📊 Code issues: $ISSUES"
+          else
+            echo "issues=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-code.sarif
+          category: snyk-code
+      
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-code-results
+          path: |
+            snyk-code.sarif
+            snyk-code.json
+          retention-days: 30
+
+  snyk-iac:
+    name: 🏗️ Snyk - Infrastructure (IaC)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    outputs:
+      issues_count: ${{ steps.snyk.outputs.issues }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Snyk - Scan IaC (SAM template)
+        id: snyk
+        uses: snyk/actions/iac@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: >
+            --severity-threshold=high
+            --sarif-file-output=snyk-iac.sarif
+            --json-file-output=snyk-iac.json
+          file: template.yaml
+
+      - name: Parse Snyk results
+        run: |
+          if [ -f snyk-iac.json ]; then
+            ISSUES=$(jq '.vulnerabilities | length' snyk-iac.json 2>/dev/null || echo "0")
+            echo "issues=$ISSUES" >> $GITHUB_OUTPUT
+            echo "📊 IaC issues: $ISSUES"
+          else
+            echo "issues=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-iac.sarif
+          category: snyk-iac
+      
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-iac-results
+          path: |
+            snyk-iac.sarif
+            snyk-iac.json
+          retention-days: 30
+
+  # ============================================
+  # QUALITY TESTS
+  # ============================================
+  
+  unit-tests:
+    name: 🧪 Unit Tests & Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      coverage: ${{ steps.coverage-out.outputs.coverage }}
+      tests_passed: ${{ steps.tests-out.outputs.passed }}
+      tests_total: ${{ steps.tests-out.outputs.total }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
       
       - name: Install dependencies
         run: npm ci
-
-      # 👇 NUEVO PASO: Necesario para que SAM pueda procesar el Metadata del template
-      - name: Install esbuild
-        run: npm install -g esbuild
       
-      - name: Install SAM CLI
-        run: pip install aws-sam-cli
+      - name: Install esbuild & SAM CLI
+        run: |
+          npm install -g esbuild
+          pip install aws-sam-cli
       
       - name: Build with SAM
         run: sam build
-        continue-on-error: false 
+        continue-on-error: false
       
-      - name: Run tests
-        run: npm test
+      - name: Run unit tests with coverage
+        id: tests-out
+        run: |
+          npm run test:coverage || npm test -- --coverage --json --outputFile=test-results.json
+          
+          if [ -f test-results.json ]; then
+            PASSED=$(jq '.numPassedTests' test-results.json)
+            TOTAL=$(jq '.numTotalTests' test-results.json)
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          else
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "total=0" >> $GITHUB_OUTPUT
+          fi
         env:
           NODE_OPTIONS: "--experimental-vm-modules"
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: unit-tests-${{ github.run_id }}
+          fail_ci_if_error: false
+      
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage/
+            .nyc_output/
+            test-results.json
+          retention-days: 30
+      
+      - name: Check coverage thresholds
+        id: coverage-out
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(jq '.total.lines.pct' coverage/coverage-summary.json)
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "📊 Coverage: ${COVERAGE}%"
+            
+            THRESHOLD=80
+            if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+              echo "❌ Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+              exit 1
+            else
+              echo "✅ Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
+            fi
+          else
+            echo "coverage=0" >> $GITHUB_OUTPUT
+            echo "⚠️ No coverage summary found"
+          fi
+
+  integration-tests:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      passed: ${{ steps.integration-out.outputs.passed }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install esbuild & SAM CLI
+        run: |
+          npm install -g esbuild
+          pip install aws-sam-cli
+      
+      - name: Build with SAM
+        run: sam build
+      
+      - name: Run integration tests
+        id: integration-out
+        run: |
+          if npm run | grep -q "test:integration"; then
+            npm run test:integration -- --json --outputFile=integration-results.json
+            PASSED=$(jq '.numPassedTests' integration-results.json 2>/dev/null || echo "0")
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          else
+            echo "No integration tests found"
+            echo "passed=0" >> $GITHUB_OUTPUT
+          fi
+        env:
+          NODE_OPTIONS: "--experimental-vm-modules"
+          STAGE: test
+      
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: |
+            test-results/
+            integration-results.json
+            junit.xml
+          retention-days: 30
+
+  security-tests:
+    name: 🔒 Security Tests (Trivy + npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      vulnerabilities: ${{ steps.security-out.outputs.vuln_count }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+      
+      - name: Run npm audit
+        id: security-out
+        run: |
+          npm audit --json > npm-audit.json || true
+          
+          if [ -f npm-audit.json ]; then
+            VULN_COUNT=$(jq '.metadata.vulnerabilities.total // 0' npm-audit.json)
+            echo "vuln_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+            echo "📊 npm audit vulnerabilities: ${VULN_COUNT}"
+            
+            if [ "${VULN_COUNT}" -gt 10 ]; then
+              echo "⚠️ Too many vulnerabilities found!"
+            fi
+          else
+            echo "vuln_count=0" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Upload security results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-results
+          path: |
+            trivy-results.sarif
+            npm-audit.json
+          retention-days: 30
+
+  linting:
+    name: ✨ Linting & Formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      status: ${{ steps.lint-out.outputs.status }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        id: lint-out
+        run: |
+          if npm run | grep -q "lint"; then
+            npm run lint
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ No lint script found"
+            echo "status=skipped" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check formatting with Prettier
+        run: |
+          if npx prettier --version 2>/dev/null; then
+            npx prettier --check "**/*.{js,ts,json,md}" || true
+          else
+            echo "⚠️ Prettier not installed"
+          fi
+      
+      - name: Type checking (TypeScript)
+        run: |
+          if [ -f tsconfig.json ]; then
+            npm run type-check || npx tsc --noEmit
+          else
+            echo "⚠️ No TypeScript config found"
+          fi
+
+  # ============================================
+  # CONSOLIDATED REPORT (Esto es lo que verás)
+  # ============================================
+  
+  consolidated-report:
+    name: 📊 Security & Quality Report
+    runs-on: ubuntu-latest
+    needs: [snyk-dependencies, snyk-code, snyk-iac, unit-tests, integration-tests, security-tests, linting]
+    if: always()
+    
+    steps:
+      - name: Generate consolidated report
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## 🛡️ **Security & Quality Report** - NANUTECH Backend
+          
+          ### 🔒 **Security Scan Results (Snyk)**
+          
+          | Scan Type | Status | Issues Found | Severity |
+          |-----------|--------|--------------|----------|
+          | Dependencies (SCA) | ${{ needs.snyk-dependencies.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-dependencies.outputs.vuln_count || '0' }} | High |
+          | Source Code (SAST) | ${{ needs.snyk-code.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-code.outputs.issues_count || '0' }} | High+ |
+          | Infrastructure (IaC) | ${{ needs.snyk-iac.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-iac.outputs.issues_count || '0' }} | High |
+          | Trivy + npm audit | ${{ needs.security-tests.result == 'success' && '✅' || '⚠️' }} | ${{ needs.security-tests.outputs.vulnerabilities || '0' }} | All |
+          
+          ### 🧪 **Quality Test Results**
+          
+          | Test Type | Status | Coverage/Metrics |
+          |-----------|--------|------------------|
+          | Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅' || '❌' }} | ${{ needs.unit-tests.outputs.coverage || '0' }}% coverage |
+          | Integration Tests | ${{ needs.integration-tests.result == 'success' && '✅' || '❌' }} | ${{ needs.integration-tests.outputs.passed || '0' }} passed |
+          | Linting | ${{ needs.linting.result == 'success' && '✅' || '❌' }} | Code style checked |
+          
+          ### 📈 **Overall Status**
+          
+          ${{ (needs.unit-tests.result == 'success' && needs.linting.result == 'success' && needs.snyk-dependencies.outputs.vuln_count == '0') && '✅ **QUALITY GATE PASSED** - Ready for review' || '❌ **QUALITY GATE FAILED** - Issues need attention' }}
+          
+          ### 🔗 **Useful Links**
+          - [View Security Alerts](https://github.com/${{ github.repository }}/security)
+          - [View Code scanning results](https://github.com/${{ github.repository }}/security/code-scanning)
+          - [View Dependencies](https://github.com/${{ github.repository }}/network/dependencies)
+          - [View this run details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          ### 📦 **Download Artifacts**
+          - [Snyk Dependencies Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
+          - [Snyk Code Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
+          - [Snyk IaC Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
+          - [Coverage Report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
+          - [Integration Test Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
+          
+          ---
+          *Report generated at $(date '+%Y-%m-%d %H:%M:%S')*
+          EOF
+      
+      - name: Check quality gate
+        if: needs.unit-tests.result != 'success' || needs.linting.result != 'success'
+        run: |
+          echo "❌ Quality gate failed. Please fix issues before merging."
+          exit 1
