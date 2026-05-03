@@ -144,9 +144,9 @@ jobs:
           echo "vuln=$VULN"             >> $GITHUB_OUTPUT
 
       # --------------------------------------------------
-      # 5. Generate all HTML reports via Python
+      # 5. Generate ALL HTML reports (Python script)
       # --------------------------------------------------
-      - name: Generate HTML reports
+      - name: Create and run report generator
         env:
           SPRINT:      ${{ steps.labels.outputs.sprint }}
           DATETIME:    ${{ steps.labels.outputs.datetime }}
@@ -160,21 +160,10 @@ jobs:
           VULN:        ${{ steps.metrics.outputs.vuln }}
           REPO_OWNER:  ${{ github.repository_owner }}
           REPO_NAME:   ${{ github.event.repository.name }}
-        run: python3 generate_reports.py
-
-      - name: Write generate_reports.py
-        run: |
-          # We write the script first so we can run it cleanly
-          # (avoids any heredoc issues entirely)
-          true
-
-      # Write the Python script as a separate file, then run it
-      - name: Create report generator script
         run: |
           cat > generate_reports.py << 'PYEOF'
           import json, os, shutil
 
-          # ── env ──────────────────────────────────────────────
           sprint     = os.environ.get('SPRINT', '2026-05')
           datetime_  = os.environ.get('DATETIME', '')
           run_id     = os.environ.get('RUN_ID', '')
@@ -196,46 +185,36 @@ jobs:
           os.makedirs(reports_dir, exist_ok=True)
           os.makedirs(sprint_dir, exist_ok=True)
 
-          # ── helpers ──────────────────────────────────────────
           DARK_CSS = """
-          * { margin:0; padding:0; box-sizing:border-box }
-          body { font-family: system-ui, sans-serif; background: #0a0e27; color: #e2e8f0; padding: 24px }
-          h1 { font-size: 26px; margin-bottom: 6px }
-          .sub { color: #94a3b8; margin-bottom: 24px; font-size: 14px }
-          .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 28px }
-          .stat { background: #1e293b; border-radius: 12px; padding: 16px 22px; min-width: 130px; text-align: center }
-          .stat-num { font-size: 30px; font-weight: 800 }
-          .stat-label { font-size: 11px; color: #64748b; text-transform: uppercase; margin-top: 4px }
-          .row { background: #1e293b; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px }
-          .badge { display: inline-block; padding: 2px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; color: #fff; margin-left: 8px; vertical-align: middle }
-          details { margin-top: 24px }
-          summary { cursor: pointer; color: #60a5fa; font-weight: 600; padding: 8px 0 }
-          pre { background: #0f172a; padding: 14px; border-radius: 8px; overflow: auto; font-size: 11px; max-height: 480px; white-space: pre-wrap }
-          table { border-collapse: collapse; width: 100%; background: #1e293b; border-radius: 10px; overflow: hidden }
-          th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid #334155; font-size: 13px }
-          th { background: #0f172a; color: #94a3b8; font-size: 11px; text-transform: uppercase }
-          a.back { display: inline-block; margin-bottom: 18px; color: #60a5fa; text-decoration: none; font-size: 13px }
+          *{margin:0;padding:0;box-sizing:border-box}
+          body{font-family:system-ui,sans-serif;background:#0a0e27;color:#e2e8f0;padding:24px}
+          h1{font-size:26px;margin-bottom:6px}
+          .sub{color:#94a3b8;margin-bottom:24px;font-size:14px}
+          .stats{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:28px}
+          .stat{background:#1e293b;border-radius:12px;padding:16px 22px;min-width:130px;text-align:center}
+          .stat-num{font-size:30px;font-weight:800}
+          .stat-label{font-size:11px;color:#64748b;text-transform:uppercase;margin-top:4px}
+          .row{background:#1e293b;border-radius:10px;padding:14px 16px;margin-bottom:10px}
+          details{margin-top:24px}
+          summary{cursor:pointer;color:#60a5fa;font-weight:600;padding:8px 0}
+          pre{background:#0f172a;padding:14px;border-radius:8px;overflow:auto;font-size:11px;max-height:480px}
+          table{border-collapse:collapse;width:100%;background:#1e293b;border-radius:10px}
+          th,td{padding:11px 14px;text-align:left;border-bottom:1px solid #334155;font-size:13px}
+          th{background:#0f172a;color:#94a3b8;font-size:11px;text-transform:uppercase}
+          a.back{display:inline-block;margin-bottom:18px;color:#60a5fa;text-decoration:none;font-size:13px}
           """
 
           def page(title, icon, subtitle, body, back_href=f"{base_url}/reports/latest/"):
               return f"""<!DOCTYPE html>
-          <html lang="es">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width,initial-scale=1">
-            <title>{title}</title>
-            <style>{DARK_CSS}</style>
-          </head>
+          <html>
+          <head><meta charset="UTF-8"><title>{title}</title><style>{DARK_CSS}</style></head>
           <body>
             <a class="back" href="{back_href}">← Volver al dashboard</a>
             <h1>{icon} {title}</h1>
-            <div class="sub">{subtitle} &nbsp;·&nbsp; Run #{run_id} &nbsp;·&nbsp; {datetime_}</div>
+            <div class="sub">{subtitle} · Run #{run_id} · {datetime_}</div>
             {body}
           </body>
           </html>"""
-
-          def sev_color(s):
-              return {'critical':'#7f1d1d','high':'#991b1b','medium':'#92400e','low':'#065f46'}.get(str(s).lower(),'#1e293b')
 
           def write(path, content):
               os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -243,442 +222,67 @@ jobs:
                   f.write(content)
               print(f"  wrote {path}")
 
-          # ─────────────────────────────────────────────────────
-          # 1. SNYK DEPS
-          # ─────────────────────────────────────────────────────
+          # SNYK DEPS
           data = {}
           jfile = "raw/snyk-deps-results/snyk-deps.json"
           if os.path.exists(jfile):
-              with open(jfile) as f:
-                  try: data = json.load(f)
-                  except: pass
-
+              with open(jfile) as f: data = json.load(f)
           vulns = data.get('vulnerabilities', [])
-          rows = ''
-          for v in vulns:
-              sev = v.get('severity', 'unknown')
-              c = sev_color(sev)
-              rows += f"""<div class="row" style="border-left:4px solid {c}">
-              <strong>{v.get('packageName','?')} @ {v.get('version','?')}</strong>
-              <span class="badge" style="background:{c}">{sev.upper()}</span>
-              <div style="margin-top:6px;color:#cbd5e1;font-size:13px">{v.get('title','')}</div>
-              <small style="color:#475569">CVE: {(v.get('identifiers') or {}).get('CVE', ['N/A'])[0]}</small>
-          </div>"""
+          rows = ''.join(f'<div class="row"><strong>{v.get("packageName","?")}</strong> [{v.get("severity","")}]<div style="margin-top:6px">{v.get("title","")}</div></div>' for v in vulns)
+          stats = f'<div class="stats"><div class="stat"><div class="stat-num">{len(vulns)}</div><div class="stat-label">Total</div></div></div>'
+          write(f"{reports_dir}/snyk-deps/index.html", page("Snyk Dependencies", "🔒", "SCA", stats + (rows or '<p>No vulnerabilities</p>') + f'<details><summary>JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>'))
 
-          stats = f"""<div class="stats">
-            <div class="stat"><div class="stat-num" style="color:#f87171">{len(vulns)}</div><div class="stat-label">Total</div></div>
-            <div class="stat"><div class="stat-num" style="color:#f87171">{sum(1 for v in vulns if v.get('severity')=='critical')}</div><div class="stat-label">Critical</div></div>
-            <div class="stat"><div class="stat-num" style="color:#fb923c">{sum(1 for v in vulns if v.get('severity')=='high')}</div><div class="stat-label">High</div></div>
-            <div class="stat"><div class="stat-num" style="color:#facc15">{sum(1 for v in vulns if v.get('severity')=='medium')}</div><div class="stat-label">Medium</div></div>
-          </div>"""
-          body = stats + (rows if rows else '<p style="color:#4ade80;padding:16px">No vulnerabilities found</p>')
-          body += f"<details><summary>Raw JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>"
-          write(f"{reports_dir}/snyk-deps/index.html",
-                page("Snyk Dependencies", "🔒", "Software Composition Analysis (SCA)", body))
-          if os.path.exists(jfile):
-              shutil.copy(jfile, f"{reports_dir}/snyk-deps/snyk-deps.json")
-
-          # ─────────────────────────────────────────────────────
-          # 2. SNYK CODE
-          # ─────────────────────────────────────────────────────
+          # SNYK CODE
           data = {}
           jfile = "raw/snyk-code-results/snyk-code.json"
           if os.path.exists(jfile):
-              with open(jfile) as f:
-                  try: data = json.load(f)
-                  except: pass
-
+              with open(jfile) as f: data = json.load(f)
           results = []
           for run in data.get('runs', []):
               results.extend(run.get('results', []))
+          rows = ''.join(f'<div class="row"><strong>{r.get("locations",[{}])[0].get("physicalLocation",{}).get("artifactLocation",{}).get("uri","?")}</strong><div>{r.get("message",{}).get("text","")}</div></div>' for r in results)
+          write(f"{reports_dir}/snyk-code/index.html", page("Snyk Code", "🔍", "SAST", f'<div class="stats"><div class="stat"><div class="stat-num">{len(results)}</div><div class="stat-label">Issues</div></div></div>' + (rows or '<p>No issues</p>') + f'<details><summary>JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>'))
 
-          rows = ''
-          for r in results:
-              level = r.get('level', 'warning')
-              c = {'error':'#991b1b','warning':'#92400e','note':'#065f46'}.get(level, '#1e293b')
-              uri = r.get('locations', [{}])[0].get('physicalLocation', {}).get('artifactLocation', {}).get('uri', 'Unknown')
-              msg = r.get('message', {}).get('text', '')
-              rows += f"""<div class="row" style="border-left:4px solid {c}">
-              <strong>{uri}</strong>
-              <span class="badge" style="background:{c}">{level.upper()}</span>
-              <div style="margin-top:6px;color:#cbd5e1;font-size:13px">{msg}</div>
-          </div>"""
-
-          stats = f"""<div class="stats">
-            <div class="stat"><div class="stat-num" style="color:#fb923c">{len(results)}</div><div class="stat-label">Total Issues</div></div>
-            <div class="stat"><div class="stat-num" style="color:#f87171">{sum(1 for r in results if r.get('level')=='error')}</div><div class="stat-label">Errors</div></div>
-            <div class="stat"><div class="stat-num" style="color:#facc15">{sum(1 for r in results if r.get('level')=='warning')}</div><div class="stat-label">Warnings</div></div>
-          </div>"""
-          body = stats + (rows if rows else '<p style="color:#4ade80;padding:16px">No issues found</p>')
-          body += f"<details><summary>Raw JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>"
-          write(f"{reports_dir}/snyk-code/index.html",
-                page("Snyk Code (SAST)", "🔍", "Static Application Security Testing", body))
-          if os.path.exists(jfile):
-              shutil.copy(jfile, f"{reports_dir}/snyk-code/snyk-code.json")
-
-          # ─────────────────────────────────────────────────────
-          # 3. SNYK IAC
-          # ─────────────────────────────────────────────────────
-          data = {}
-          jfile = "raw/snyk-iac-results/snyk-iac.json"
-          if os.path.exists(jfile):
-              with open(jfile) as f:
-                  try: data = json.load(f)
-                  except: pass
-
-          vulns = data.get('vulnerabilities', [])
-          rows = ''
-          for v in vulns:
-              sev = v.get('severity', 'unknown')
-              c = sev_color(sev)
-              rows += f"""<div class="row" style="border-left:4px solid {c}">
-              <strong>{v.get('title','?')}</strong>
-              <span class="badge" style="background:{c}">{sev.upper()}</span>
-              <div style="margin-top:6px;color:#cbd5e1;font-size:13px">{v.get('description','')}</div>
-              <small style="color:#475569">Path: {v.get('path','N/A')}</small>
-          </div>"""
-
-          stats = f"""<div class="stats">
-            <div class="stat"><div class="stat-num" style="color:#a78bfa">{len(vulns)}</div><div class="stat-label">Total</div></div>
-            <div class="stat"><div class="stat-num" style="color:#f87171">{sum(1 for v in vulns if v.get('severity')=='high')}</div><div class="stat-label">High</div></div>
-            <div class="stat"><div class="stat-num" style="color:#facc15">{sum(1 for v in vulns if v.get('severity')=='medium')}</div><div class="stat-label">Medium</div></div>
-          </div>"""
-          body = stats + (rows if rows else '<p style="color:#4ade80;padding:16px">No IaC issues found</p>')
-          body += f"<details><summary>Raw JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>"
-          write(f"{reports_dir}/snyk-iac/index.html",
-                page("Snyk IaC", "🏗️", "Infrastructure as Code Security (SAM template)", body))
-          if os.path.exists(jfile):
-              shutil.copy(jfile, f"{reports_dir}/snyk-iac/snyk-iac.json")
-
-          # ─────────────────────────────────────────────────────
-          # 4. SECURITY (npm audit)
-          # ─────────────────────────────────────────────────────
-          data = {}
-          jfile = "raw/security-results/npm-audit.json"
-          if os.path.exists(jfile):
-              with open(jfile) as f:
-                  try: data = json.load(f)
-                  except: pass
-
-          meta  = data.get('metadata', {}).get('vulnerabilities', {})
-          tot   = meta.get('total', 0)
-          crit  = meta.get('critical', 0)
-          high  = meta.get('high', 0)
-          mod   = meta.get('moderate', 0)
-          low_v = meta.get('low', 0)
-          dep_v = data.get('vulnerabilities', {})
-          rows = ''
-          for name, v in dep_v.items():
-              sev = v.get('severity', 'unknown')
-              c = sev_color(sev)
-              via_list = v.get('via', [])
-              via_str = ', '.join(x if isinstance(x, str) else x.get('source','?') for x in via_list if x)
-              rows += f"""<div class="row" style="border-left:4px solid {c}">
-              <strong>{name}</strong>
-              <span class="badge" style="background:{c}">{sev.upper()}</span>
-              <div style="margin-top:6px;color:#cbd5e1;font-size:13px">Via: {via_str or 'N/A'}</div>
-          </div>"""
-
-          stats = f"""<div class="stats">
-            <div class="stat"><div class="stat-num" style="color:#f87171">{tot}</div><div class="stat-label">Total</div></div>
-            <div class="stat"><div class="stat-num" style="color:#f87171">{crit}</div><div class="stat-label">Critical</div></div>
-            <div class="stat"><div class="stat-num" style="color:#fb923c">{high}</div><div class="stat-label">High</div></div>
-            <div class="stat"><div class="stat-num" style="color:#facc15">{mod}</div><div class="stat-label">Moderate</div></div>
-            <div class="stat"><div class="stat-num" style="color:#4ade80">{low_v}</div><div class="stat-label">Low</div></div>
-          </div>"""
-          body = stats + (rows if rows else '<p style="color:#4ade80;padding:16px">No vulnerabilities found</p>')
-          body += f"<details><summary>Raw JSON (npm audit)</summary><pre>{json.dumps(data, indent=2)}</pre></details>"
-          write(f"{reports_dir}/security/index.html",
-                page("Security Scan", "🛡️", "npm audit + Trivy Results", body))
-          if os.path.exists(jfile):
-              shutil.copy(jfile, f"{reports_dir}/security/npm-audit.json")
-
-          # ─────────────────────────────────────────────────────
-          # 5. INTEGRATION TESTS
-          # ─────────────────────────────────────────────────────
-          data = {}
-          jfile = "raw/integration-test-results/integration-results.json"
-          if os.path.exists(jfile):
-              with open(jfile) as f:
-                  try: data = json.load(f)
-                  except: pass
-
-          i_total  = data.get('numTotalTests', 0)
-          i_pass   = data.get('numPassedTests', 0)
-          i_fail   = data.get('numFailedTests', 0)
-          rows = ''
-          for suite in data.get('testResults', []):
-              for t in suite.get('testResults', []):
-                  status = t.get('status', 'unknown')
-                  icon   = '✅' if status == 'passed' else '❌'
-                  c      = '#4ade80' if status == 'passed' else '#f87171'
-                  rows += f'<div class="row"><span style="color:{c}">{icon}</span> {t.get("fullName","")}</div>'
-
-          stats = f"""<div class="stats">
-            <div class="stat"><div class="stat-num" style="color:#60a5fa">{i_total}</div><div class="stat-label">Total</div></div>
-            <div class="stat"><div class="stat-num" style="color:#4ade80">{i_pass}</div><div class="stat-label">Passed</div></div>
-            <div class="stat"><div class="stat-num" style="color:#f87171">{i_fail}</div><div class="stat-label">Failed</div></div>
-          </div>"""
-          body = stats + (rows if rows else '<p style="color:#94a3b8;padding:16px">No test detail available</p>')
-          body += f"<details><summary>Raw JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>"
-          write(f"{reports_dir}/integration/index.html",
-                page("Integration Tests", "🔗", "Integration test results", body))
-
-          # ─────────────────────────────────────────────────────
-          # 6. COVERAGE TABLE
-          # ─────────────────────────────────────────────────────
+          # COVERAGE
           summary_f = None
-          for candidate in [
-              "raw/coverage-report/coverage/coverage-summary.json",
-              "raw/coverage-report/coverage-summary.json",
-          ]:
-              if os.path.exists(candidate):
-                  summary_f = candidate
-                  break
-
+          for cand in ["raw/coverage-report/coverage/coverage-summary.json", "raw/coverage-report/coverage-summary.json"]:
+              if os.path.exists(cand): summary_f = cand; break
           data = {}
           if summary_f:
-              with open(summary_f) as f:
-                  try: data = json.load(f)
-                  except: pass
-
-          def pct_color(p):
-              try:
-                  v = float(p)
-                  return '#4ade80' if v >= 70 else '#facc15' if v >= 50 else '#f87171'
-              except:
-                  return '#94a3b8'
-
+              with open(summary_f) as f: data = json.load(f)
           table_rows = ''
           for key, val in data.items():
               if key == 'total': continue
-              s = val.get('statements',{}).get('pct',0)
-              b = val.get('branches',{}).get('pct',0)
-              fn= val.get('functions',{}).get('pct',0)
-              l = val.get('lines',{}).get('pct',0)
-              table_rows += f"""<tr>
-              <td><code style="font-size:12px">{key}</code></td>
-              <td style="color:{pct_color(s)}">{s}%</td>
-              <td style="color:{pct_color(b)}">{b}%</td>
-              <td style="color:{pct_color(fn)}">{fn}%</td>
-              <td style="color:{pct_color(l)}">{l}%</td>
-          </tr>"""
+              table_rows += f'<tr><td><code>{key}</code></td><td>{val.get("statements",{}).get("pct",0)}%</td><td>{val.get("branches",{}).get("pct",0)}%</td><td>{val.get("functions",{}).get("pct",0)}%</td><td>{val.get("lines",{}).get("pct",0)}%</td></tr>'
+          stats = f'<div class="stats"><div class="stat"><div class="stat-num">{cov_pct}%</div><div class="stat-label">Lines</div></div><div class="stat"><div class="stat-num">{cov_stmt}%</div><div class="stat-label">Statements</div></div><div class="stat"><div class="stat-num">{cov_branch}%</div><div class="stat-label">Branches</div></div><div class="stat"><div class="stat-num">{cov_fn}%</div><div class="stat-label">Functions</div></div></div>'
+          write(f"{reports_dir}/coverage/index.html", page("Coverage Report", "📈", "Jest coverage", stats + f'<table><tr><th>Module</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th></tr>{table_rows if table_rows else "<tr><td colspan=5>No modules</td></tr>"}</table>'))
 
-          total = data.get('total', {})
-          stats = f"""<div class="stats">
-            <div class="stat"><div class="stat-num" style="color:{pct_color(cov_pct)}">{cov_pct}%</div><div class="stat-label">Lines</div></div>
-            <div class="stat"><div class="stat-num" style="color:{pct_color(cov_stmt)}">{cov_stmt}%</div><div class="stat-label">Statements</div></div>
-            <div class="stat"><div class="stat-num" style="color:{pct_color(cov_branch)}">{cov_branch}%</div><div class="stat-label">Branches</div></div>
-            <div class="stat"><div class="stat-num" style="color:{pct_color(cov_fn)}">{cov_fn}%</div><div class="stat-label">Functions</div></div>
-          </div>"""
-
-          table = f"""<table>
-            <tr><th>Module</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th></tr>
-            {table_rows if table_rows else '<tr><td colspan="5" style="color:#64748b">No module data available</td></tr>'}
-          </table>"""
-
-          write(f"{reports_dir}/coverage/index.html",
-                page("Coverage Report", "📈", "Jest code coverage by module", stats + table))
-
-          # ─────────────────────────────────────────────────────
-          # 7. MAIN DASHBOARD (reports/latest/index.html)
-          # ─────────────────────────────────────────────────────
-          c_color = pct_color(cov_pct)
-          v_color = '#4ade80' if int(vuln) == 0 else '#f87171'
-
-          report_cards = [
-              ("📈", "Coverage",          "coverage",   f"{cov_pct}% lines covered",          c_color),
-              ("🔒", "Snyk Dependencies", "snyk-deps",  "SCA — dependency vulnerabilities",    "#a78bfa"),
-              ("🔍", "Snyk Code (SAST)",  "snyk-code",  "Static source code analysis",         "#a78bfa"),
-              ("🏗️", "Snyk IaC",          "snyk-iac",   "SAM template security",               "#a78bfa"),
-              ("🛡️", "Security Scan",     "security",   "npm audit + Trivy",                   "#fb923c"),
-              ("🔗", "Integration Tests", "integration",f"{t_pass} tests passed",              "#4ade80"),
-          ]
-
-          cards_html = ''
-          for icon, title, folder, desc, accent in report_cards:
-              cards_html += f"""
-            <a href="{folder}/index.html" class="card" style="border-top:3px solid {accent}">
-              <div class="card-icon">{icon}</div>
-              <div class="card-title">{title}</div>
-              <div class="card-desc">{desc}</div>
-              <span class="card-link">Ver reporte →</span>
-            </a>"""
-
+          # MAIN DASHBOARD
+          cards = ''.join(f'<div style="background:#1e293b;border-radius:12px;padding:16px"><div style="font-size:30px">{icon}</div><div style="font-weight:700">{title}</div><div style="font-size:12px;color:#64748b;margin:8px 0">{desc}</div><a href="{folder}/index.html" style="color:#60a5fa;font-size:12px">Ver reporte →</a></div>' for icon, title, folder, desc in [("📈","Coverage","coverage",f"{cov_pct}% lines"),("🔒","Snyk Deps","snyk-deps","SCA"),("🔍","Snyk Code","snyk-code","SAST"),("🏗️","Snyk IaC","snyk-iac","Infra"),("🛡️","Security","security","npm audit"),("🔗","Integration","integration",f"{t_pass}/{t_total} tests")])
           dashboard = f"""<!DOCTYPE html>
-          <html lang="es">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width,initial-scale=1">
-            <title>NANUTECH Quality Dashboard — {sprint}</title>
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-            <style>
-              * {{ margin:0; padding:0; box-sizing:border-box }}
-              body {{ font-family:'Inter',system-ui,sans-serif; background:#0a0e27; color:#e2e8f0; min-height:100vh }}
-              .page {{ max-width:1280px; margin:0 auto; padding:28px 20px }}
-
-              .header {{ background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%); border-radius:20px; padding:36px 40px; margin-bottom:28px }}
-              .header-top {{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px }}
-              .brand {{ background:rgba(255,255,255,.1); padding:10px 20px; border-radius:100px; font-weight:700; font-size:15px }}
-              .sprint-tag {{ background:rgba(255,255,255,.12); padding:8px 18px; border-radius:100px; font-size:13px }}
-              .header h1 {{ font-size:38px; font-weight:800; line-height:1.1; margin-bottom:8px }}
-              .header p {{ color:#93c5fd; font-size:14px }}
-
-              .kpis {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:18px; margin-bottom:26px }}
-              .kpi {{ background:#1e293b; border-radius:14px; padding:20px 22px }}
-              .kpi-icon {{ font-size:26px; margin-bottom:10px }}
-              .kpi-label {{ font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em }}
-              .kpi-value {{ font-size:32px; font-weight:800; margin:6px 0 2px }}
-              .kpi-sub {{ font-size:12px; color:#64748b }}
-
-              .prog-wrap {{ background:#1e293b; border-radius:14px; padding:22px 24px; margin-bottom:26px }}
-              .prog-wrap h2 {{ font-size:16px; font-weight:700; margin-bottom:16px; color:#e2e8f0 }}
-              .prog-row {{ display:flex; align-items:center; gap:12px; margin-bottom:12px }}
-              .prog-label {{ width:90px; font-size:12px; color:#94a3b8; flex-shrink:0 }}
-              .prog-bar {{ flex:1; background:#0f172a; border-radius:100px; height:9px; overflow:hidden }}
-              .prog-fill {{ height:100%; border-radius:100px }}
-              .prog-val {{ width:46px; text-align:right; font-size:12px; font-weight:700 }}
-
-              .section-title {{ font-size:18px; font-weight:700; margin-bottom:18px; color:#e2e8f0 }}
-              .cards {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:16px }}
-              .card {{ background:#1e293b; border-radius:14px; padding:20px; text-decoration:none; color:#e2e8f0; display:block; transition:all .2s }}
-              .card:hover {{ transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,.3); background:#243044 }}
-              .card-icon {{ font-size:34px; margin-bottom:10px }}
-              .card-title {{ font-size:15px; font-weight:700; margin-bottom:5px }}
-              .card-desc {{ font-size:12px; color:#64748b; margin-bottom:14px; line-height:1.5 }}
-              .card-link {{ font-size:12px; color:#60a5fa; font-weight:600 }}
-
-              .footer {{ margin-top:28px; text-align:center; color:#334155; font-size:12px; padding:16px }}
-
-              @media(max-width:600px) {{ .header h1 {{ font-size:26px }} .kpis {{ grid-template-columns:1fr 1fr }} }}
-            </style>
-          </head>
+          <html><head><meta charset="UTF-8"><title>NANUTECH Dashboard</title><style>
+          body{{background:#0a0e27;font-family:system-ui;padding:30px;color:#e2e8f0}}
+          .header{{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:20px;padding:30px;margin-bottom:30px}}
+          h1{{font-size:36px;margin-bottom:10px}}
+          .stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:30px}}
+          .stat-card{{background:#1e293b;border-radius:14px;padding:20px;text-align:center}}
+          .stat-number{{font-size:32px;font-weight:800}}
+          .cards{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}}
+          </style></head>
           <body>
-          <div class="page">
-
-            <div class="header">
-              <div class="header-top">
-                <div class="brand">🚛 NANUTECH</div>
-                <div class="sprint-tag">📅 Sprint {sprint}</div>
-              </div>
-              <h1>Quality Dashboard</h1>
-              <p>Reporte de Calidad &amp; Seguridad &nbsp;·&nbsp; Run #{run_id} &nbsp;·&nbsp; {datetime_}</p>
-            </div>
-
-            <div class="kpis">
-              <div class="kpi">
-                <div class="kpi-icon">📊</div>
-                <div class="kpi-label">Line Coverage</div>
-                <div class="kpi-value" style="color:{c_color}">{cov_pct}%</div>
-                <div class="kpi-sub">Stmt: {cov_stmt}%</div>
-              </div>
-              <div class="kpi">
-                <div class="kpi-icon">🌿</div>
-                <div class="kpi-label">Branch Coverage</div>
-                <div class="kpi-value" style="color:{c_color}">{cov_branch}%</div>
-                <div class="kpi-sub">Fn: {cov_fn}%</div>
-              </div>
-              <div class="kpi">
-                <div class="kpi-icon">✅</div>
-                <div class="kpi-label">Tests Pasados</div>
-                <div class="kpi-value" style="color:#4ade80">{t_pass}</div>
-                <div class="kpi-sub">de {t_total} totales</div>
-              </div>
-              <div class="kpi">
-                <div class="kpi-icon">🔒</div>
-                <div class="kpi-label">Vulnerabilidades</div>
-                <div class="kpi-value" style="color:{v_color}">{vuln}</div>
-                <div class="kpi-sub">npm audit</div>
-              </div>
-            </div>
-
-            <div class="prog-wrap">
-              <h2>📈 Coverage por dimensión</h2>
-              <div class="prog-row">
-                <span class="prog-label">Lines</span>
-                <div class="prog-bar"><div class="prog-fill" style="width:{min(float(cov_pct),100)}%;background:{c_color}"></div></div>
-                <span class="prog-val" style="color:{c_color}">{cov_pct}%</span>
-              </div>
-              <div class="prog-row">
-                <span class="prog-label">Statements</span>
-                <div class="prog-bar"><div class="prog-fill" style="width:{min(float(cov_stmt),100)}%;background:{c_color}"></div></div>
-                <span class="prog-val" style="color:{c_color}">{cov_stmt}%</span>
-              </div>
-              <div class="prog-row">
-                <span class="prog-label">Branches</span>
-                <div class="prog-bar"><div class="prog-fill" style="width:{min(float(cov_branch),100)}%;background:#60a5fa"></div></div>
-                <span class="prog-val" style="color:#60a5fa">{cov_branch}%</span>
-              </div>
-              <div class="prog-row">
-                <span class="prog-label">Functions</span>
-                <div class="prog-bar"><div class="prog-fill" style="width:{min(float(cov_fn),100)}%;background:#a78bfa"></div></div>
-                <span class="prog-val" style="color:#a78bfa">{cov_fn}%</span>
-              </div>
-            </div>
-
-            <div class="section-title">📁 Reportes Detallados</div>
-            <div class="cards">{cards_html}</div>
-
-            <div class="footer">
-              🚀 NANUTECH Backend Quality Dashboard &nbsp;·&nbsp; {datetime_}
-            </div>
-
-          </div>
-          </body>
-          </html>"""
-
+          <div class="header"><h1>🚛 NANUTECH Quality Dashboard</h1><p>Sprint {sprint} · {datetime_} · Run #{run_id}</p></div>
+          <div class="stats"><div class="stat-card"><div class="stat-number">{cov_pct}%</div><div>Coverage</div></div><div class="stat-card"><div class="stat-number">{t_pass}/{t_total}</div><div>Tests</div></div><div class="stat-card"><div class="stat-number">{vuln}</div><div>Vulnerabilities</div></div><div class="stat-card"><div class="stat-number">{len(results)}</div><div>Code Issues</div></div></div>
+          <h2>📁 Reports</h2>
+          <div class="cards">{cards}</div>
+          </body></html>"""
           write(f"{reports_dir}/index.html", dashboard)
 
-          # ─────────────────────────────────────────────────────
-          # 8. SPRINT PAGE (redirect to latest)
-          # ─────────────────────────────────────────────────────
-          write(f"{sprint_dir}/index.html", f"""<!DOCTYPE html>
-          <html><head><meta charset="UTF-8">
-          <meta http-equiv="refresh" content="0; url={base_url}/reports/latest/index.html">
-          <title>Sprint {sprint}</title></head>
-          <body><p>Redirigiendo al dashboard...</p></body></html>""")
-
-          # Metrics JSON for the sprint
-          with open(f"{sprint_dir}/metrics.json", 'w') as f:
-              json.dump({
-                "sprint": sprint, "run_id": run_id, "published_at": datetime_,
-                "coverage": float(cov_pct) if cov_pct else 0,
-                "statements": float(cov_stmt) if cov_stmt else 0,
-                "branches": float(cov_branch) if cov_branch else 0,
-                "functions": float(cov_fn) if cov_fn else 0,
-                "tests_passed": int(t_pass) if t_pass else 0,
-                "tests_total": int(t_total) if t_total else 0,
-                "vulnerabilities": int(vuln) if vuln else 0,
-              }, f, indent=2)
-
-          # ─────────────────────────────────────────────────────
-          # 9. ROOT index.html redirect
-          # ─────────────────────────────────────────────────────
-          write(f"{out_root}/index.html", f"""<!DOCTYPE html>
-          <html><head><meta charset="UTF-8">
-          <meta http-equiv="refresh" content="0; url={base_url}/reports/latest/index.html">
-          <title>NANUTECH Quality</title></head>
-          <body><p>Redirigiendo...</p></body></html>""")
-
-          print("\nAll reports generated successfully!")
-          print(f"Dashboard: {base_url}/reports/latest/index.html")
+          # Redirects
+          write(f"{sprint_dir}/index.html", f'<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url={base_url}/reports/latest/index.html"></head><body></body></html>')
+          write(f"{out_root}/index.html", f'<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url={base_url}/reports/latest/index.html"></head><body></body></html>')
+          print("\n✅ All reports generated!")
           PYEOF
 
-      - name: Run report generator
-        env:
-          SPRINT:      ${{ steps.labels.outputs.sprint }}
-          DATETIME:    ${{ steps.labels.outputs.datetime }}
-          RUN_ID:      ${{ steps.run.outputs.run_id }}
-          COV_PCT:     ${{ steps.metrics.outputs.cov_pct }}
-          COV_STMT:    ${{ steps.metrics.outputs.cov_stmt }}
-          COV_BRANCH:  ${{ steps.metrics.outputs.cov_branch }}
-          COV_FN:      ${{ steps.metrics.outputs.cov_fn }}
-          T_PASS:      ${{ steps.metrics.outputs.t_pass }}
-          T_TOTAL:     ${{ steps.metrics.outputs.t_total }}
-          VULN:        ${{ steps.metrics.outputs.vuln }}
-          REPO_OWNER:  ${{ github.repository_owner }}
-          REPO_NAME:   ${{ github.event.repository.name }}
-        run: |
           python3 generate_reports.py
           echo "--- Generated files ---"
           find docs -type f | sort
@@ -695,7 +299,7 @@ jobs:
           keep_files: true
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Publish Quality Dashboard — sprint ${{ steps.labels.outputs.sprint }} (run ${{ steps.run.outputs.run_id }})'
+          commit_message: 'Publish Quality Dashboard — sprint ${{ steps.labels.outputs.sprint }}'
 
       - name: Print URLs
         run: |
@@ -705,13 +309,12 @@ jobs:
           BASE="https://${OWNER}.github.io/${REPO}"
           echo ""
           echo "=========================================="
-          echo " Reports published successfully!"
+          echo "✅ Reports published successfully!"
           echo "=========================================="
           echo ""
-          echo " Dashboard:"
-          echo "   ${BASE}/reports/latest/index.html"
+          echo "📊 Dashboard: ${BASE}/reports/latest/index.html"
           echo ""
-          echo " Individual reports:"
+          echo "📁 Individual reports:"
           echo "   Coverage:      ${BASE}/reports/latest/coverage/index.html"
           echo "   Snyk Deps:     ${BASE}/reports/latest/snyk-deps/index.html"
           echo "   Snyk Code:     ${BASE}/reports/latest/snyk-code/index.html"
