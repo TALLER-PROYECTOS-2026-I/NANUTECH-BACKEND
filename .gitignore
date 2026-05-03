@@ -1,3 +1,10 @@
+# Archivos/carpetas que no deben subirse al PR
+*.yaml
+*.yml
+node_modules/
+.aws-sam/
+env.json
+
 # Dependencias
 node_modules/
 
