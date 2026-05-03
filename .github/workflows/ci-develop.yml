@@ -241,6 +241,11 @@ jobs:
           fi
           echo "pct=$PCT" >> $GITHUB_OUTPUT
 
+      - name: Generate HTML coverage report
+        run: |
+          npx nyc report --reporter=html --report-dir=coverage/html-report
+          echo "✅ HTML coverage generated at coverage/html-report/index.html"
+
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -249,7 +254,7 @@ jobs:
           flags: unittests
           fail_ci_if_error: false
 
-      - name: Upload coverage artifact
+      - name: Upload coverage artifact (JSON summary)
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -257,6 +262,14 @@ jobs:
           path: |
             coverage/
             test-results.json
+          retention-days: 30
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-html
+          path: coverage/html-report/
           retention-days: 30
 
   integration-tests:
