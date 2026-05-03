@@ -71,25 +71,13 @@ jobs:
         run: |
           mkdir -p docs/reports/latest/coverage
           
-          # Buscar el coverage-summary.json
-          if [ -f "raw/coverage-report/coverage/coverage-summary.json" ]; then
-            echo "✅ Encontrado coverage-summary.json"
-            cat raw/coverage-report/coverage/coverage-summary.json
-          elif [ -f "raw/coverage-report/coverage-summary.json" ]; then
-            echo "✅ Encontrado coverage-summary.json"
-            cat raw/coverage-report/coverage-summary.json
-          else
-            echo "⚠️ No se encontró coverage-summary.json"
-            # Buscar cualquier archivo JSON
-            find raw -name "*.json" -type f | head -5
-          fi
-          
           # Crear script Python para generar HTML
           cat > generate_html.py << 'PYEOF'
           import json
           import os
+          import sys
           from datetime import datetime
-
+          
           # Buscar el archivo coverage-summary.json
           json_path = None
           for root, dirs, files in os.walk("raw/coverage-report"):
@@ -111,7 +99,7 @@ jobs:
               with open("docs/reports/latest/coverage/index.html", "w") as f:
                   f.write(html)
               print("Created fallback HTML")
-              return
+              sys.exit(0)
           
           # Cargar datos
           with open(json_path) as f:
@@ -142,7 +130,6 @@ jobs:
           .footer{margin-top:40px;padding:20px;text-align:center;color:#475569}
           """
           
-          # Función para obtener color según porcentaje
           def get_color(pct):
               return "#22c55e" if pct >= 70 else "#eab308" if pct >= 50 else "#ef4444"
           
@@ -156,30 +143,71 @@ jobs:
           branch_pct = total.get("branches", {}).get("pct", 0)
           func_pct = total.get("functions", {}).get("pct", 0)
           
-          # Generar tabla de módulos
-          table_rows = ""
-          for module, vals in data.items():
-              if module == "total":
+          # Organizar archivos por módulo
+          modules = {}
+          for file_path, vals in data.items():
+              if file_path == "total":
                   continue
               
-              module_name = module.split("/")[-1].replace("functions/", "").replace("shared/", "")
-              stmt = vals.get("statements", {}).get("pct", 0)
-              branch = vals.get("branches", {}).get("pct", 0)
-              func = vals.get("functions", {}).get("pct", 0)
-              line = vals.get("lines", {}).get("pct", 0)
+              # Extraer nombre del módulo
+              if "src/functions/" in file_path:
+                  module = file_path.split("src/functions/")[1].split("/")[0]
+              elif "src/shared/" in file_path:
+                  module = file_path.split("src/shared/")[1].split("/")[0]
+              else:
+                  module = "other"
+              
+              if module not in modules:
+                  modules[module] = []
+              
+              modules[module].append({
+                  "name": file_path.split("/")[-1],
+                  "stmt": vals.get("statements", {}).get("pct", 0),
+                  "branch": vals.get("branches", {}).get("pct", 0),
+                  "func": vals.get("functions", {}).get("pct", 0),
+                  "line": vals.get("lines", {}).get("pct", 0),
+                  "stmt_covered": vals.get("statements", {}).get("covered", 0),
+                  "stmt_total": vals.get("statements", {}).get("total", 0),
+                  "branch_covered": vals.get("branches", {}).get("covered", 0),
+                  "branch_total": vals.get("branches", {}).get("total", 0),
+                  "func_covered": vals.get("functions", {}).get("covered", 0),
+                  "func_total": vals.get("functions", {}).get("total", 0),
+                  "line_covered": vals.get("lines", {}).get("covered", 0),
+                  "line_total": vals.get("lines", {}).get("total", 0)
+              })
+          
+          # Generar tabla de módulos y páginas de detalle
+          table_rows = ""
+          for module_name, files in modules.items():
+              # Calcular promedio del módulo
+              avg_stmt = sum(f["stmt"] for f in files) / len(files) if files else 0
+              avg_branch = sum(f["branch"] for f in files) / len(files) if files else 0
+              avg_func = sum(f["func"] for f in files) / len(files) if files else 0
+              avg_line = sum(f["line"] for f in files) / len(files) if files else 0
               
               table_rows += f"""
-              <tr>
-                  <td><strong><a href="module_{module_name}.html">{module_name}</a></strong></td>
-                  <td style="color:{get_color(stmt)};font-weight:bold">{stmt}%</td>
-                  <td style="color:{get_color(branch)};font-weight:bold">{branch}%</td>
-                  <td style="color:{get_color(func)};font-weight:bold">{func}%</td>
-                  <td style="color:{get_color(line)};font-weight:bold">{line}%</td>
-                  <td><div class="progress-bar"><div class="progress-fill {get_fill_class(line)}" style="width:{line}%"></div></div></td>
+              <table>
+                  <td><a href="module_{module_name}.html"><strong>{module_name}</strong></a> ({len(files)} archivos)</td>
+                  <td style="color:{get_color(avg_stmt)};font-weight:bold">{avg_stmt:.1f}%</td>
+                  <td style="color:{get_color(avg_branch)};font-weight:bold">{avg_branch:.1f}%</td>
+                  <td style="color:{get_color(avg_func)};font-weight:bold">{avg_func:.1f}%</td>
+                  <td style="color:{get_color(avg_line)};font-weight:bold">{avg_line:.1f}%</td>
+                  <td><div class="progress-bar"><div class="progress-fill {get_fill_class(avg_line)}" style="width:{avg_line:.1f}%"></div></div></td>
               </tr>"""
               
-              # Generar página para cada módulo (detalle de archivos)
-              # Como coverage-summary.json no tiene detalle por archivo, generamos una página simple
+              # Generar página de detalle del módulo (con todos los archivos)
+              files_rows = ""
+              for f in files:
+                  files_rows += f"""
+                  <tr>
+                      <td><strong>{f['name']}</strong></td>
+                      <td style="color:{get_color(f['stmt'])};font-weight:bold">{f['stmt']:.1f}%<br><small>{f['stmt_covered']}/{f['stmt_total']}</small></td>
+                      <td style="color:{get_color(f['branch'])};font-weight:bold">{f['branch']:.1f}%<br><small>{f['branch_covered']}/{f['branch_total']}</small></td>
+                      <td style="color:{get_color(f['func'])};font-weight:bold">{f['func']:.1f}%<br><small>{f['func_covered']}/{f['func_total']}</small></td>
+                      <td style="color:{get_color(f['line'])};font-weight:bold">{f['line']:.1f}%<br><small>{f['line_covered']}/{f['line_total']}</small></td>
+                      <td><div class="progress-bar"><div class="progress-fill {get_fill_class(f['line'])}" style="width:{f['line']:.1f}%"></div></div></td>
+                  </tr>"""
+              
               module_page = f"""<!DOCTYPE html>
               <html>
               <head><meta charset="UTF-8"><title>{module_name} - Coverage</title>
@@ -189,14 +217,25 @@ jobs:
               <div class="container">
                   <a href="index.html" style="display:inline-block;margin-bottom:20px">← Volver al dashboard</a>
                   <h1>📁 {module_name}</h1>
-                  <div class="sub">Resumen de cobertura del módulo</div>
+                  <div class="sub">Detalle de cobertura por archivo</div>
+                  
                   <div class="stats">
-                      <div class="stat-card"><div class="stat-number" style="color:{get_color(stmt)}">{stmt}%</div><div class="stat-label">Statements</div></div>
-                      <div class="stat-card"><div class="stat-number" style="color:{get_color(branch)}">{branch}%</div><div class="stat-label">Branches</div></div>
-                      <div class="stat-card"><div class="stat-number" style="color:{get_color(func)}">{func}%</div><div class="stat-label">Functions</div></div>
-                      <div class="stat-card"><div class="stat-number" style="color:{get_color(line)}">{line}%</div><div class="stat-label">Lines</div></div>
+                      <div class="stat-card"><div class="stat-number" style="color:{get_color(avg_stmt)}">{avg_stmt:.1f}%</div><div class="stat-label">Statements</div></div>
+                      <div class="stat-card"><div class="stat-number" style="color:{get_color(avg_branch)}">{avg_branch:.1f}%</div><div class="stat-label">Branches</div></div>
+                      <div class="stat-card"><div class="stat-number" style="color:{get_color(avg_func)}">{avg_func:.1f}%</div><div class="stat-label">Functions</div></div>
+                      <div class="stat-card"><div class="stat-number" style="color:{get_color(avg_line)}">{avg_line:.1f}%</div><div class="stat-label">Lines</div></div>
                   </div>
-                  <p>💡 Para ver el detalle por archivo, ejecuta las pruebas localmente o usa el artifact coverage-html.</p>
+                  
+                  <h2>📄 Archivos</h2>
+                  <table>
+                      <thead>
+                          <tr><th>Archivo</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th><th></th></tr>
+                      </thead>
+                      <tbody>
+                          {files_rows if files_rows else '<tr><td colspan="6">No hay archivos disponibles</td></tr>'}
+                      </tbody>
+                  </table>
+                  
                   <div class="footer">Generado automáticamente por CI/CD Pipeline</div>
               </div>
               </body>
@@ -229,7 +268,7 @@ jobs:
                       <tr><th>Módulo</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th><th></th></tr>
                   </thead>
                   <tbody>
-                      {table_rows if table_rows else '<tr><td colspan="6">No hay datos de módulos disponibles</td></tr>'}
+                      {table_rows if table_rows else '<tr><td colspan="6">No hay datos de módulos disponibles</td></td>'}
                   </tbody>
               </table>
               
@@ -256,7 +295,7 @@ jobs:
           
           mkdir -p docs/reports/latest
           
-          cat > docs/reports/latest/index.html << EOF
+          cat > docs/reports/latest/index.html << 'EOF'
           <!DOCTYPE html>
           <html lang="es">
           <head>
@@ -282,14 +321,19 @@ jobs:
           <div class="container">
               <div class="header">
                   <h1>🚛 NANUTECH</h1>
-                  <p>Dashboard de Calidad de Software · Sprint ${SPRINT} · ${DATETIME}</p>
-                  <p style="font-size:12px;color:#64748b">Run ID: ${RUN_ID}</p>
+                  <p>Dashboard de Calidad de Software · Sprint EOF
+          SPRINT=$(date '+%Y-%m')
+          EOF
+          echo "sprint: $SPRINT"
+          
+          cat >> docs/reports/latest/index.html << EOF
+                  <p style="font-size:12px;color:#64748b">Run ID: $RUN_ID</p>
               </div>
               
               <a href="coverage/index.html" class="card">
                   <div class="icon">📈</div>
                   <div class="title">Cobertura de Código</div>
-                  <div class="desc">Reporte de cobertura por módulo. Haz clic en cada módulo para ver detalles.</div>
+                  <div class="desc">Reporte de cobertura por módulo. Haz clic en cada módulo para ver el detalle de todos sus archivos.</div>
                   <span class="badge">Ver reporte →</span>
               </a>
               
@@ -331,6 +375,9 @@ jobs:
           echo "📊 Dashboard: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
           echo "📈 Cobertura: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/coverage/"
           echo ""
-          echo "💡 En la página de cobertura, haz clic en cualquier módulo"
-          echo "   para ver más detalles."
+          echo "💡 En la página de cobertura:"
+          echo "   • Verás todos los módulos con sus promedios"
+          echo "   • Haz clic en cualquier módulo para ver todos sus archivos"
+          echo "   • Cada archivo muestra Statements, Branches, Functions y Lines"
+          echo "   • Colores: 🟢 Verde ≥70% | 🟡 Amarillo 50-69% | 🔴 Rojo <50%"
           echo ""
