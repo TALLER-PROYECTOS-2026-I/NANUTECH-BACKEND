@@ -29,7 +29,7 @@ jobs:
         id: workflow
         run: |
           RUN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/security-quality-tests.yml/runs?status=success&per_page=1" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci-develop.yml/runs?status=success&per_page=1" \
             | jq -r '.workflow_runs[0].id // "0"')
           
           if [ "$RUN_ID" = "0" ] || [ "$RUN_ID" = "null" ]; then
