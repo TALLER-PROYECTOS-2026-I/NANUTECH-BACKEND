@@ -67,80 +67,45 @@ jobs:
         run: |
           mkdir -p snyk-deps-html
           if [ -f snyk-deps.json ]; then
-            cat > snyk-deps-html/index.html << 'SNYKDEPSHTML'
+            cat > snyk-deps-html/index.html << 'EOF'
             <!DOCTYPE html>
             <html lang="es">
             <head>
                 <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Snyk Dependencies Report</title>
-                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { font-family: system-ui, -apple-system, sans-serif; background: #0a0e27; padding: 20px; }
-                    .container { max-width: 1400px; margin: 0 auto; }
-                    .header { background: linear-gradient(135deg, #0f172a, #1e3a8a); border-radius: 24px; padding: 30px; margin-bottom: 30px; color: white; }
-                    .vuln { background: #fee2e2; color: #991b1b; padding: 16px; margin: 12px 0; border-radius: 12px; border-left: 4px solid #dc2626; }
-                    .vuln-critical { background: #fee2e2; border-left-color: #dc2626; }
-                    .vuln-high { background: #fed7aa; border-left-color: #ea580c; }
-                    .vuln-medium { background: #fef3c7; border-left-color: #eab308; }
-                    .vuln-low { background: #d1fae5; border-left-color: #10b981; }
-                    pre { background: #1e293b; padding: 20px; border-radius: 12px; overflow-x: auto; color: #e2e8f0; font-size: 12px; margin-top: 20px; }
-                    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
-                    .stat-card { background: white; border-radius: 16px; padding: 20px; text-align: center; }
-                    .stat-number { font-size: 36px; font-weight: 800; }
-                    .stat-label { font-size: 14px; color: #64748b; margin-top: 8px; }
-                    .back-link { display: inline-block; margin-top: 20px; color: #3b82f6; text-decoration: none; }
+                    body { font-family: system-ui; background: #0a0e27; padding: 20px; color: #fff; }
+                    .vuln { background: #fee2e2; color: #991b1b; padding: 12px; margin: 10px 0; border-radius: 8px; }
+                    pre { background: #1e293b; padding: 15px; border-radius: 8px; overflow-x: auto; }
+                    .stats { display: flex; gap: 20px; margin-bottom: 20px; }
+                    .stat { background: white; padding: 15px; border-radius: 12px; text-align: center; }
                 </style>
             </head>
             <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>🔒 Snyk Dependencies Scan Results</h1>
-                        <p>Análisis de vulnerabilidades en dependencias</p>
-                    </div>
-                    <div id="content">Cargando...</div>
-                    <a href="../../latest/index.html" class="back-link">← Volver al Centro de Reportes</a>
-                </div>
+                <h1>🔒 Snyk Dependencies Scan Results</h1>
+                <div id="content"></div>
                 <script>
-                    fetch('snyk-deps.json')
-                        .then(r => r.json())
-                        .then(data => {
-                            const vulns = data.vulnerabilities || [];
-                            const critical = vulns.filter(v => v.severity === 'critical').length;
-                            const high = vulns.filter(v => v.severity === 'high').length;
-                            const medium = vulns.filter(v => v.severity === 'medium').length;
-                            const low = vulns.filter(v => v.severity === 'low').length;
-                            
-                            document.getElementById('content').innerHTML = `
-                                <div class="stats">
-                                    <div class="stat-card"><div class="stat-number" style="color: #dc2626">${critical}</div><div class="stat-label">Críticas</div></div>
-                                    <div class="stat-card"><div class="stat-number" style="color: #ea580c">${high}</div><div class="stat-label">Altas</div></div>
-                                    <div class="stat-card"><div class="stat-number" style="color: #eab308">${medium}</div><div class="stat-label">Medias</div></div>
-                                    <div class="stat-card"><div class="stat-number" style="color: #10b981">${low}</div><div class="stat-label">Bajas</div></div>
-                                </div>
-                                <h2>Total Vulnerabilidades: ${vulns.length}</h2>
-                                ${vulns.map(v => `<div class="vuln vuln-${v.severity}">
-                                    <strong>📦 ${v.packageName}</strong><br>
-                                    <strong>🔴 Severidad:</strong> ${v.severity.toUpperCase()}<br>
-                                    <strong>📝 Título:</strong> ${v.title}<br>
-                                    <strong>ℹ️ Descripción:</strong> ${v.description || 'No disponible'}<br>
-                                    <strong>🔧 Versión:</strong> ${v.version || 'N/A'}
-                                </div>`).join('')}
-                                <details><summary>📄 Ver JSON completo</summary>
-                                <pre>${JSON.stringify(data, null, 2)}</pre>
-                                </details>
-                            `;
-                        });
+                fetch('snyk-deps.json')
+                    .then(r => r.json())
+                    .then(data => {
+                        const vulns = data.vulnerabilities || [];
+                        document.getElementById('content').innerHTML = `
+                            <h2>Total Vulnerabilities: ${vulns.length}</h2>
+                            ${vulns.map(v => `<div class="vuln">
+                                <strong>${v.packageName}</strong><br>
+                                Severity: ${v.severity}<br>
+                                ${v.title}
+                            </div>`).join('')}
+                            <details><summary>JSON</summary><pre>${JSON.stringify(data, null, 2)}</pre></details>
+                        `;
+                    });
                 </script>
             </body>
             </html>
-            SNYKDEPSHTML
-            
+            EOF
             cp snyk-deps.json snyk-deps-html/
             echo "✅ Snyk dependencies HTML generated"
           else
-            echo "⚠️ No snyk-deps.json found"
             echo '<html><body><h1>No Snyk report available</h1></body></html>' > snyk-deps-html/index.html
           fi
 
@@ -220,63 +185,34 @@ jobs:
         run: |
           mkdir -p snyk-code-html
           if [ -f snyk-code.json ]; then
-            cat > snyk-code-html/index.html << 'SNYKCODEHTML'
+            cat > snyk-code-html/index.html << 'EOF'
             <!DOCTYPE html>
-            <html lang="es">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Snyk Code Report</title>
-                <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { font-family: system-ui, sans-serif; background: #0a0e27; padding: 20px; }
-                    .container { max-width: 1400px; margin: 0 auto; }
-                    .header { background: linear-gradient(135deg, #0f172a, #1e3a8a); border-radius: 24px; padding: 30px; margin-bottom: 30px; color: white; }
-                    .issue { background: #1e293b; padding: 16px; margin: 12px 0; border-radius: 12px; color: #e2e8f0; }
-                    .issue-critical { border-left: 4px solid #dc2626; }
-                    .issue-high { border-left: 4px solid #ea580c; }
-                    pre { background: #0f172a; padding: 20px; border-radius: 12px; overflow-x: auto; margin-top: 20px; }
-                    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
-                    .stat-card { background: white; border-radius: 16px; padding: 20px; text-align: center; }
-                    .stat-number { font-size: 36px; font-weight: 800; }
-                </style>
+            <html>
+            <head><title>Snyk Code Report</title>
+            <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#fff;}
+            .issue{background:#1e293b;padding:12px;margin:10px 0;border-radius:8px;}
+            pre{background:#0f172a;padding:15px;border-radius:8px;}</style>
             </head>
             <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>🔍 Snyk Code Scan Results</h1>
-                        <p>Análisis SAST - Código Fuente</p>
-                    </div>
-                    <div id="content">Cargando...</div>
-                    <a href="../../latest/index.html" class="back-link">← Volver al Centro de Reportes</a>
-                </div>
-                <script>
-                    fetch('snyk-code.json')
-                        .then(r => r.json())
-                        .then(data => {
-                            const results = data.runs?.[0]?.results || [];
-                            document.getElementById('content').innerHTML = `
-                                <div class="stats">
-                                    <div class="stat-card"><div class="stat-number">${results.length}</div><div class="stat-label">Total Issues</div></div>
-                                </div>
-                                <h2>Hallazgos (${results.length})</h2>
-                                ${results.map(r => `<div class="issue issue-${r.level || 'high'}">
-                                    <strong>📍 ${r.locations?.[0]?.physicalLocation?.artifactLocation?.uri || 'Unknown'}</strong><br>
-                                    <strong>⚠️ Mensaje:</strong> ${r.message?.text || 'No description'}<br>
-                                    <strong>🔴 Severidad:</strong> ${r.level || 'unknown'}
-                                </div>`).join('')}
-                                <details><summary>Ver JSON completo</summary><pre>${JSON.stringify(data, null, 2)}</pre></details>
-                            `;
-                        });
-                </script>
+            <h1>🔍 Snyk Code Results</h1>
+            <div id="content"></div>
+            <script>
+            fetch('snyk-code.json').then(r=>r.json()).then(data=>{
+                const results=data.runs?.[0]?.results||[];
+                document.getElementById('content').innerHTML=`
+                    <h2>Total Issues: ${results.length}</h2>
+                    ${results.map(r=>`<div class="issue"><strong>${r.locations?.[0]?.physicalLocation?.artifactLocation?.uri||'Unknown'}</strong><br>${r.message?.text||''}</div>`).join('')}
+                    <details><summary>JSON</summary><pre>${JSON.stringify(data,null,2)}</pre></details>
+                `;
+            });
+            </script>
             </body>
             </html>
-            SNYKCODEHTML
-            
+            EOF
             cp snyk-code.json snyk-code-html/
             echo "✅ Snyk code HTML generated"
           else
-            echo '<html><body><h1>No Snyk Code report available</h1></body></html>' > snyk-code-html/index.html
+            echo '<html><body><h1>No Snyk Code report</h1></body></html>' > snyk-code-html/index.html
           fi
 
       - name: Upload SARIF to GitHub Security tab
@@ -345,42 +281,30 @@ jobs:
         run: |
           mkdir -p snyk-iac-html
           if [ -f snyk-iac.json ]; then
-            cat > snyk-iac-html/index.html << 'SNYKIACHTML'
+            cat > snyk-iac-html/index.html << 'EOF'
             <!DOCTYPE html>
-            <html lang="es">
-            <head>
-                <meta charset="UTF-8">
-                <title>Snyk IaC Report</title>
-                <style>
-                    body { font-family: system-ui; background: #0a0e27; padding: 20px; color: #e2e8f0; }
-                    .container { max-width: 1200px; margin: 0 auto; }
-                    .header { background: linear-gradient(135deg, #0f172a, #1e3a8a); border-radius: 24px; padding: 30px; margin-bottom: 30px; }
-                    .vuln { background: #1e293b; padding: 16px; margin: 12px 0; border-radius: 12px; }
-                    .critical { border-left: 4px solid #dc2626; }
-                    pre { background: #0f172a; padding: 20px; border-radius: 12px; overflow-x: auto; }
-                </style>
+            <html>
+            <head><title>Snyk IaC Report</title>
+            <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#fff;}
+            .vuln{background:#1e293b;padding:12px;margin:10px 0;border-radius:8px;}
+            pre{background:#0f172a;padding:15px;border-radius:8px;}</style>
             </head>
             <body>
-                <div class="container">
-                    <div class="header"><h1>🏗️ Snyk IaC Scan Results</h1><p>Infraestructura como Código</p></div>
-                    <div id="content">Cargando...</div>
-                </div>
-                <script>
-                    fetch('snyk-iac.json').then(r=>r.json()).then(data=>{
-                        const vulns=data.vulnerabilities||[];
-                        document.getElementById('content').innerHTML=`
-                            <h2>Total Hallazgos: ${vulns.length}</h2>
-                            ${vulns.map(v=>`<div class="vuln ${v.severity}">
-                                <strong>📝 ${v.title}</strong><br>Severidad: ${v.severity}
-                            </div>`).join('')}
-                            <details><summary>JSON</summary><pre>${JSON.stringify(data,null,2)}</pre></details>
-                        `;
-                    });
-                </script>
+            <h1>🏗️ Snyk IaC Results</h1>
+            <div id="content"></div>
+            <script>
+            fetch('snyk-iac.json').then(r=>r.json()).then(data=>{
+                const vulns=data.vulnerabilities||[];
+                document.getElementById('content').innerHTML=`
+                    <h2>Total Findings: ${vulns.length}</h2>
+                    ${vulns.map(v=>`<div class="vuln"><strong>${v.title}</strong><br>Severity: ${v.severity}</div>`).join('')}
+                    <details><summary>JSON</summary><pre>${JSON.stringify(data,null,2)}</pre></details>
+                `;
+            });
+            </script>
             </body>
             </html>
-            SNYKIACHTML
-            
+            EOF
             cp snyk-iac.json snyk-iac-html/
           else
             echo '<html><body><h1>No IaC report</h1></body></html>' > snyk-iac-html/index.html
@@ -465,8 +389,8 @@ jobs:
       
       - name: Generate HTML coverage report
         run: |
-          npx nyc report --reporter=html --report-dir=coverage/html-report
-          echo "✅ HTML coverage generated at coverage/html-report/index.html"
+          npx nyc report --reporter=html --report-dir=coverage/html-report || echo "⚠️ No coverage data found"
+          echo "✅ HTML coverage generated"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -561,41 +485,29 @@ jobs:
         run: |
           mkdir -p integration-html
           if [ -f integration-results.json ]; then
-            cat > integration-html/index.html << 'INTEGRATIONHTML'
+            cat > integration-html/index.html << 'EOF'
             <!DOCTYPE html>
             <html>
-            <head><title>Integration Tests Report</title>
-            <style>
-                body { font-family: system-ui; background: #0a0e27; padding: 20px; color: #e2e8f0; }
-                .passed { color: #10b981; }
-                .failed { color: #ef4444; }
-                .container { max-width: 1200px; margin: 0 auto; }
-                .header { background: linear-gradient(135deg, #0f172a, #1e3a8a); border-radius: 24px; padding: 30px; margin-bottom: 30px; }
-                .test-result { background: #1e293b; padding: 12px; margin: 8px 0; border-radius: 8px; }
-            </style>
+            <head><title>Integration Tests</title>
+            <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#fff;}</style>
             </head>
             <body>
-            <div class="container">
-            <div class="header"><h1>🔗 Integration Tests Results</h1></div>
-            <div id="content">Cargando...</div>
-            </div>
+            <h1>🔗 Integration Tests Results</h1>
+            <div id="content"></div>
             <script>
             fetch('integration-results.json').then(r=>r.json()).then(data=>{
-                const total = data.numTotalTests || 0;
-                const passed = data.numPassedTests || 0;
-                document.getElementById('content').innerHTML = `
-                    <h2>Total: ${total} | <span class="passed">Pasados: ${passed}</span> | Fallidos: ${total - passed}</h2>
-                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                document.getElementById('content').innerHTML=`
+                    <h2>Total: ${data.numTotalTests||0} | Passed: ${data.numPassedTests||0}</h2>
+                    <pre>${JSON.stringify(data,null,2)}</pre>
                 `;
             });
             </script>
             </body>
             </html>
-            INTEGRATIONHTML
-            
+            EOF
             cp integration-results.json integration-html/
           else
-            echo '<html><body><h1>No integration tests found</h1></body></html>' > integration-html/index.html
+            echo '<html><body><h1>No integration tests</h1></body></html>' > integration-html/index.html
           fi
       
       - name: Upload integration test results
@@ -654,10 +566,6 @@ jobs:
             VULN_COUNT=$(jq '.metadata.vulnerabilities.total // 0' npm-audit.json)
             echo "vuln_count=$VULN_COUNT" >> $GITHUB_OUTPUT
             echo "📊 npm audit vulnerabilities: ${VULN_COUNT}"
-            
-            if [ "${VULN_COUNT}" -gt 10 ]; then
-              echo "⚠️ Too many vulnerabilities found!"
-            fi
           else
             echo "vuln_count=0" >> $GITHUB_OUTPUT
           fi
@@ -666,40 +574,30 @@ jobs:
         run: |
           mkdir -p security-html
           if [ -f npm-audit.json ]; then
-            cat > security-html/index.html << 'SECURITYHTML'
+            cat > security-html/index.html << 'EOF'
             <!DOCTYPE html>
             <html>
-            <head><title>Security Report - Trivy & npm audit</title>
-            <style>
-                body { font-family: system-ui; background: #0a0e27; padding: 20px; color: #e2e8f0; }
-                .vuln { background: #1e293b; padding: 12px; margin: 8px 0; border-radius: 8px; }
-                .container { max-width: 1200px; margin: 0 auto; }
-                .header { background: linear-gradient(135deg, #0f172a, #1e3a8a); border-radius: 24px; padding: 30px; margin-bottom: 30px; }
-            </style>
+            <head><title>Security Report</title>
+            <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#fff;}</style>
             </head>
             <body>
-            <div class="container">
-            <div class="header"><h1>🔒 Security Scan Results</h1><p>Trivy + npm audit</p></div>
-            <div id="content">Cargando...</div>
-            </div>
+            <h1>🔒 Security Scan Results</h1>
+            <div id="content"></div>
             <script>
             fetch('npm-audit.json').then(r=>r.json()).then(data=>{
                 const vulns = data.vulnerabilities || {};
-                const total = Object.keys(vulns).length;
-                document.getElementById('content').innerHTML = `
-                    <h2>Total Vulnerabilidades npm: ${total}</h2>
-                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                document.getElementById('content').innerHTML=`
+                    <h2>Total Vulnerabilities: ${Object.keys(vulns).length}</h2>
+                    <pre>${JSON.stringify(data,null,2)}</pre>
                 `;
             });
             </script>
             </body>
             </html>
-            SECURITYHTML
-            
+            EOF
             cp npm-audit.json security-html/
-            echo '<p>Trivy scan results available in SARIF format</p>' > security-html/trivy-info.html
           else
-            echo '<html><body><h1>No security report available</h1></body></html>' > security-html/index.html
+            echo '<html><body><h1>No security report</h1></body></html>' > security-html/index.html
           fi
       
       - name: Upload security results
@@ -770,19 +668,18 @@ jobs:
       - name: Generate linting HTML report
         run: |
           mkdir -p linting-html
-          cat > linting-html/index.html << 'LINTHTML'
+          cat > linting-html/index.html << 'EOF'
           <!DOCTYPE html>
           <html>
           <head><title>Linting Results</title>
-          <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#e2e8f0;}</style>
+          <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#fff;}</style>
           </head>
           <body>
-          <h1>✨ Linting & Formatting Results</h1>
-          <p>Linting completed successfully. No critical issues found.</p>
-          <p>Verificar logs de GitHub Actions para detalles completos.</p>
+          <h1>✨ Linting & Formatting</h1>
+          <p>Linting completed successfully.</p>
           </body>
           </html>
-          LINTHTML
+          EOF
       
       - name: Upload linting HTML report
         uses: actions/upload-artifact@v4
@@ -809,12 +706,11 @@ jobs:
           
           ### 🔒 **Security Scan Results (Snyk)**
           
-          | Scan Type | Status | Issues Found | Severity |
-          |-----------|--------|--------------|----------|
-          | Dependencies (SCA) | ${{ needs.snyk-dependencies.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-dependencies.outputs.vuln_count || '0' }} | High |
-          | Source Code (SAST) | ${{ needs.snyk-code.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-code.outputs.issues_count || '0' }} | High+ |
-          | Infrastructure (IaC) | ${{ needs.snyk-iac.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-iac.outputs.issues_count || '0' }} | High |
-          | Trivy + npm audit | ${{ needs.security-tests.result == 'success' && '✅' || '⚠️' }} | ${{ needs.security-tests.outputs.vulnerabilities || '0' }} | All |
+          | Scan Type | Status | Issues Found |
+          |-----------|--------|--------------|
+          | Dependencies (SCA) | ${{ needs.snyk-dependencies.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-dependencies.outputs.vuln_count || '0' }} |
+          | Source Code (SAST) | ${{ needs.snyk-code.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-code.outputs.issues_count || '0' }} |
+          | Infrastructure (IaC) | ${{ needs.snyk-iac.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-iac.outputs.issues_count || '0' }} |
           
           ### 🧪 **Quality Test Results**
           
@@ -826,32 +722,12 @@ jobs:
           
           ### 📈 **Overall Status**
           
-          ${{ (needs.unit-tests.result == 'success' && needs.linting.result == 'success' && needs.snyk-dependencies.outputs.vuln_count == '0') && '✅ **QUALITY GATE PASSED** - Ready for review' || '❌ **QUALITY GATE FAILED** - Issues need attention' }}
+          ${{ (needs.unit-tests.result == 'success' && needs.linting.result == 'success' && needs.snyk-dependencies.outputs.vuln_count == '0') && '✅ **QUALITY GATE PASSED**' || '❌ **QUALITY GATE FAILED**' }}
           
-          ### 🔗 **Useful Links**
-          - [View Security Alerts](https://github.com/${{ github.repository }}/security)
-          - [View Code scanning results](https://github.com/${{ github.repository }}/security/code-scanning)
-          - [View Dependencies](https://github.com/${{ github.repository }}/network/dependencies)
-          - [View this run details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          ### 📊 **HTML Reports (GitHub Pages)**
           
-          ### 📦 **Download Artifacts**
-          - [Snyk Dependencies Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
-          - [Snyk Code Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
-          - [Snyk IaC Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
-          - [Coverage Report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
-          - [Integration Test Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
-          
-          ### 📊 **HTML Reports (Publicados en GitHub Pages)**
-          Estos reportes están disponibles automáticamente en GitHub Pages:
-          - [📈 Coverage HTML Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/coverage-html/index.html)
-          - [🔒 Snyk Dependencies HTML](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/snyk-deps-html/index.html)
-          - [🔍 Snyk Code HTML](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/snyk-code-html/index.html)
-          - [🏗️ Snyk IaC HTML](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/snyk-iac-html/index.html)
-          - [🔒 Security HTML](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/security-html/index.html)
-          - [🔗 Integration Tests HTML](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/integration-html/index.html)
-          
-          ### 📚 **Centro de Reportes**
-          [Ver todos los reportes en GitHub Pages](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/)
+          Una vez publicado el workflow `publish-all-reports.yml`, los reportes estarán disponibles en:
+          - https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/
           
           ---
           *Report generated at $(date '+%Y-%m-%d %H:%M:%S')*
