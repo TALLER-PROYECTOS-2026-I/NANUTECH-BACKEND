@@ -20,18 +20,28 @@ jobs:
       - name: Checkov - Escanear IaC
         uses: bridgecrewio/checkov-action@master
         with:
-          file: template.yaml
+          directory: .  # ✅ Escanea todo el directorio
           framework: cloudformation
           soft_fail: true
           output_format: sarif
-          output_file_path: checkov.sarif
+          output_file_path: checkov-output.sarif  # ✅ Nombre más específico
           skip_check: CKV_AWS_45,CKV_AWS_272
+
+      - name: Verificar que se generó el archivo SARIF
+        run: |
+          if [ -f "checkov-output.sarif" ]; then
+            echo "✅ SARIF file generated"
+            ls -la checkov-output.sarif
+          else
+            echo "⚠️ No SARIF file found, creating empty one"
+            echo '{"version":"2.1.0","runs":[]}' > checkov-output.sarif
+          fi
 
       - name: Subir resultados a GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: checkov.sarif
+          sarif_file: checkov-output.sarif
           category: checkov
 
       - name: Publicar resumen en el PR
@@ -41,18 +51,31 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            if (!fs.existsSync('checkov.sarif')) return;
-
-            const sarif = JSON.parse(fs.readFileSync('checkov.sarif', 'utf8'));
+            const sarifFile = 'checkov-output.sarif';
+            
+            // Verificar si el archivo existe y no es un directorio
+            if (!fs.existsSync(sarifFile)) {
+              console.log('No SARIF file found');
+              return;
+            }
+            
+            const stats = fs.statSync(sarifFile);
+            if (stats.isDirectory()) {
+              console.log('SARIF path is a directory, skipping comment');
+              return;
+            }
+            
+            const sarif = JSON.parse(fs.readFileSync(sarifFile, 'utf8'));
             const runs = sarif.runs || [];
             let critical = 0, high = 0, medium = 0, total = 0;
             const failedChecks = [];
 
             const knownChecks = {
-              'CKV_AWS_76':   'NanutechApi sin access logging',
-              'CKV_AWS_116':  'Funciones sin Dead Letter Queue',
-              'CKV2_AWS_51':  'Endpoints sin Authorizer Cognito',
-              'CKV2_AWS_29':  'NanutechApi sin WAF asociado',
+              'CKV_AWS_76':   'API Gateway sin access logging',
+              'CKV_AWS_120':  'API Gateway sin caching',
+              'CKV_AWS_173':  'Variables de entorno Lambda sin encriptar',
+              'CKV_AWS_115':  'Lambda sin límite de concurrencia',
+              'CKV_AWS_116':  'Lambda sin Dead Letter Queue',
               'CKV_AWS_1':    'Política IAM con permisos excesivos',
               'CKV_AWS_40':   'IAM User con política inline',
               'CKV_AWS_274':  'Lambda con acceso de administrador',
@@ -64,24 +87,32 @@ jobs:
               for (const result of (run.results || [])) {
                 total++;
                 const level = result.level;
+                // Mapear niveles de Checkov a severidades
                 if (level === 'error') critical++;
                 else if (level === 'warning') high++;
                 else medium++;
 
                 const ruleId = result.ruleId || 'N/A';
-                const startLine = result.locations?.[0]
-                  ?.physicalLocation?.region?.startLine;
-                const resource = startLine
-                  ? `línea ${startLine}`
-                  : 'template.yaml';
-                const friendlyMsg = knownChecks[ruleId]
-                  || result.message?.text?.split('\n')[0]
-                  || '';
+                const locations = result.locations || [];
+                let resource = 'template.yaml';
+                if (locations[0]?.physicalLocation?.artifactLocation?.uri) {
+                  resource = locations[0].physicalLocation.artifactLocation.uri;
+                }
+                
+                const friendlyMsg = knownChecks[ruleId] 
+                  || result.message?.text?.split('\n')[0] 
+                  || ruleId;
 
                 if (level === 'error' || level === 'warning') {
                   failedChecks.push({ ruleId, resource, level, friendlyMsg });
                 }
               }
+            }
+
+            // Si no hay resultados, no comentar
+            if (total === 0) {
+              console.log('No check results found');
+              return;
             }
 
             failedChecks.sort((a, b) => {
@@ -91,10 +122,10 @@ jobs:
 
             const icon = critical > 0 ? '🔴' : high > 0 ? '🟡' : '🟢';
             const status = critical > 0
-              ? 'Se encontraron issues críticos que deben corregirse antes de mergear.'
+              ? '⚠️ **Se encontraron issues críticos que deben corregirse antes de mergear.**'
               : high > 0
-              ? 'Se encontraron warnings a revisar.'
-              : '¡Sin issues críticos detectados!';
+              ? '📋 **Se encontraron advertencias a revisar.**'
+              : '✅ **¡Sin issues críticos detectados!**';
 
             const topIssues = failedChecks.slice(0, 8);
             const issueRows = topIssues.length > 0
@@ -123,16 +154,17 @@ jobs:
               `|-------|----------|-------------|-----------|`,
               issueRows,
               ``,
-              `### Qué corregir en \`template.yaml\``,
-              `- **CKV_AWS_76** → Agregar \`AccessLogSetting\` con \`LogGroupArn\` en \`NanutechApi\``,
-              `- **CKV_AWS_116** → Agregar \`DeadLetterQueue\` (SQS) en \`AuthFunction\` y \`JornadaFunction\``,
-              `- **CKV2_AWS_51** → Agregar \`Auth: { Authorizer: CognitoAuthorizer }\` en endpoints protegidos`,
-              `- **CKV2_AWS_29** → Asociar \`AWS::WAFv2::WebACL\` a \`NanutechApi\``,
+              `### 🔧 Recomendaciones de corrección`,
+              `- **CKV_AWS_173** → Usar \`KmsKeyArn\` para encriptar variables de entorno`,
+              `- **CKV_AWS_115** → Agregar \`ReservedConcurrentExecutions: 10\` en cada función`,
+              `- **CKV_AWS_116** → Agregar \`DeadLetterQueue: { Type: SQS, TargetArn: ... }\``,
+              `- **CKV_AWS_76** → Agregar \`AccessLogSetting\` en \`NanutechApi\``,
+              `- **CKV_AWS_120** → Agregar \`MethodSettings: { CachingEnabled: true }\``,
               ``,
               `> 📋 Ver detalles completos en **Security → Code scanning alerts** del repositorio.`,
             ].join('\n');
 
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
