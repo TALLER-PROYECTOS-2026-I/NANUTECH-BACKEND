@@ -501,6 +501,9 @@ Outputs:
   AuthFunctionArn:
     Description: "ARN de la función Auth"
     Value: !GetAtt AuthFunction.Arn
+  CamionFunctionArn:
+    Description: "ARN de la función Camión"
+    Value: !GetAtt CamionFunction.Arn
   MigratorFunctionArn:
     Description: "ARN de la función Migrator"
     Value: !GetAtt MigratorFunction.Arn
