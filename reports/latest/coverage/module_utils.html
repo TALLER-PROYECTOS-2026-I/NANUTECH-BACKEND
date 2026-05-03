@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"><title>utils - Coverage</title>
+    <style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#0a0e27;color:#e2e8f0;padding:24px}
+.container{max-width:1400px;margin:0 auto}
+h1{font-size:32px;margin-bottom:8px}
+.sub{color:#94a3b8;margin-bottom:24px}
+.stats{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:30px}
+.stat-card{background:#1e293b;border-radius:16px;padding:24px;text-align:center;min-width:140px}
+.stat-number{font-size:42px;font-weight:800}
+.stat-label{font-size:12px;color:#64748b;margin-top:8px}
+table{width:100%;border-collapse:collapse;background:#1e293b;border-radius:16px;overflow:hidden}
+th,td{padding:14px 16px;text-align:left;border-bottom:1px solid #334155}
+th{background:#0f172a;color:#94a3b8;font-size:12px;text-transform:uppercase}
+tr:hover{background:#243044}
+.progress-bar{background:#334155;border-radius:10px;height:8px;width:120px;overflow:hidden}
+.progress-fill{height:100%;border-radius:10px}
+.good{background:#22c55e}
+.medium{background:#eab308}
+.bad{background:#ef4444}
+a{color:#60a5fa;text-decoration:none}
+a:hover{text-decoration:underline}
+.footer{margin-top:40px;padding:20px;text-align:center;color:#475569}
+</style>
+    </head>
+    <body>
+    <div class="container">
+        <a href="index.html" style="display:inline-block;margin-bottom:20px">← Volver al dashboard</a>
+        <h1>📁 utils</h1>
+        <div class="sub">Detalle de cobertura por archivo</div>
+        
+        <div class="stats">
+            <div class="stat-card"><div class="stat-number" style="color:#ef4444">49.4%</div><div class="stat-label">Statements</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:#ef4444">34.8%</div><div class="stat-label">Branches</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:#eab308">59.7%</div><div class="stat-label">Functions</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:#ef4444">48.8%</div><div class="stat-label">Lines</div></div>
+        </div>
+        
+        <h2>📄 Archivos</h2>
+        <table>
+            <thead>
+                <tr><th>Archivo</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th><th></th></tr>
+            </thead>
+            <tbody>
+                
+        <tr>
+            <td><strong>response.mjs</strong></td>
+            <td style="color:#22c55e;font-weight:bold">76.5%<br><small>13/17</small></td>
+            <td style="color:#ef4444;font-weight:bold">28.6%<br><small>4/14</small></td>
+            <td style="color:#eab308;font-weight:bold">66.7%<br><small>2/3</small></td>
+            <td style="color:#22c55e;font-weight:bold">76.5%<br><small>13/17</small></td>
+            <td><div class="progress-bar"><div class="progress-fill good" style="width:76.5%"></div></div></td>
+        </tr>
+        <tr>
+            <td><strong>camionValidator.mjs</strong></td>
+            <td style="color:#ef4444;font-weight:bold">3.9%<br><small>3/76</small></td>
+            <td style="color:#ef4444;font-weight:bold">9.3%<br><small>4/43</small></td>
+            <td style="color:#ef4444;font-weight:bold">12.5%<br><small>1/8</small></td>
+            <td style="color:#ef4444;font-weight:bold">4.6%<br><small>3/65</small></td>
+            <td><div class="progress-bar"><div class="progress-fill bad" style="width:4.6%"></div></div></td>
+        </tr>
+        <tr>
+            <td><strong>jornadaValidator.mjs</strong></td>
+            <td style="color:#eab308;font-weight:bold">67.8%<br><small>19/28</small></td>
+            <td style="color:#eab308;font-weight:bold">66.7%<br><small>24/36</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>8/8</small></td>
+            <td style="color:#eab308;font-weight:bold">65.4%<br><small>17/26</small></td>
+            <td><div class="progress-bar"><div class="progress-fill medium" style="width:65.4%"></div></div></td>
+        </tr>
+            </tbody>
+        </table>
+        
+        <div class="footer">Generado automáticamente por CI/CD Pipeline</div>
+    </div>
+    </body>
+    </html>

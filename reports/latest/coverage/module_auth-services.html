@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"><title>auth-services - Coverage</title>
+    <style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#0a0e27;color:#e2e8f0;padding:24px}
+.container{max-width:1400px;margin:0 auto}
+h1{font-size:32px;margin-bottom:8px}
+.sub{color:#94a3b8;margin-bottom:24px}
+.stats{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:30px}
+.stat-card{background:#1e293b;border-radius:16px;padding:24px;text-align:center;min-width:140px}
+.stat-number{font-size:42px;font-weight:800}
+.stat-label{font-size:12px;color:#64748b;margin-top:8px}
+table{width:100%;border-collapse:collapse;background:#1e293b;border-radius:16px;overflow:hidden}
+th,td{padding:14px 16px;text-align:left;border-bottom:1px solid #334155}
+th{background:#0f172a;color:#94a3b8;font-size:12px;text-transform:uppercase}
+tr:hover{background:#243044}
+.progress-bar{background:#334155;border-radius:10px;height:8px;width:120px;overflow:hidden}
+.progress-fill{height:100%;border-radius:10px}
+.good{background:#22c55e}
+.medium{background:#eab308}
+.bad{background:#ef4444}
+a{color:#60a5fa;text-decoration:none}
+a:hover{text-decoration:underline}
+.footer{margin-top:40px;padding:20px;text-align:center;color:#475569}
+</style>
+    </head>
+    <body>
+    <div class="container">
+        <a href="index.html" style="display:inline-block;margin-bottom:20px">← Volver al dashboard</a>
+        <h1>📁 auth-services</h1>
+        <div class="sub">Detalle de cobertura por archivo</div>
+        
+        <div class="stats">
+            <div class="stat-card"><div class="stat-number" style="color:#22c55e">77.8%</div><div class="stat-label">Statements</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:#22c55e">71.1%</div><div class="stat-label">Branches</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:#22c55e">96.1%</div><div class="stat-label">Functions</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:#22c55e">78.3%</div><div class="stat-label">Lines</div></div>
+        </div>
+        
+        <h2>📄 Archivos</h2>
+        <table>
+            <thead>
+                <tr><th>Archivo</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th><th></th></tr>
+            </thead>
+            <tbody>
+                
+        <tr>
+            <td><strong>authCognitoProvider.mjs</strong></td>
+            <td style="color:#eab308;font-weight:bold">64.8%<br><small>70/108</small></td>
+            <td style="color:#ef4444;font-weight:bold">40.2%<br><small>31/77</small></td>
+            <td style="color:#22c55e;font-weight:bold">92.8%<br><small>13/14</small></td>
+            <td style="color:#eab308;font-weight:bold">64.7%<br><small>66/102</small></td>
+            <td><div class="progress-bar"><div class="progress-fill medium" style="width:64.7%"></div></div></td>
+        </tr>
+        <tr>
+            <td><strong>authConfig.mjs</strong></td>
+            <td style="color:#22c55e;font-weight:bold">94.7%<br><small>18/19</small></td>
+            <td style="color:#22c55e;font-weight:bold">87.5%<br><small>14/16</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>5/5</small></td>
+            <td style="color:#22c55e;font-weight:bold">94.7%<br><small>18/19</small></td>
+            <td><div class="progress-bar"><div class="progress-fill good" style="width:94.7%"></div></div></td>
+        </tr>
+        <tr>
+            <td><strong>authController.mjs</strong></td>
+            <td style="color:#22c55e;font-weight:bold">77.1%<br><small>27/35</small></td>
+            <td style="color:#eab308;font-weight:bold">62.5%<br><small>5/8</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>6/6</small></td>
+            <td style="color:#22c55e;font-weight:bold">79.4%<br><small>27/34</small></td>
+            <td><div class="progress-bar"><div class="progress-fill good" style="width:79.4%"></div></div></td>
+        </tr>
+        <tr>
+            <td><strong>authHandler.mjs</strong></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>7/7</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>2/2</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>1/1</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>7/7</small></td>
+            <td><div class="progress-bar"><div class="progress-fill good" style="width:100.0%"></div></div></td>
+        </tr>
+        <tr>
+            <td><strong>authModel.mjs</strong></td>
+            <td style="color:#ef4444;font-weight:bold">0.0%<br><small>0/1</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>0/0</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>0/0</small></td>
+            <td style="color:#ef4444;font-weight:bold">0.0%<br><small>0/1</small></td>
+            <td><div class="progress-bar"><div class="progress-fill bad" style="width:0.0%"></div></div></td>
+        </tr>
+        <tr>
+            <td><strong>authRepository.mjs</strong></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>47/47</small></td>
+            <td style="color:#eab308;font-weight:bold">50.0%<br><small>8/16</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>21/21</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>30/30</small></td>
+            <td><div class="progress-bar"><div class="progress-fill good" style="width:100.0%"></div></div></td>
+        </tr>
+        <tr>
+            <td><strong>authService.mjs</strong></td>
+            <td style="color:#22c55e;font-weight:bold">90.9%<br><small>100/110</small></td>
+            <td style="color:#eab308;font-weight:bold">67.5%<br><small>52/77</small></td>
+            <td style="color:#22c55e;font-weight:bold">88.2%<br><small>15/17</small></td>
+            <td style="color:#22c55e;font-weight:bold">93.2%<br><small>96/103</small></td>
+            <td><div class="progress-bar"><div class="progress-fill good" style="width:93.2%"></div></div></td>
+        </tr>
+        <tr>
+            <td><strong>authToken.mjs</strong></td>
+            <td style="color:#22c55e;font-weight:bold">88.6%<br><small>39/44</small></td>
+            <td style="color:#22c55e;font-weight:bold">70.6%<br><small>12/17</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>7/7</small></td>
+            <td style="color:#22c55e;font-weight:bold">88.6%<br><small>39/44</small></td>
+            <td><div class="progress-bar"><div class="progress-fill good" style="width:88.6%"></div></div></td>
+        </tr>
+        <tr>
+            <td><strong>authValidator.mjs</strong></td>
+            <td style="color:#eab308;font-weight:bold">62.2%<br><small>23/37</small></td>
+            <td style="color:#eab308;font-weight:bold">68.0%<br><small>17/25</small></td>
+            <td style="color:#22c55e;font-weight:bold">80.0%<br><small>4/5</small></td>
+            <td style="color:#eab308;font-weight:bold">62.2%<br><small>23/37</small></td>
+            <td><div class="progress-bar"><div class="progress-fill medium" style="width:62.2%"></div></div></td>
+        </tr>
+        <tr>
+            <td><strong>userRepository.mjs</strong></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>16/16</small></td>
+            <td style="color:#eab308;font-weight:bold">64.3%<br><small>9/14</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>5/5</small></td>
+            <td style="color:#22c55e;font-weight:bold">100.0%<br><small>15/15</small></td>
+            <td><div class="progress-bar"><div class="progress-fill good" style="width:100.0%"></div></div></td>
+        </tr>
+            </tbody>
+        </table>
+        
+        <div class="footer">Generado automáticamente por CI/CD Pipeline</div>
+    </div>
+    </body>
+    </html>
