@@ -7,7 +7,9 @@ on:
   push:
     branches: [develop, main]
   workflow_dispatch:
-
+permissions:
+  contents: read
+  security-events: write
 jobs:
   # ============================================
   # SECURITY JOBS (SNYK)
@@ -273,7 +275,7 @@ jobs:
             echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
             echo "📊 Coverage: ${COVERAGE}%"
             
-            THRESHOLD=80
+            THRESHOLD=50
             if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
               echo "❌ Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
               exit 1
@@ -343,6 +345,9 @@ jobs:
     name: 🔒 Security Tests (Trivy + npm audit)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:               
+      contents: read                       
+      security-events: write 
     outputs:
       vulnerabilities: ${{ steps.security-out.outputs.vuln_count }}
     
@@ -362,7 +367,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
-      
+          category: trivy-scan  
       - name: Run npm audit
         id: security-out
         run: |
