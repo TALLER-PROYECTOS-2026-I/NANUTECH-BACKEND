@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [ develop ]
     types: [ opened, synchronize, reopened ]
+  push:
+    branches: [ develop, main ]  # ✅ Agregado: se ejecuta en push directo
+  workflow_dispatch:              # ✅ Opcional: permite ejecución manual
 
 jobs:
   checkov-scan:
@@ -12,8 +15,8 @@ jobs:
     permissions:
       contents: read
       security-events: write
-      pull-requests: write  # ✅ Agregado para comentar en PRs
-      issues: write         # ✅ Agregado para crear comentarios
+      pull-requests: write
+      issues: write
 
     steps:
       - name: Checkout código
@@ -199,12 +202,17 @@ jobs:
                 `> 📋 Ver detalles completos en **Security → Code scanning alerts** del repositorio.`,
               ].join('\n');
 
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body
-              });
+              // Intentar comentar solo si es un PR (no en push directo)
+              if (github.context.eventName === 'pull_request') {
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body
+                });
+              } else {
+                console.log('Push event - skipping PR comment');
+              }
               
             } catch (error) {
               console.error('Error processing SARIF:', error.message);
