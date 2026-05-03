@@ -136,38 +136,43 @@ jobs:
       contents: read
       security-events: write
     outputs:
-      issues_count: ${{ steps.parse.outputs.issues }}
-
+      issues_count: ${{ steps.snyk.outputs.issues }}
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Snyk IaC scan
+      - name: Snyk - Scan IaC (SAM template)
+        id: snyk
         uses: snyk/actions/iac@master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high --sarif-file-output=snyk-iac.sarif --json-file-output=snyk-iac.json
+          args: >
+            --severity-threshold=high
+            --sarif-file-output=snyk-iac.sarif
+            --json-file-output=snyk-iac.json
           file: template.yaml
 
-      - name: Parse results
-        id: parse
+      - name: Parse Snyk results
         run: |
-          COUNT=0
           if [ -f snyk-iac.json ]; then
-            COUNT=$(jq '.vulnerabilities | length' snyk-iac.json 2>/dev/null || echo 0)
+            ISSUES=$(jq '.vulnerabilities | length' snyk-iac.json 2>/dev/null || echo "0")
+            echo "issues=$ISSUES" >> $GITHUB_OUTPUT
+            echo "📊 IaC issues: $ISSUES"
+          else
+            echo "issues=0" >> $GITHUB_OUTPUT
           fi
-          echo "issues=$COUNT" >> $GITHUB_OUTPUT
-          echo "IaC issues: $COUNT"
 
-      - name: Upload SARIF
+      - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: snyk-iac.sarif
           category: snyk-iac
-
-      - name: Upload artifact
+      
+      - name: Upload results artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
