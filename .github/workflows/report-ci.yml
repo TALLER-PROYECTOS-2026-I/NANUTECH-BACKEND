@@ -33,7 +33,7 @@ jobs:
             | jq -r '.workflow_runs[0].id // "0"')
           
           if [ "$RUN_ID" = "0" ] || [ "$RUN_ID" = "null" ]; then
-            echo "❌ No se encontró ninguna ejecución exitosa"
+            echo "❌ No se encontró ninguna ejecución exitosa del workflow ci-develop.yml"
             exit 1
           fi
           
@@ -75,22 +75,22 @@ jobs:
         run: |
           # Coverage general
           COVERAGE=0
+          STATEMENTS=0
+          BRANCHES=0
+          FUNCTIONS=0
+          
           if [ -f "./artifacts/coverage-report/coverage/coverage-summary.json" ]; then
             COVERAGE=$(jq -r '.total.lines.pct // 0' ./artifacts/coverage-report/coverage/coverage-summary.json)
-            echo "✅ Coverage: ${COVERAGE}%"
-            
-            # Extraer métricas totales
             STATEMENTS=$(jq -r '.total.statements.pct // 0' ./artifacts/coverage-report/coverage/coverage-summary.json)
             BRANCHES=$(jq -r '.total.branches.pct // 0' ./artifacts/coverage-report/coverage/coverage-summary.json)
             FUNCTIONS=$(jq -r '.total.functions.pct // 0' ./artifacts/coverage-report/coverage/coverage-summary.json)
-            LINES=$(jq -r '.total.lines.pct // 0' ./artifacts/coverage-report/coverage/coverage-summary.json)
             
-            echo "statements=${STATEMENTS}" >> $GITHUB_OUTPUT
-            echo "branches=${BRANCHES}" >> $GITHUB_OUTPUT
-            echo "functions=${FUNCTIONS}" >> $GITHUB_OUTPUT
-            echo "lines=${LINES}" >> $GITHUB_OUTPUT
+            echo "✅ Coverage: ${COVERAGE}%"
+            echo "✅ Statements: ${STATEMENTS}%"
+            echo "✅ Branches: ${BRANCHES}%"
+            echo "✅ Functions: ${FUNCTIONS}%"
             
-            # Generar HTML de la tabla de módulos dinámicamente
+            # Generar archivo con datos de módulos
             jq -r 'to_entries | map(select(.key != "total")) | .[] | 
               "\(.key)|\(.value.statements.pct)|\(.value.statements.covered)/\(.value.statements.total)|\(.value.branches.pct)|\(.value.branches.covered)/\(.value.branches.total)|\(.value.functions.pct)|\(.value.functions.covered)/\(.value.functions.total)|\(.value.lines.pct)|\(.value.lines.covered)/\(.value.lines.total)"' \
               ./artifacts/coverage-report/coverage/coverage-summary.json > ./artifacts/modules-data.txt
@@ -98,10 +98,6 @@ jobs:
             echo "✅ Generados datos de $(cat ./artifacts/modules-data.txt | wc -l) módulos"
           else
             echo "⚠️ No se encontró coverage-summary.json"
-            echo "statements=0" >> $GITHUB_OUTPUT
-            echo "branches=0" >> $GITHUB_OUTPUT
-            echo "functions=0" >> $GITHUB_OUTPUT
-            echo "lines=0" >> $GITHUB_OUTPUT
           fi
           
           # Tests results
@@ -127,6 +123,9 @@ jobs:
           TOTAL_VULNS=$((SNYK_VULNS + NPM_VULNS))
           
           echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
+          echo "statements=${STATEMENTS}" >> $GITHUB_OUTPUT
+          echo "branches=${BRANCHES}" >> $GITHUB_OUTPUT
+          echo "functions=${FUNCTIONS}" >> $GITHUB_OUTPUT
           echo "tests_passed=${TESTS_PASSED}" >> $GITHUB_OUTPUT
           echo "tests_total=${TESTS_TOTAL}" >> $GITHUB_OUTPUT
           echo "vulns=${TOTAL_VULNS}" >> $GITHUB_OUTPUT
@@ -144,34 +143,34 @@ jobs:
           echo "date=$(date '+%d/%m/%Y')" >> $GITHUB_OUTPUT
           echo "datetime=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
 
-      - name: Generate main dashboard (dynamic)
+      - name: Generate main dashboard
         run: |
           mkdir -p docs/sprints/${{ steps.date.outputs.sprint }}
           
-          # Leer datos de módulos para la tabla dinámica
+          # Construir la tabla de módulos línea por línea
           MODULES_TABLE=""
           if [ -f "./artifacts/modules-data.txt" ]; then
             while IFS='|' read -r module stmts_pct stmts_detail branches_pct branches_detail funcs_pct funcs_detail lines_pct lines_detail; do
-              # Limpiar nombre del módulo (tomar solo la última parte de la ruta)
+              # Limpiar nombre del módulo
               module_name=$(echo "$module" | sed 's|.*/||' | sed 's|functions/||' | sed 's|shared/||')
               
-              # Determinar color de tendencia basado en cobertura
-              trend_class="trend-up"
-              trend_icon="↑"
-              if (( $(echo "$lines_pct < 50" | bc -l) )); then
-                trend_class="trend-down"
-                trend_icon="↓"
+              # Determinar tendencia (comparación simple)
+              if (( $(echo "$lines_pct > 70" | bc -l) )); then
+                trend_html="<td class=\"trend-up\">↑ +$(echo "scale=0; $lines_pct - 70" | bc)%</td>"
+              else
+                trend_html="<td class=\"trend-down\">↓ $(echo "scale=0; 70 - $lines_pct" | bc)%</td>"
               fi
               
+              # Agregar fila a la tabla
               MODULES_TABLE="${MODULES_TABLE}
               <tr>
                   <td><strong>${module_name}</strong></td>
-                  <td>${stmts_pct}% (${stmts_detail})</td>
-                  <td>${branches_pct}% (${branches_detail})</td>
-                  <td>${funcs_pct}% (${funcs_detail})</td>
-                  <td>${lines_pct}% (${lines_detail})</td>
+                  <td>${stmts_pct}%<br><small>${stmts_detail}</small></td>
+                  <td>${branches_pct}%<br><small>${branches_detail}</small></td>
+                  <td>${funcs_pct}%<br><small>${funcs_detail}</small></td>
+                  <td>${lines_pct}%<br><small>${lines_detail}</small></td>
                   <td><div class=\"coverage-bar\"><div class=\"coverage-fill\" style=\"width: ${lines_pct}%\"></div></div></td>
-                  <td class=\"${trend_class}\">${trend_icon} ${trend_icon == '↑' ? '+' : ''}$(echo "scale=0; ${lines_pct} - 70" | bc)%</td>
+                  ${trend_html}
               </tr>"
             done < ./artifacts/modules-data.txt
           fi
@@ -358,13 +357,13 @@ jobs:
                               <tr><td>🟠 High</td><td>Código Fuente</td><td>0</td><td><span class="badge badge-high">En revisión</span></td></tr>
                               <tr><td>🟡 Medium</td><td>Infraestructura</td><td>0</td><td><span class="badge badge-medium">Resuelto</span></td></tr>
                           </tbody>
-                      </table>
+                       </table>
                   </div>
                   
                   <div class="section">
                       <div class="section-title"><span class="section-title-icon">🧪</span><span>Cobertura por Módulo</span></div>
                       <table class="data-table">
-                          <thead><tr><th>Módulo</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th><th>Cobertura</th><th>Tendencia</th></tr></thead>
+                          <thead><tr><th>Módulo</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th><th>Cobertura</th><th>Tendencia</th></thead>
                           <tbody>
                               ${MODULES_TABLE}
                           </tbody>
@@ -396,15 +395,15 @@ jobs:
           </html>
           HTML
           
-          echo "✅ Main dashboard generated with dynamic module data"
+          echo "✅ Main dashboard generated"
 
-      - name: Generate coverage detail page (dynamic)
+      - name: Generate coverage detail page
         run: |
-          # Generar la tabla de módulos para la página de detalle
+          # Construir tabla detallada
           MODULES_DETAIL_TABLE=""
           if [ -f "./artifacts/modules-data.txt" ]; then
             while IFS='|' read -r module stmts_pct stmts_detail branches_pct branches_detail funcs_pct funcs_detail lines_pct lines_detail; do
-              module_name=$(echo "$module" | sed 's|functions/||' | sed 's|shared/||')
+              module_name=$(echo "$module" | sed 's|.*/||' | sed 's|functions/||' | sed 's|shared/||')
               
               MODULES_DETAIL_TABLE="${MODULES_DETAIL_TABLE}
               <tr>
@@ -413,7 +412,7 @@ jobs:
                   <td>${branches_pct}%<br><small>${branches_detail}</small></td>
                   <td>${funcs_pct}%<br><small>${funcs_detail}</small></td>
                   <td>${lines_pct}%<br><small>${lines_detail}</small></td>
-                  <td><div class="coverage-bar"><div class="coverage-fill" style="width: ${lines_pct}%\"></div></div></td>
+                  <td><div class="coverage-bar"><div class="coverage-fill" style="width: ${lines_pct}%"></div></div></td>
               </tr>"
             done < ./artifacts/modules-data.txt
           fi
@@ -498,7 +497,7 @@ jobs:
                   <div class="section">
                       <div class="section-title"><span>📁</span><span>Cobertura por Módulo</span></div>
                       <table class="data-table">
-                          <thead><tr><th>Módulo</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th><th>Cobertura Visual</th></tr></thead>
+                          <thead><tr><th>Módulo</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th><th>Cobertura Visual</th></thead>
                           <tbody>
                               ${MODULES_DETAIL_TABLE}
                           </tbody>
@@ -513,7 +512,7 @@ jobs:
 
       - name: Generate security detail page
         run: |
-          cat > docs/sprints/${{ steps.date.outputs.sprint }}/security-detail.html << 'HTML'
+          cat > docs/sprints/${{ steps.date.outputs.sprint }}/security-detail.html << HTML
           <!DOCTYPE html>
           <html lang="es">
           <head>
@@ -603,6 +602,8 @@ jobs:
           </body>
           </html>
           HTML
+          
+          echo "✅ Security detail page generated"
 
       - name: Generate test detail page
         run: |
@@ -659,7 +660,7 @@ jobs:
                       <div style="text-align: center; padding: 40px; background: #f0fdf4; border-radius: 20px; margin-top: 20px;">
                           <div style="font-size: 72px; font-weight: 800; color: #10b981;">${{ steps.metrics.outputs.tests_passed }}/${{ steps.metrics.outputs.tests_total }}</div>
                           <div style="font-size: 18px; color: #166534;">Pruebas Unitarias y de Integración</div>
-                          <div style="margin-top: 20px;" class="test-pass">✅ 100% de pruebas pasadas exitosamente</div>
+                          <div style="margin-top: 20px;" class="test-pass">✅ \$([[ ${{ steps.metrics.outputs.tests_passed }} -eq ${{ steps.metrics.outputs.tests_total }} ]] && echo "100% de pruebas pasadas exitosamente" || echo "Algunas pruebas fallaron")</div>
                       </div>
                   </div>
                   
@@ -668,7 +669,7 @@ jobs:
                       <ul style="margin-top: 20px; list-style: none;">
                           <li style="padding: 12px; border-bottom: 1px solid #e2e8f0;">✅ Total de pruebas ejecutadas: ${{ steps.metrics.outputs.tests_total }}</li>
                           <li style="padding: 12px; border-bottom: 1px solid #e2e8f0;">✅ Pruebas exitosas: ${{ steps.metrics.outputs.tests_passed }}</li>
-                          <li style="padding: 12px; border-bottom: 1px solid #e2e8f0;">✅ Pruebas fallidas: 0</li>
+                          <li style="padding: 12px; border-bottom: 1px solid #e2e8f0;">✅ Pruebas fallidas: \$(( ${{ steps.metrics.outputs.tests_total }} - ${{ steps.metrics.outputs.tests_passed }} ))</li>
                           <li style="padding: 12px; border-bottom: 1px solid #e2e8f0;">📈 Cobertura general: ${{ steps.metrics.outputs.coverage }}%</li>
                           <li style="padding: 12px; border-bottom: 1px solid #e2e8f0;">📊 Statements: ${{ steps.metrics.outputs.statements }}%</li>
                           <li style="padding: 12px; border-bottom: 1px solid #e2e8f0;">🔀 Branches: ${{ steps.metrics.outputs.branches }}%</li>
@@ -679,6 +680,8 @@ jobs:
           </body>
           </html>
           HTML
+          
+          echo "✅ Test detail page generated"
 
       - name: Save metrics JSON
         run: |
