@@ -150,7 +150,74 @@ Resources:
           - src/functions/jornada-services/jornadaHandler.mjs
 
   
-
+  GpsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-gps"
+      CodeUri: .
+      Handler: src/functions/gps-services/gpsHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+          GPS_SPEED_LIMIT_KMH: "90"
+      Events:
+        GetGpsProviders:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/proveedores
+            Method: GET
+        GetGpsTemplate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/plantilla
+            Method: GET
+        GetGpsTemplateByProvider:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/plantilla/{proveedor}
+            Method: GET
+        ValidateGpsCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/validar
+            Method: POST
+        ImportGpsCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/importar
+            Method: POST
+        GetGpsSummary:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/resumen
+            Method: GET
+        ListGpsRegistros:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/registros
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: gps
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/gps-services/gpsHandler.mjs
+          
   ConductorFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -377,3 +444,6 @@ Outputs:
   MigratorFunctionArn:
     Description: "ARN de la función Migrator"
     Value: !GetAtt MigratorFunction.Arn
+  GpsFunctionArn:
+    Description: "ARN de la función Gps"
+    Value: !GetAtt GpsFunction.Arn  
