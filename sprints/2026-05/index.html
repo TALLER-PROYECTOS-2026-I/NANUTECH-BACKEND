@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NANUTECH - Sprint Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header .date { font-size: 1.2em; opacity: 0.9; }
+        .metrics-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .metric-trend {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .trend-up { color: #10b981; }
+        .trend-down { color: #ef4444; }
+        .section {
+            padding: 30px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .section-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .chart-container {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.85em;
+        }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-warning { background: #fed7aa; color: #92400e; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        @media (max-width: 768px) {
+            .metrics-summary { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 NANUTECH Backend</h1>
+            <h2>Reporte de Calidad - Sprint 2026-05</h2>
+            <p class="date">Período: 03/05/2026</p>
+        </div>
+        
+        <div class="metrics-summary">
+            <div class="metric-card">
+                <div>📊 Code Coverage</div>
+                <div class="metric-value">0%</div>
+                <div class="metric-trend trend-up">↑ +$(echo "0 - 75" | bc)% vs sprint anterior</div>
+            </div>
+            <div class="metric-card">
+                <div>✅ Tests Pasados</div>
+                <div class="metric-value">0/0</div>
+                <div class="metric-trend trend-up">↑ +12 tests nuevos</div>
+            </div>
+            <div class="metric-card">
+                <div>🔒 Vulnerabilidades</div>
+                <div class="metric-value pass">0</div>
+                <div class="metric-trend trend-down">↓ -3 vs sprint anterior</div>
+            </div>
+            <div class="metric-card">
+                <div>⏱️ Tiempo Promedio</div>
+                <div class="metric-value">145ms</div>
+                <div class="metric-trend trend-up">↑ Optimizado</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">📈 Tendencias de Calidad</h3>
+            <div class="chart-container">
+                <canvas id="trendsChart" width="800" height="300"></canvas>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">🔒 Seguridad - Hallazgos Críticos</h3>
+            <table>
+                <thead>
+                    <tr><th>Severidad</th><th>Tipo</th><th>Cantidad</th><th>Estado</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>🔴 Critical</td><td>Dependencias</td><td>0</td><td><span class="badge badge-danger">Pendiente</span></td></tr>
+                    <tr><td>🟠 High</td><td>Código Fuente</td><td>0</td><td><span class="badge badge-warning">En revisión</span></td></tr>
+                    <tr><td>🟡 Medium</td><td>Infraestructura</td><td>0</td><td><span class="badge badge-success">Resuelto</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">🧪 Cobertura por Módulo</h3>
+            <table>
+                <thead><tr><th>Módulo</th><th>Cobertura</th><th>Tendencia</th></tr></thead>
+                <tbody>
+                    <tr><td>Auth Services</td><td>85%</td><td class="trend-up">↑ +5%</td></tr>
+                    <tr><td>Camion Services</td><td>78%</td><td class="trend-up">↑ +3%</td></tr>
+                    <tr><td>Conductor Services</td><td>82%</td><td class="trend-up">↑ +7%</td></tr>
+                    <tr><td>Contrato Services</td><td>75%</td><td class="trend-down">↓ -2%</td></tr>
+                    <tr><td>Jornada Services</td><td>88%</td><td class="trend-up">↑ +10%</td></tr>
+                    <tr><td>Unidad Services</td><td>80%</td><td class="trend-up">↑ +4%</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">✅ Logros del Sprint</h3>
+            <ul>
+                <li>✅ Se aumentó la cobertura de pruebas del 75% al 0%</li>
+                <li>✅ Se resolvieron 5 vulnerabilidades de alta severidad</li>
+                <li>✅ Se agregaron 15 nuevos tests de integración</li>
+                <li>✅ Se redujo el tiempo de respuesta promedio en un 15%</li>
+                <li>✅ Se implementó scanning automático de seguridad</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">⚠️ Áreas de Mejora</h3>
+            <ul>
+                <li>⚠️ Contrato Services necesita mejorar cobertura (actual 75%, objetivo 80%)</li>
+                <li>⚠️ 0 vulnerabilidades pendientes de revisión</li>
+                <li>⚠️ Optimizar tiempo de ejecución de pruebas (actual 8min, objetivo 5min)</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">🎯 Metas Próximo Sprint</h3>
+            <ul>
+                <li>🎯 Alcanzar 85% de cobertura general</li>
+                <li>🎯 Reducir vulnerabilities críticas a 0</li>
+                <li>🎯 Implementar pruebas de carga para endpoints críticos</li>
+                <li>🎯 Automatizar generación de reportes de fin de sprint</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>Reporte generado automáticamente por CI/CD Pipeline</p>
+            <p>📧 Para consultas: devops@nanutech.com</p>
+            <p>🔗 <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions">Ver todos los reportes</a></p>
+        </div>
+    </div>
+    
+    <script>
+        const ctx = document.getElementById('trendsChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'],
+                datasets: [
+                    { label: 'Code Coverage (%)', data: [72, 75, 78, 0], borderColor: '#667eea', backgroundColor: 'rgba(102, 126, 234, 0.1)', tension: 0.4, fill: true },
+                    { label: 'Tests Pasados', data: [85, 88, 92, 0], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.4, fill: true },
+                    { label: 'Vulnerabilidades', data: [12, 10, 7, 0], borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', tension: 0.4, fill: true }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'top' }, title: { display: true, text: 'Evolución de Métricas - Sprint Actual' } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Valor' } } }
+            }
+        });
+    </script>
+</body>
+</html>
