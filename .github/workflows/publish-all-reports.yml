@@ -27,9 +27,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # --------------------------------------------------
-      # 1. Resolve the Run ID to use
-      # --------------------------------------------------
       - name: Resolve workflow run ID
         id: run-id
         run: |
