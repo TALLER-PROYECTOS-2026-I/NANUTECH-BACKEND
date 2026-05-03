@@ -12,6 +12,8 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      pull-requests: write  # ✅ Agregado para comentar en PRs
+      issues: write         # ✅ Agregado para crear comentarios
 
     steps:
       - name: Checkout código
