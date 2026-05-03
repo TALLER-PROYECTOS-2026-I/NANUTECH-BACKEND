@@ -186,110 +186,123 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      coverage: ${{ steps.coverage.outputs.pct }}
-      tests_passed: ${{ steps.tests.outputs.passed }}
-      tests_total: ${{ steps.tests.outputs.total }}
-
+      coverage: ${{ steps.coverage-out.outputs.coverage }}
+      tests_passed: ${{ steps.tests-out.outputs.passed }}
+      tests_total: ${{ steps.tests-out.outputs.total }}
+    
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
-      - run: npm ci
-
-      - name: Install build tools
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install esbuild & SAM CLI
         run: |
           npm install -g esbuild
-          pip install aws-sam-cli --break-system-packages
-
-      - run: sam build
-
-      - name: Run tests with coverage
-        id: tests
+          pip install aws-sam-cli
+      
+      - name: Build with SAM
+        run: sam build
+        continue-on-error: false
+      
+      - name: Run unit tests with coverage
+        id: tests-out
+        run: |
+          npm run test:coverage || npm test -- --coverage --json --outputFile=test-results.json
+          
+          if [ -f test-results.json ]; then
+            PASSED=$(jq '.numPassedTests' test-results.json)
+            TOTAL=$(jq '.numTotalTests' test-results.json)
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          else
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "total=0" >> $GITHUB_OUTPUT
+          fi
         env:
           NODE_OPTIONS: "--experimental-vm-modules"
-        run: |
-          npm run test:coverage -- --json --outputFile=test-results.json 2>/dev/null || \
-            npm test -- --coverage --json --outputFile=test-results.json 2>/dev/null || true
-          PASSED=0
-          TOTAL=0
-          if [ -f test-results.json ]; then
-            PASSED=$(jq '.numPassedTests // 0' test-results.json)
-            TOTAL=$(jq '.numTotalTests // 0' test-results.json)
-          fi
-          echo "passed=$PASSED" >> $GITHUB_OUTPUT
-          echo "total=$TOTAL" >> $GITHUB_OUTPUT
-          echo "Tests: $PASSED / $TOTAL"
-
-      - name: Check coverage threshold
-        id: coverage
-        run: |
-          PCT=0
-          if [ -f coverage/coverage-summary.json ]; then
-            PCT=$(jq '.total.lines.pct // 0' coverage/coverage-summary.json)
-            echo "Coverage: $PCT%"
-            THRESHOLD=50
-            if (( $(echo "$PCT < $THRESHOLD" | bc -l) )); then
-              echo "Coverage $PCT% below threshold $THRESHOLD%"
-              exit 1
-            fi
-          else
-            echo "No coverage-summary.json found"
-          fi
-          echo "pct=$PCT" >> $GITHUB_OUTPUT
-
-      - name: Generate HTML coverage report
-        run: |
-          mkdir -p coverage/html-report
-          
-          if [ -d ".nyc_output" ] && [ "$(ls -A .nyc_output)" ]; then
-            npx nyc report --reporter=html --report-dir=coverage/html-report
-          elif [ -f "coverage/coverage-final.json" ]; then
-            npx nyc report --reporter=html --report-dir=coverage/html-report --temp-directory=./coverage
-          else
-            # Heredoc con marcador único (HTMLEND)
-            cat > coverage/html-report/index.html << 'HTMLEND'
-            <!DOCTYPE html>
-            <html>
-            <head><title>Coverage Report</title></head>
-            <body style="background:#0a0e27;color:#fff;font-family:system-ui;padding:20px">
-            <h1>📊 Coverage Report</h1>
-            <p>Los datos de cobertura están disponibles.</p>
-            <p><a href="coverage-summary.json">Ver resumen JSON</a></p>
-            </body>
-            </html>
-            HTMLEND
-          fi
-          echo "✅ HTML coverage generated at coverage/html-report/index.html"
-
-      - name: Upload to Codecov
+      
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
           flags: unittests
+          name: unit-tests-${{ github.run_id }}
           fail_ci_if_error: false
-
-      - name: Upload coverage artifact (JSON summary)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report
-          path: |
-            coverage/
-            test-results.json
-          retention-days: 30
-
+      
+      # ========== GENERAR HTML COVERAGE ==========
+      - name: Generate HTML coverage report
+        run: |
+          # Verificar dónde está el reporte HTML generado por Jest
+          if [ -d "coverage/lcov-report" ]; then
+            echo "✅ Reporte HTML encontrado en coverage/lcov-report"
+            cp -r coverage/lcov-report coverage/html-report
+          elif [ -d "coverage/html-report" ]; then
+            echo "✅ Reporte HTML encontrado en coverage/html-report"
+          elif [ -f "coverage/index.html" ]; then
+            echo "✅ Reporte HTML encontrado en coverage/"
+            mkdir -p coverage/html-report
+            cp coverage/*.html coverage/html-report/ 2>/dev/null || true
+            cp -r coverage/* coverage/html-report/ 2>/dev/null || true
+          else
+            echo "⚠️ No se encontró reporte HTML, generando uno básico..."
+            mkdir -p coverage/html-report
+            printf '%s\n' '<!DOCTYPE html>' \
+              '<html>' \
+              '<head><title>Coverage Report</title></head>' \
+              '<body style="background:#0a0e27;color:#fff;font-family:system-ui;padding:20px">' \
+              '<h1>📊 Coverage Report</h1>' \
+              '<p>Coverage: ${{ steps.coverage-out.outputs.coverage }}%</p>' \
+              '</body>' \
+              '</html>' > coverage/html-report/index.html
+          fi
+          echo "✅ HTML listo en coverage/html-report/"
+      
+      # ========== SUBIR HTML COVERAGE COMO ARTIFACT ==========
       - name: Upload HTML coverage report
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: coverage-html
           path: coverage/html-report/
           retention-days: 30
+      
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage/
+            .nyc_output/
+            test-results.json
+          retention-days: 30
+      
+      - name: Check coverage thresholds
+        id: coverage-out
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(jq '.total.lines.pct' coverage/coverage-summary.json)
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "📊 Coverage: ${COVERAGE}%"
+            
+            THRESHOLD=50
+            if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+              echo "❌ Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+              exit 1
+            else
+              echo "✅ Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
+            fi
+          else
+            echo "coverage=0" >> $GITHUB_OUTPUT
+            echo "⚠️ No coverage summary found"
+          fi
 
   integration-tests:
     name: 🔗 Integration Tests
