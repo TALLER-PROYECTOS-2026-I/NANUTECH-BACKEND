@@ -1,9 +1,9 @@
 {
   "sprint": "2026-05",
-  "date": "2026-05-03 04:57:20",
-  "coverage": 0,
-  "vulns": 0,
+  "date": "2026-05-03 05:08:16",
+  "coverage": 59.03,
+  "vulns": 4,
   "snykVulns": 0,
-  "testsPassed": 0,
-  "testsTotal": 0
+  "testsPassed": 60,
+  "testsTotal": 60
 }
