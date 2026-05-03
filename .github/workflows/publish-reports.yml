@@ -41,7 +41,7 @@ jobs:
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
           echo "✅ Run ID: $RUN_ID"
 
-      - name: Download coverage HTML artifact
+      - name: Download coverage-report artifact
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ steps.run.outputs.run_id }}
@@ -50,31 +50,211 @@ jobs:
           
           ARTIFACT_ID=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts?per_page=100" \
-            | jq -r '.artifacts[] | select(.name=="coverage-html") | .id' | head -1)
+            | jq -r '.artifacts[] | select(.name=="coverage-report") | .id' | head -1)
           
           if [ -n "$ARTIFACT_ID" ] && [ "$ARTIFACT_ID" != "null" ]; then
             curl -sL -H "Authorization: Bearer $GH_TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$ARTIFACT_ID/zip" -o coverage-html.zip
-            mkdir -p raw/coverage-html
-            unzip -qo coverage-html.zip -d raw/coverage-html/
-            rm coverage-html.zip
-            echo "✅ coverage-html descargado"
+              "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$ARTIFACT_ID/zip" -o coverage-report.zip
+            mkdir -p raw/coverage-report
+            unzip -qo coverage-report.zip -d raw/coverage-report/
+            rm coverage-report.zip
+            echo "✅ coverage-report descargado"
           else
-            echo "⚠️ coverage-html no encontrado"
+            echo "⚠️ coverage-report no encontrado"
             exit 1
           fi
+          
+          echo "Contenido descargado:"
+          ls -la raw/coverage-report/
 
-      - name: Copy report to docs
+      - name: Generate HTML report from coverage data
         run: |
-          mkdir -p docs/reports/latest
-          cp -r raw/coverage-html/* docs/reports/latest/coverage/
-          echo "✅ Reporte copiado a docs/reports/latest/coverage/"
+          mkdir -p docs/reports/latest/coverage
+          
+          # Buscar el coverage-summary.json
+          if [ -f "raw/coverage-report/coverage/coverage-summary.json" ]; then
+            echo "✅ Encontrado coverage-summary.json"
+            cat raw/coverage-report/coverage/coverage-summary.json
+          elif [ -f "raw/coverage-report/coverage-summary.json" ]; then
+            echo "✅ Encontrado coverage-summary.json"
+            cat raw/coverage-report/coverage-summary.json
+          else
+            echo "⚠️ No se encontró coverage-summary.json"
+            # Buscar cualquier archivo JSON
+            find raw -name "*.json" -type f | head -5
+          fi
+          
+          # Crear script Python para generar HTML
+          cat > generate_html.py << 'PYEOF'
+          import json
+          import os
+          from datetime import datetime
 
-      - name: Generate dashboard
+          # Buscar el archivo coverage-summary.json
+          json_path = None
+          for root, dirs, files in os.walk("raw/coverage-report"):
+              if "coverage-summary.json" in files:
+                  json_path = os.path.join(root, "coverage-summary.json")
+                  break
+          
+          if not json_path:
+              print("No coverage-summary.json found")
+              # Crear HTML básico
+              html = '''<!DOCTYPE html>
+              <html>
+              <head><meta charset="UTF-8"><title>Coverage Report</title></head>
+              <body style="background:#0a0e27;color:#e2e8f0;font-family:system-ui;padding:40px">
+              <h1>📊 Coverage Report</h1>
+              <p>No coverage data available. Run tests first.</p>
+              </body>
+              </html>'''
+              with open("docs/reports/latest/coverage/index.html", "w") as f:
+                  f.write(html)
+              print("Created fallback HTML")
+              return
+          
+          # Cargar datos
+          with open(json_path) as f:
+              data = json.load(f)
+          
+          # Estilos CSS
+          css = """
+          *{margin:0;padding:0;box-sizing:border-box}
+          body{font-family:system-ui,sans-serif;background:#0a0e27;color:#e2e8f0;padding:24px}
+          .container{max-width:1400px;margin:0 auto}
+          h1{font-size:32px;margin-bottom:8px}
+          .sub{color:#94a3b8;margin-bottom:24px}
+          .stats{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:30px}
+          .stat-card{background:#1e293b;border-radius:16px;padding:24px;text-align:center;min-width:140px}
+          .stat-number{font-size:42px;font-weight:800}
+          .stat-label{font-size:12px;color:#64748b;margin-top:8px}
+          table{width:100%;border-collapse:collapse;background:#1e293b;border-radius:16px;overflow:hidden}
+          th,td{padding:14px 16px;text-align:left;border-bottom:1px solid #334155}
+          th{background:#0f172a;color:#94a3b8;font-size:12px;text-transform:uppercase}
+          tr:hover{background:#243044}
+          .progress-bar{background:#334155;border-radius:10px;height:8px;width:120px;overflow:hidden}
+          .progress-fill{height:100%;border-radius:10px}
+          .good{background:#22c55e}
+          .medium{background:#eab308}
+          .bad{background:#ef4444}
+          a{color:#60a5fa;text-decoration:none}
+          a:hover{text-decoration:underline}
+          .footer{margin-top:40px;padding:20px;text-align:center;color:#475569}
+          """
+          
+          # Función para obtener color según porcentaje
+          def get_color(pct):
+              return "#22c55e" if pct >= 70 else "#eab308" if pct >= 50 else "#ef4444"
+          
+          def get_fill_class(pct):
+              return "good" if pct >= 70 else "medium" if pct >= 50 else "bad"
+          
+          # Métricas totales
+          total = data.get("total", {})
+          lines_pct = total.get("lines", {}).get("pct", 0)
+          stmt_pct = total.get("statements", {}).get("pct", 0)
+          branch_pct = total.get("branches", {}).get("pct", 0)
+          func_pct = total.get("functions", {}).get("pct", 0)
+          
+          # Generar tabla de módulos
+          table_rows = ""
+          for module, vals in data.items():
+              if module == "total":
+                  continue
+              
+              module_name = module.split("/")[-1].replace("functions/", "").replace("shared/", "")
+              stmt = vals.get("statements", {}).get("pct", 0)
+              branch = vals.get("branches", {}).get("pct", 0)
+              func = vals.get("functions", {}).get("pct", 0)
+              line = vals.get("lines", {}).get("pct", 0)
+              
+              table_rows += f"""
+              <tr>
+                  <td><strong><a href="module_{module_name}.html">{module_name}</a></strong></td>
+                  <td style="color:{get_color(stmt)};font-weight:bold">{stmt}%</td>
+                  <td style="color:{get_color(branch)};font-weight:bold">{branch}%</td>
+                  <td style="color:{get_color(func)};font-weight:bold">{func}%</td>
+                  <td style="color:{get_color(line)};font-weight:bold">{line}%</td>
+                  <td><div class="progress-bar"><div class="progress-fill {get_fill_class(line)}" style="width:{line}%"></div></div></td>
+              </tr>"""
+              
+              # Generar página para cada módulo (detalle de archivos)
+              # Como coverage-summary.json no tiene detalle por archivo, generamos una página simple
+              module_page = f"""<!DOCTYPE html>
+              <html>
+              <head><meta charset="UTF-8"><title>{module_name} - Coverage</title>
+              <style>{css}</style>
+              </head>
+              <body>
+              <div class="container">
+                  <a href="index.html" style="display:inline-block;margin-bottom:20px">← Volver al dashboard</a>
+                  <h1>📁 {module_name}</h1>
+                  <div class="sub">Resumen de cobertura del módulo</div>
+                  <div class="stats">
+                      <div class="stat-card"><div class="stat-number" style="color:{get_color(stmt)}">{stmt}%</div><div class="stat-label">Statements</div></div>
+                      <div class="stat-card"><div class="stat-number" style="color:{get_color(branch)}">{branch}%</div><div class="stat-label">Branches</div></div>
+                      <div class="stat-card"><div class="stat-number" style="color:{get_color(func)}">{func}%</div><div class="stat-label">Functions</div></div>
+                      <div class="stat-card"><div class="stat-number" style="color:{get_color(line)}">{line}%</div><div class="stat-label">Lines</div></div>
+                  </div>
+                  <p>💡 Para ver el detalle por archivo, ejecuta las pruebas localmente o usa el artifact coverage-html.</p>
+                  <div class="footer">Generado automáticamente por CI/CD Pipeline</div>
+              </div>
+              </body>
+              </html>"""
+              
+              with open(f"docs/reports/latest/coverage/module_{module_name}.html", "w") as f:
+                  f.write(module_page)
+          
+          # Dashboard principal
+          html = f"""<!DOCTYPE html>
+          <html>
+          <head><meta charset="UTF-8"><title>NANUTECH - Coverage Report</title>
+          <style>{css}</style>
+          </head>
+          <body>
+          <div class="container">
+              <h1>📊 NANUTECH Coverage Report</h1>
+              <div class="sub">Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</div>
+              
+              <div class="stats">
+                  <div class="stat-card"><div class="stat-number" style="color:{get_color(lines_pct)}">{lines_pct}%</div><div class="stat-label">Lines</div></div>
+                  <div class="stat-card"><div class="stat-number" style="color:{get_color(stmt_pct)}">{stmt_pct}%</div><div class="stat-label">Statements</div></div>
+                  <div class="stat-card"><div class="stat-number" style="color:{get_color(branch_pct)}">{branch_pct}%</div><div class="stat-label">Branches</div></div>
+                  <div class="stat-card"><div class="stat-number" style="color:{get_color(func_pct)}">{func_pct}%</div><div class="stat-label">Functions</div></div>
+              </div>
+              
+              <h2>📁 Módulos</h2>
+              <table>
+                  <thead>
+                      <tr><th>Módulo</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                      {table_rows if table_rows else '<tr><td colspan="6">No hay datos de módulos disponibles</td></tr>'}
+                  </tbody>
+              </table>
+              
+              <div class="footer">
+                  Reporte generado automáticamente por CI/CD Pipeline
+              </div>
+          </div>
+          </body>
+          </html>"""
+          
+          with open("docs/reports/latest/coverage/index.html", "w") as f:
+              f.write(html)
+          
+          print("✅ HTML generado correctamente")
+          PYEOF
+          
+          python3 generate_html.py
+
+      - name: Generate main dashboard
         run: |
           SPRINT=$(date '+%Y-%m')
           DATETIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
           RUN_ID=${{ steps.run.outputs.run_id }}
+          
+          mkdir -p docs/reports/latest
           
           cat > docs/reports/latest/index.html << EOF
           <!DOCTYPE html>
@@ -109,7 +289,7 @@ jobs:
               <a href="coverage/index.html" class="card">
                   <div class="icon">📈</div>
                   <div class="title">Cobertura de Código</div>
-                  <div class="desc">Reporte interactivo de Jest. Haz clic para explorar módulos, archivos y líneas.</div>
+                  <div class="desc">Reporte de cobertura por módulo. Haz clic en cada módulo para ver detalles.</div>
                   <span class="badge">Ver reporte →</span>
               </a>
               
@@ -127,6 +307,8 @@ jobs:
           <body>Redirigiendo...</body>
           </html>
           EOF
+          
+          echo "✅ Dashboard generado"
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
@@ -148,4 +330,7 @@ jobs:
           echo ""
           echo "📊 Dashboard: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
           echo "📈 Cobertura: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/coverage/"
+          echo ""
+          echo "💡 En la página de cobertura, haz clic en cualquier módulo"
+          echo "   para ver más detalles."
           echo ""
