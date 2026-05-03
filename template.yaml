@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: API para gestión de camiones - Nanutech Backend
-# Nombre del stage (dev, test, prod) que se usará para desplegar la API
+# No
 Transform:
   - AWS::Serverless-2016-10-31
 
@@ -154,34 +154,66 @@ Resources:
         EntryPoints:
           - src/functions/jornada-services/jornadaHandler.mjs
 
-  CamionFunction:
+  
+  GpsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${StageName}-camiones"
+      FunctionName: !Sub "${StageName}-gps"
       CodeUri: .
-      Handler: src/functions/camion-services/camionHandler.handler
+      Handler: src/functions/gps-services/gpsHandler.handler
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
       Environment:
         Variables:
           LOG_LEVEL: "debug"
+          GPS_SPEED_LIMIT_KMH: "90"
       Events:
-        GetAll:
+        GetGpsProviders:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
-            Path: /camiones
+            Path: /gps/proveedores
             Method: GET
-        GetById:
+        GetGpsTemplate:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
-            Path: /camiones/{id}
+            Path: /gps/plantilla
+            Method: GET
+        GetGpsTemplateByProvider:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/plantilla/{proveedor}
+            Method: GET
+        ValidateGpsCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/validar
+            Method: POST
+        ImportGpsCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/importar
+            Method: POST
+        GetGpsSummary:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/resumen
+            Method: GET
+        ListGpsRegistros:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/registros
             Method: GET
       Tags:
         Environment: !Ref StageName
-        Servicio: camion
+        Servicio: gps
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -189,8 +221,8 @@ Resources:
         Target: es2022
         Sourcemap: true
         EntryPoints:
-          - src/functions/camion-services/camionHandler.mjs
-
+          - src/functions/gps-services/gpsHandler.mjs
+          
   ConductorFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -402,9 +434,6 @@ Outputs:
   JornadaFunctionArn:
     Description: "ARN de la función Jornada"
     Value: !GetAtt JornadaFunction.Arn
-  CamionFunctionArn:
-    Description: "ARN de la función Camion"
-    Value: !GetAtt CamionFunction.Arn
   ConductorFunctionArn:
     Description: "ARN de la función Conductor"
     Value: !GetAtt ConductorFunction.Arn
@@ -420,3 +449,6 @@ Outputs:
   MigratorFunctionArn:
     Description: "ARN de la función Migrator"
     Value: !GetAtt MigratorFunction.Arn
+  GpsFunctionArn:
+    Description: "ARN de la función Gps"
+    Value: !GetAtt GpsFunction.Arn  

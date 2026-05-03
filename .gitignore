@@ -1,8 +1,17 @@
+# Archivos/carpetas que no deben subirse al PR
+*.yaml
+*.yml
+node_modules/
+.aws-sam/
+env.json
+
 # Dependencias
 node_modules/
 
 # Build de SAM
 .aws-sam/
+build/
+dist/
 
 # Variables de entorno locales
 env.json
@@ -18,4 +27,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-
+coverage/
+.env
+.env.local
+.env.*.local

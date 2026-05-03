@@ -6,9 +6,6 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- =========================================================
--- ENUMS
--- =========================================================
 CREATE TYPE rol_usuario AS ENUM ('ADMIN', 'CHOFER', 'GERENTE');
 CREATE TYPE estado_usuario AS ENUM ('ACTIVO', 'INACTIVO', 'BLOQUEADO');
 
