@@ -1,0 +1,86 @@
+name: 📊 Publish All Reports to GitHub Pages
+
+on:
+  workflow_run:
+    workflows: ["Security & Quality Tests"]
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  deployments: write
+
+jobs:
+  publish-all-reports:
+    name: 📈 Publish All Reports
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest workflow run ID
+        id: get-run
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RUN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/security-quality-tests.yml/runs?status=success&per_page=1" \
+              | jq -r '.workflow_runs[0].id // "0"')
+          else
+            RUN_ID=${{ github.event.workflow_run.id }}
+          fi
+          
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "✅ Using workflow run: $RUN_ID"
+
+      - name: Download ALL HTML artifacts
+        run: |
+          mkdir -p docs/reports/latest
+          
+          ARTIFACTS="coverage-html snyk-deps-html snyk-code-html snyk-iac-html security-html integration-html linting-html"
+          
+          for ARTIFACT in $ARTIFACTS; do
+            echo "📥 Downloading $ARTIFACT..."
+            
+            ARTIFACT_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ steps.get-run.outputs.run_id }}/artifacts?name=$ARTIFACT" \
+              | jq -r '.artifacts[0].id // ""')
+            
+            if [ -n "$ARTIFACT_ID" ] && [ "$ARTIFACT_ID" != "null" ]; then
+              curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$ARTIFACT_ID/zip" -o $ARTIFACT.zip
+              
+              unzip -o $ARTIFACT.zip -d docs/reports/latest/$ARTIFACT/
+              echo "✅ $ARTIFACT downloaded"
+            else
+              echo "⚠️ $ARTIFACT not found"
+              mkdir -p docs/reports/latest/$ARTIFACT
+              echo "<html><body><h1>$ARTIFACT - No report available</h1></body></html>" > docs/reports/latest/$ARTIFACT/index.html
+            fi
+          done
+          
+          echo "{\"timestamp\": \"$(date -Iseconds)\", \"run_id\": \"${{ steps.get-run.outputs.run_id }}\"}" > docs/reports/latest/metadata.json
+
+      - name: Create reports index page
+        run: |
+          cat > docs/reports/index.html << 'HTML'
+          <!DOCTYPE html>
+          <html>
+          <head><meta charset="UTF-8"><meta http-equiv="refresh" content="0; url=latest/index.html"></head>
+          <body>Redirigiendo...</body>
+          </html>
+          HTML
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          publish_branch: gh-pages
+          keep_files: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: '📊 Publish all HTML reports'
