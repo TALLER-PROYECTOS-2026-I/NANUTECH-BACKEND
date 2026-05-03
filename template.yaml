@@ -362,9 +362,6 @@ Outputs:
   JornadaFunctionArn:
     Description: "ARN de la función Jornada"
     Value: !GetAtt JornadaFunction.Arn
-  CamionFunctionArn:
-    Description: "ARN de la función Camion"
-    Value: !GetAtt CamionFunction.Arn
   ConductorFunctionArn:
     Description: "ARN de la función Conductor"
     Value: !GetAtt ConductorFunction.Arn
