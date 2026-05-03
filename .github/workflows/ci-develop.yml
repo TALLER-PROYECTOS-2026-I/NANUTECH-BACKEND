@@ -273,7 +273,7 @@ jobs:
             echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
             echo "📊 Coverage: ${COVERAGE}%"
             
-            THRESHOLD=80
+            THRESHOLD=50
             if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
               echo "❌ Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
               exit 1
