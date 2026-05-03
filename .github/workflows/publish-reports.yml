@@ -1,206 +1,691 @@
-name: 📊 Publish Reports to GitHub Pages
+name: Publish Reports to GitHub Pages
 
 on:
-  workflow_run:
-    workflows: ["Security & Quality Tests"]
-    types:
-      - completed
   workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Run ID del workflow "Security & Quality Tests" (vacío = último exitoso)'
+        required: false
+        type: string
+      sprint_label:
+        description: 'Etiqueta del sprint, ej: 2026-05 (vacío = mes actual)'
+        required: false
+        type: string
 
 permissions:
   contents: write
   pages: write
   deployments: write
+  actions: read
 
 jobs:
   publish:
-    name: 📈 Publish All Reports
+    name: Build & Publish Reports
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
-      - name: Get workflow run ID
+    steps:
+      - uses: actions/checkout@v4
+
+      # --------------------------------------------------
+      # 1. Resolve Run ID
+      # --------------------------------------------------
+      - name: Resolve run ID
         id: run
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RUN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/security-quality-tests.yml/runs?status=success&per_page=1" \
-              | jq -r '.workflow_runs[0].id // "0"')
+          if [ -n "${{ inputs.run_id }}" ]; then
+            RUN_ID="${{ inputs.run_id }}"
+            echo "Using provided run ID: $RUN_ID"
           else
-            RUN_ID=${{ github.event.workflow_run.id }}
+            echo "Fetching latest successful run of ci-develop.yml..."
+            RUN_ID=$(curl -sf \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci-develop.yml/runs?status=success&per_page=1" \
+              | jq -r '.workflow_runs[0].id // empty')
+            if [ -z "$RUN_ID" ]; then
+              echo "ERROR: No successful run found for ci-develop.yml"
+              exit 1
+            fi
+            echo "Found latest run: $RUN_ID"
           fi
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
-          echo "✅ Using run: $RUN_ID"
 
-      - name: Download coverage HTML
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-report
-          path: ./temp/coverage
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          run-id: ${{ steps.run.outputs.run_id }}
-        continue-on-error: true
-
-      - name: Download Snyk reports
-        uses: actions/download-artifact@v4
-        with:
-          name: snyk-deps-results
-          path: ./temp/snyk-deps
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          run-id: ${{ steps.run.outputs.run_id }}
-        continue-on-error: true
-
-      - name: Download security results
-        uses: actions/download-artifact@v4
-        with:
-          name: security-results
-          path: ./temp/security
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          run-id: ${{ steps.run.outputs.run_id }}
-        continue-on-error: true
-
-      - name: Download integration results
-        uses: actions/download-artifact@v4
-        with:
-          name: integration-test-results
-          path: ./temp/integration
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          run-id: ${{ steps.run.outputs.run_id }}
-        continue-on-error: true
-
-      - name: Build HTML reports from artifacts
+      # --------------------------------------------------
+      # 2. Sprint / date labels
+      # --------------------------------------------------
+      - name: Set labels
+        id: labels
         run: |
-          mkdir -p docs/reports
-          
-          # ===== COVERAGE REPORT =====
-          if [ -f "./temp/coverage/coverage/coverage-summary.json" ]; then
-            mkdir -p docs/reports/coverage
-            cat > docs/reports/coverage/index.html << 'EOF'
-            <!DOCTYPE html>
-            <html>
-            <head><meta charset="UTF-8"><title>Cobertura de Código</title>
-            <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#e2e8f0;}
-            table{border-collapse:collapse;width:100%;background:#1e293b;border-radius:12px;}
-            th,td{padding:12px;text-align:left;border-bottom:1px solid #334155;}
-            th{background:#0f172a;color:#94a3b8;}
-            .coverage-high{color:#10b981;}.coverage-medium{color:#eab308;}.coverage-low{color:#ef4444;}
-            .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:24px;padding:30px;margin-bottom:30px;}</style>
-            </head>
-            <body>
-            <div style="max-width:1400px;margin:0 auto">
-            <div class="header"><h1>📊 Coverage Report</h1><p>Resumen de cobertura por módulo</p></div>
-            EOF
-            
-            # Generar tabla de cobertura
-            echo '<table><tr><th>Módulo</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th></tr>' >> docs/reports/coverage/index.html
-            jq -r 'to_entries | map(select(.key != "total")) | .[] | "<tr><td><strong>" + .key + "</strong></td><td>" + (.value.statements.pct|tostring) + "%</td><td>" + (.value.branches.pct|tostring) + "%</td><td>" + (.value.functions.pct|tostring) + "%</td><td>" + (.value.lines.pct|tostring) + "%</td></tr>"' \
-              ./temp/coverage/coverage/coverage-summary.json >> docs/reports/coverage/index.html
-            echo '</table></div></body></html>' >> docs/reports/coverage/index.html
-            echo "✅ Coverage report generated"
+          SPRINT="${{ inputs.sprint_label }}"
+          if [ -z "$SPRINT" ]; then
+            SPRINT=$(date '+%Y-%m')
           fi
-          
-          # ===== SNYK DEPENDENCIES =====
-          if [ -f "./temp/snyk-deps/snyk-deps.json" ]; then
-            mkdir -p docs/reports/snyk-deps
-            cat > docs/reports/snyk-deps/index.html << 'EOF'
-            <!DOCTYPE html>
-            <html>
-            <head><meta charset="UTF-8"><title>Snyk Dependencies</title>
-            <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#e2e8f0;}
-            .vuln{background:#1e293b;padding:16px;margin:12px 0;border-radius:12px;border-left:4px solid #ef4444;}
-            .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:24px;padding:30px;margin-bottom:30px;}
-            pre{background:#0f172a;padding:15px;border-radius:8px;overflow-x:auto;}</style>
-            </head>
-            <body><div style="max-width:1400px;margin:0 auto">
-            <div class="header"><h1>🔒 Snyk Dependencies</h1><p>Vulnerabilidades en dependencias</p></div>
-            <div id="content"></div>
-            <script>
-            fetch('snyk-deps.json').then(r=>r.json()).then(data=>{
-                const vulns=data.vulnerabilities||[];
-                document.getElementById('content').innerHTML='<h2>Total: '+vulns.length+'</h2>'+
-                vulns.map(v=>'<div class="vuln"><strong>📦 '+v.packageName+'</strong><br>🔴 Severidad: '+v.severity+'<br>📝 '+v.title+'</div>').join('')+
-                '<details><summary>JSON</summary><pre>'+JSON.stringify(data,null,2)+'</pre></details>';
-            });
-            </script>
-            </div></body></html>
-            EOF
-            cp ./temp/snyk-deps/snyk-deps.json docs/reports/snyk-deps/
-            echo "✅ Snyk dependencies report generated"
+          echo "sprint=$SPRINT" >> $GITHUB_OUTPUT
+          echo "datetime=$(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+          echo "iso=$(date -Iseconds)" >> $GITHUB_OUTPUT
+
+      # --------------------------------------------------
+      # 3. Download artifacts via GitHub API
+      # --------------------------------------------------
+      - name: Download all artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.run.outputs.run_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p raw
+
+          NAMES="coverage-report snyk-deps-results snyk-code-results snyk-iac-results security-results integration-test-results"
+
+          for NAME in $NAMES; do
+            echo "--- Downloading $NAME ---"
+            ARTIFACT_ID=$(curl -sf \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/artifacts?per_page=100" \
+              | jq -r --arg n "$NAME" '.artifacts[] | select(.name==$n) | .id' | head -1)
+
+            if [ -n "$ARTIFACT_ID" ] && [ "$ARTIFACT_ID" != "null" ]; then
+              curl -sL \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" \
+                -o "raw/${NAME}.zip"
+              mkdir -p "raw/$NAME"
+              unzip -qo "raw/${NAME}.zip" -d "raw/$NAME/"
+              rm "raw/${NAME}.zip"
+              echo "  OK: $NAME"
+            else
+              echo "  WARN: $NAME not found in run $RUN_ID"
+              mkdir -p "raw/$NAME"
+            fi
+          done
+
+          echo "--- Downloaded files ---"
+          find raw -type f | sort
+
+      # --------------------------------------------------
+      # 4. Extract metrics
+      # --------------------------------------------------
+      - name: Extract metrics
+        id: metrics
+        run: |
+          COV_PCT=0; COV_STMT=0; COV_BRANCH=0; COV_FN=0
+          T_PASS=0; T_TOTAL=0; VULN=0
+
+          SUMMARY=$(find raw/coverage-report -name "coverage-summary.json" 2>/dev/null | head -1)
+          if [ -n "$SUMMARY" ]; then
+            COV_PCT=$(jq -r '.total.lines.pct // 0' "$SUMMARY")
+            COV_STMT=$(jq -r '.total.statements.pct // 0' "$SUMMARY")
+            COV_BRANCH=$(jq -r '.total.branches.pct // 0' "$SUMMARY")
+            COV_FN=$(jq -r '.total.functions.pct // 0' "$SUMMARY")
+            echo "Coverage (lines): $COV_PCT%"
           fi
-          
-          # ===== SNYK CODE =====
-          if [ -f "./temp/snyk-code/snyk-code.json" ]; then
-            mkdir -p docs/reports/snyk-code
-            cat > docs/reports/snyk-code/index.html << 'EOF'
-            <!DOCTYPE html>
-            <html>
-            <head><meta charset="UTF-8"><title>Snyk Code</title>
-            <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#e2e8f0;}
-            .issue{background:#1e293b;padding:16px;margin:12px 0;border-radius:12px;}
-            .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:24px;padding:30px;margin-bottom:30px;}</style>
-            </head>
-            <body><div style="max-width:1400px;margin:0 auto">
-            <div class="header"><h1>🔍 Snyk Code</h1><p>Análisis SAST</p></div>
-            <div id="content"></div>
-            <script>
-            fetch('snyk-code.json').then(r=>r.json()).then(data=>{
-                const results=data.runs?.[0]?.results||[];
-                document.getElementById('content').innerHTML='<h2>Total Issues: '+results.length+'</h2>'+
-                results.map(r=>'<div class="issue"><strong>📍 '+(r.locations?.[0]?.physicalLocation?.artifactLocation?.uri||'Unknown')+'</strong><br>⚠️ '+(r.message?.text||'')+'</div>').join('')+
-                '<details><summary>JSON</summary><pre>'+JSON.stringify(data,null,2)+'</pre></details>';
-            });
-            </script>
-            </div></body></html>
-            EOF
-            cp ./temp/snyk-code/snyk-code.json docs/reports/snyk-code/
-            echo "✅ Snyk code report generated"
+
+          TRESULTS=$(find raw/coverage-report -name "test-results.json" 2>/dev/null | head -1)
+          if [ -n "$TRESULTS" ]; then
+            T_PASS=$(jq -r '.numPassedTests // 0' "$TRESULTS")
+            T_TOTAL=$(jq -r '.numTotalTests // 0' "$TRESULTS")
+            echo "Tests: $T_PASS / $T_TOTAL"
           fi
-          
-          # ===== MAIN INDEX =====
-          cat > docs/reports/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head><meta charset="UTF-8"><title>NANUTECH Reports</title>
-          <style>
-            *{margin:0;padding:0;box-sizing:border-box;}
-            body{font-family:system-ui;background:#0a0e27;padding:40px;color:#e2e8f0;}
-            .container{max-width:1200px;margin:0 auto;}
-            h1{font-size:48px;margin-bottom:16px;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-            .subtitle{color:#94a3b8;margin-bottom:40px;}
-            .reports-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px;}
-            .card{background:#1e293b;border-radius:20px;padding:24px;transition:transform 0.2s;text-decoration:none;color:#e2e8f0;display:block;}
-            .card:hover{transform:translateY(-4px);background:#334155;}
-            .card-icon{font-size:48px;margin-bottom:16px;}
-            .card-title{font-size:20px;font-weight:700;margin-bottom:8px;}
-            .card-desc{font-size:14px;color:#94a3b8;}
-            .footer{text-align:center;margin-top:60px;padding-top:30px;border-top:1px solid #334155;color:#475569;}
-          </style>
+
+          AUDIT=$(find raw/security-results -name "npm-audit.json" 2>/dev/null | head -1)
+          if [ -n "$AUDIT" ]; then
+            VULN=$(jq -r '.metadata.vulnerabilities.total // 0' "$AUDIT")
+            echo "Vulnerabilities: $VULN"
+          fi
+
+          echo "cov_pct=$COV_PCT"       >> $GITHUB_OUTPUT
+          echo "cov_stmt=$COV_STMT"     >> $GITHUB_OUTPUT
+          echo "cov_branch=$COV_BRANCH" >> $GITHUB_OUTPUT
+          echo "cov_fn=$COV_FN"         >> $GITHUB_OUTPUT
+          echo "t_pass=$T_PASS"         >> $GITHUB_OUTPUT
+          echo "t_total=$T_TOTAL"       >> $GITHUB_OUTPUT
+          echo "vuln=$VULN"             >> $GITHUB_OUTPUT
+
+      # --------------------------------------------------
+      # 5. Generate all HTML reports via Python
+      # --------------------------------------------------
+      - name: Generate HTML reports
+        env:
+          SPRINT:      ${{ steps.labels.outputs.sprint }}
+          DATETIME:    ${{ steps.labels.outputs.datetime }}
+          RUN_ID:      ${{ steps.run.outputs.run_id }}
+          COV_PCT:     ${{ steps.metrics.outputs.cov_pct }}
+          COV_STMT:    ${{ steps.metrics.outputs.cov_stmt }}
+          COV_BRANCH:  ${{ steps.metrics.outputs.cov_branch }}
+          COV_FN:      ${{ steps.metrics.outputs.cov_fn }}
+          T_PASS:      ${{ steps.metrics.outputs.t_pass }}
+          T_TOTAL:     ${{ steps.metrics.outputs.t_total }}
+          VULN:        ${{ steps.metrics.outputs.vuln }}
+          REPO_OWNER:  ${{ github.repository_owner }}
+          REPO_NAME:   ${{ github.event.repository.name }}
+        run: python3 generate_reports.py
+
+      - name: Write generate_reports.py
+        run: |
+          # We write the script first so we can run it cleanly
+          # (avoids any heredoc issues entirely)
+          true
+
+      # Write the Python script as a separate file, then run it
+      - name: Create report generator script
+        run: |
+          cat > generate_reports.py << 'PYEOF'
+          import json, os, shutil
+
+          # ── env ──────────────────────────────────────────────
+          sprint     = os.environ.get('SPRINT', '2026-05')
+          datetime_  = os.environ.get('DATETIME', '')
+          run_id     = os.environ.get('RUN_ID', '')
+          cov_pct    = os.environ.get('COV_PCT', '0')
+          cov_stmt   = os.environ.get('COV_STMT', '0')
+          cov_branch = os.environ.get('COV_BRANCH', '0')
+          cov_fn     = os.environ.get('COV_FN', '0')
+          t_pass     = os.environ.get('T_PASS', '0')
+          t_total    = os.environ.get('T_TOTAL', '0')
+          vuln       = os.environ.get('VULN', '0')
+          owner      = os.environ.get('REPO_OWNER', '')
+          repo       = os.environ.get('REPO_NAME', '')
+
+          base_url = f"https://{owner}.github.io/{repo}"
+          out_root = "docs"
+          reports_dir = f"{out_root}/reports/latest"
+          sprint_dir  = f"{out_root}/sprints/{sprint}"
+
+          os.makedirs(reports_dir, exist_ok=True)
+          os.makedirs(sprint_dir, exist_ok=True)
+
+          # ── helpers ──────────────────────────────────────────
+          DARK_CSS = """
+          * { margin:0; padding:0; box-sizing:border-box }
+          body { font-family: system-ui, sans-serif; background: #0a0e27; color: #e2e8f0; padding: 24px }
+          h1 { font-size: 26px; margin-bottom: 6px }
+          .sub { color: #94a3b8; margin-bottom: 24px; font-size: 14px }
+          .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 28px }
+          .stat { background: #1e293b; border-radius: 12px; padding: 16px 22px; min-width: 130px; text-align: center }
+          .stat-num { font-size: 30px; font-weight: 800 }
+          .stat-label { font-size: 11px; color: #64748b; text-transform: uppercase; margin-top: 4px }
+          .row { background: #1e293b; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px }
+          .badge { display: inline-block; padding: 2px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; color: #fff; margin-left: 8px; vertical-align: middle }
+          details { margin-top: 24px }
+          summary { cursor: pointer; color: #60a5fa; font-weight: 600; padding: 8px 0 }
+          pre { background: #0f172a; padding: 14px; border-radius: 8px; overflow: auto; font-size: 11px; max-height: 480px; white-space: pre-wrap }
+          table { border-collapse: collapse; width: 100%; background: #1e293b; border-radius: 10px; overflow: hidden }
+          th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid #334155; font-size: 13px }
+          th { background: #0f172a; color: #94a3b8; font-size: 11px; text-transform: uppercase }
+          a.back { display: inline-block; margin-bottom: 18px; color: #60a5fa; text-decoration: none; font-size: 13px }
+          """
+
+          def page(title, icon, subtitle, body, back_href=f"{base_url}/reports/latest/"):
+              return f"""<!DOCTYPE html>
+          <html lang="es">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <title>{title}</title>
+            <style>{DARK_CSS}</style>
           </head>
           <body>
-          <div class="container">
-            <h1>📊 NANUTECH Reports</h1>
-            <p class="subtitle">Reportes generados automáticamente por el pipeline CI/CD</p>
-            <div class="reports-grid">
-              <a href="coverage/index.html" class="card"><div class="card-icon">📈</div><div class="card-title">Coverage Report</div><div class="card-desc">Cobertura de código por módulo</div></a>
-              <a href="snyk-deps/index.html" class="card"><div class="card-icon">🔒</div><div class="card-title">Snyk Dependencies</div><div class="card-desc">Vulnerabilidades en dependencias</div></a>
-              <a href="snyk-code/index.html" class="card"><div class="card-icon">🔍</div><div class="card-title">Snyk Code</div><div class="card-desc">Análisis SAST de código fuente</div></a>
-              <a href="snyk-iac/index.html" class="card"><div class="card-icon">🏗️</div><div class="card-title">Snyk IaC</div><div class="card-desc">Infraestructura como código</div></a>
-              <a href="security/index.html" class="card"><div class="card-icon">🛡️</div><div class="card-title">Security Report</div><div class="card-desc">Trivy + npm audit</div></a>
-              <a href="integration/index.html" class="card"><div class="card-icon">🔗</div><div class="card-title">Integration Tests</div><div class="card-desc">Resultados de pruebas de integración</div></a>
+            <a class="back" href="{back_href}">← Volver al dashboard</a>
+            <h1>{icon} {title}</h1>
+            <div class="sub">{subtitle} &nbsp;·&nbsp; Run #{run_id} &nbsp;·&nbsp; {datetime_}</div>
+            {body}
+          </body>
+          </html>"""
+
+          def sev_color(s):
+              return {'critical':'#7f1d1d','high':'#991b1b','medium':'#92400e','low':'#065f46'}.get(str(s).lower(),'#1e293b')
+
+          def write(path, content):
+              os.makedirs(os.path.dirname(path), exist_ok=True)
+              with open(path, 'w') as f:
+                  f.write(content)
+              print(f"  wrote {path}")
+
+          # ─────────────────────────────────────────────────────
+          # 1. SNYK DEPS
+          # ─────────────────────────────────────────────────────
+          data = {}
+          jfile = "raw/snyk-deps-results/snyk-deps.json"
+          if os.path.exists(jfile):
+              with open(jfile) as f:
+                  try: data = json.load(f)
+                  except: pass
+
+          vulns = data.get('vulnerabilities', [])
+          rows = ''
+          for v in vulns:
+              sev = v.get('severity', 'unknown')
+              c = sev_color(sev)
+              rows += f"""<div class="row" style="border-left:4px solid {c}">
+              <strong>{v.get('packageName','?')} @ {v.get('version','?')}</strong>
+              <span class="badge" style="background:{c}">{sev.upper()}</span>
+              <div style="margin-top:6px;color:#cbd5e1;font-size:13px">{v.get('title','')}</div>
+              <small style="color:#475569">CVE: {(v.get('identifiers') or {}).get('CVE', ['N/A'])[0]}</small>
+          </div>"""
+
+          stats = f"""<div class="stats">
+            <div class="stat"><div class="stat-num" style="color:#f87171">{len(vulns)}</div><div class="stat-label">Total</div></div>
+            <div class="stat"><div class="stat-num" style="color:#f87171">{sum(1 for v in vulns if v.get('severity')=='critical')}</div><div class="stat-label">Critical</div></div>
+            <div class="stat"><div class="stat-num" style="color:#fb923c">{sum(1 for v in vulns if v.get('severity')=='high')}</div><div class="stat-label">High</div></div>
+            <div class="stat"><div class="stat-num" style="color:#facc15">{sum(1 for v in vulns if v.get('severity')=='medium')}</div><div class="stat-label">Medium</div></div>
+          </div>"""
+          body = stats + (rows if rows else '<p style="color:#4ade80;padding:16px">No vulnerabilities found</p>')
+          body += f"<details><summary>Raw JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>"
+          write(f"{reports_dir}/snyk-deps/index.html",
+                page("Snyk Dependencies", "🔒", "Software Composition Analysis (SCA)", body))
+          if os.path.exists(jfile):
+              shutil.copy(jfile, f"{reports_dir}/snyk-deps/snyk-deps.json")
+
+          # ─────────────────────────────────────────────────────
+          # 2. SNYK CODE
+          # ─────────────────────────────────────────────────────
+          data = {}
+          jfile = "raw/snyk-code-results/snyk-code.json"
+          if os.path.exists(jfile):
+              with open(jfile) as f:
+                  try: data = json.load(f)
+                  except: pass
+
+          results = []
+          for run in data.get('runs', []):
+              results.extend(run.get('results', []))
+
+          rows = ''
+          for r in results:
+              level = r.get('level', 'warning')
+              c = {'error':'#991b1b','warning':'#92400e','note':'#065f46'}.get(level, '#1e293b')
+              uri = r.get('locations', [{}])[0].get('physicalLocation', {}).get('artifactLocation', {}).get('uri', 'Unknown')
+              msg = r.get('message', {}).get('text', '')
+              rows += f"""<div class="row" style="border-left:4px solid {c}">
+              <strong>{uri}</strong>
+              <span class="badge" style="background:{c}">{level.upper()}</span>
+              <div style="margin-top:6px;color:#cbd5e1;font-size:13px">{msg}</div>
+          </div>"""
+
+          stats = f"""<div class="stats">
+            <div class="stat"><div class="stat-num" style="color:#fb923c">{len(results)}</div><div class="stat-label">Total Issues</div></div>
+            <div class="stat"><div class="stat-num" style="color:#f87171">{sum(1 for r in results if r.get('level')=='error')}</div><div class="stat-label">Errors</div></div>
+            <div class="stat"><div class="stat-num" style="color:#facc15">{sum(1 for r in results if r.get('level')=='warning')}</div><div class="stat-label">Warnings</div></div>
+          </div>"""
+          body = stats + (rows if rows else '<p style="color:#4ade80;padding:16px">No issues found</p>')
+          body += f"<details><summary>Raw JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>"
+          write(f"{reports_dir}/snyk-code/index.html",
+                page("Snyk Code (SAST)", "🔍", "Static Application Security Testing", body))
+          if os.path.exists(jfile):
+              shutil.copy(jfile, f"{reports_dir}/snyk-code/snyk-code.json")
+
+          # ─────────────────────────────────────────────────────
+          # 3. SNYK IAC
+          # ─────────────────────────────────────────────────────
+          data = {}
+          jfile = "raw/snyk-iac-results/snyk-iac.json"
+          if os.path.exists(jfile):
+              with open(jfile) as f:
+                  try: data = json.load(f)
+                  except: pass
+
+          vulns = data.get('vulnerabilities', [])
+          rows = ''
+          for v in vulns:
+              sev = v.get('severity', 'unknown')
+              c = sev_color(sev)
+              rows += f"""<div class="row" style="border-left:4px solid {c}">
+              <strong>{v.get('title','?')}</strong>
+              <span class="badge" style="background:{c}">{sev.upper()}</span>
+              <div style="margin-top:6px;color:#cbd5e1;font-size:13px">{v.get('description','')}</div>
+              <small style="color:#475569">Path: {v.get('path','N/A')}</small>
+          </div>"""
+
+          stats = f"""<div class="stats">
+            <div class="stat"><div class="stat-num" style="color:#a78bfa">{len(vulns)}</div><div class="stat-label">Total</div></div>
+            <div class="stat"><div class="stat-num" style="color:#f87171">{sum(1 for v in vulns if v.get('severity')=='high')}</div><div class="stat-label">High</div></div>
+            <div class="stat"><div class="stat-num" style="color:#facc15">{sum(1 for v in vulns if v.get('severity')=='medium')}</div><div class="stat-label">Medium</div></div>
+          </div>"""
+          body = stats + (rows if rows else '<p style="color:#4ade80;padding:16px">No IaC issues found</p>')
+          body += f"<details><summary>Raw JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>"
+          write(f"{reports_dir}/snyk-iac/index.html",
+                page("Snyk IaC", "🏗️", "Infrastructure as Code Security (SAM template)", body))
+          if os.path.exists(jfile):
+              shutil.copy(jfile, f"{reports_dir}/snyk-iac/snyk-iac.json")
+
+          # ─────────────────────────────────────────────────────
+          # 4. SECURITY (npm audit)
+          # ─────────────────────────────────────────────────────
+          data = {}
+          jfile = "raw/security-results/npm-audit.json"
+          if os.path.exists(jfile):
+              with open(jfile) as f:
+                  try: data = json.load(f)
+                  except: pass
+
+          meta  = data.get('metadata', {}).get('vulnerabilities', {})
+          tot   = meta.get('total', 0)
+          crit  = meta.get('critical', 0)
+          high  = meta.get('high', 0)
+          mod   = meta.get('moderate', 0)
+          low_v = meta.get('low', 0)
+          dep_v = data.get('vulnerabilities', {})
+          rows = ''
+          for name, v in dep_v.items():
+              sev = v.get('severity', 'unknown')
+              c = sev_color(sev)
+              via_list = v.get('via', [])
+              via_str = ', '.join(x if isinstance(x, str) else x.get('source','?') for x in via_list if x)
+              rows += f"""<div class="row" style="border-left:4px solid {c}">
+              <strong>{name}</strong>
+              <span class="badge" style="background:{c}">{sev.upper()}</span>
+              <div style="margin-top:6px;color:#cbd5e1;font-size:13px">Via: {via_str or 'N/A'}</div>
+          </div>"""
+
+          stats = f"""<div class="stats">
+            <div class="stat"><div class="stat-num" style="color:#f87171">{tot}</div><div class="stat-label">Total</div></div>
+            <div class="stat"><div class="stat-num" style="color:#f87171">{crit}</div><div class="stat-label">Critical</div></div>
+            <div class="stat"><div class="stat-num" style="color:#fb923c">{high}</div><div class="stat-label">High</div></div>
+            <div class="stat"><div class="stat-num" style="color:#facc15">{mod}</div><div class="stat-label">Moderate</div></div>
+            <div class="stat"><div class="stat-num" style="color:#4ade80">{low_v}</div><div class="stat-label">Low</div></div>
+          </div>"""
+          body = stats + (rows if rows else '<p style="color:#4ade80;padding:16px">No vulnerabilities found</p>')
+          body += f"<details><summary>Raw JSON (npm audit)</summary><pre>{json.dumps(data, indent=2)}</pre></details>"
+          write(f"{reports_dir}/security/index.html",
+                page("Security Scan", "🛡️", "npm audit + Trivy Results", body))
+          if os.path.exists(jfile):
+              shutil.copy(jfile, f"{reports_dir}/security/npm-audit.json")
+
+          # ─────────────────────────────────────────────────────
+          # 5. INTEGRATION TESTS
+          # ─────────────────────────────────────────────────────
+          data = {}
+          jfile = "raw/integration-test-results/integration-results.json"
+          if os.path.exists(jfile):
+              with open(jfile) as f:
+                  try: data = json.load(f)
+                  except: pass
+
+          i_total  = data.get('numTotalTests', 0)
+          i_pass   = data.get('numPassedTests', 0)
+          i_fail   = data.get('numFailedTests', 0)
+          rows = ''
+          for suite in data.get('testResults', []):
+              for t in suite.get('testResults', []):
+                  status = t.get('status', 'unknown')
+                  icon   = '✅' if status == 'passed' else '❌'
+                  c      = '#4ade80' if status == 'passed' else '#f87171'
+                  rows += f'<div class="row"><span style="color:{c}">{icon}</span> {t.get("fullName","")}</div>'
+
+          stats = f"""<div class="stats">
+            <div class="stat"><div class="stat-num" style="color:#60a5fa">{i_total}</div><div class="stat-label">Total</div></div>
+            <div class="stat"><div class="stat-num" style="color:#4ade80">{i_pass}</div><div class="stat-label">Passed</div></div>
+            <div class="stat"><div class="stat-num" style="color:#f87171">{i_fail}</div><div class="stat-label">Failed</div></div>
+          </div>"""
+          body = stats + (rows if rows else '<p style="color:#94a3b8;padding:16px">No test detail available</p>')
+          body += f"<details><summary>Raw JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>"
+          write(f"{reports_dir}/integration/index.html",
+                page("Integration Tests", "🔗", "Integration test results", body))
+
+          # ─────────────────────────────────────────────────────
+          # 6. COVERAGE TABLE
+          # ─────────────────────────────────────────────────────
+          summary_f = None
+          for candidate in [
+              "raw/coverage-report/coverage/coverage-summary.json",
+              "raw/coverage-report/coverage-summary.json",
+          ]:
+              if os.path.exists(candidate):
+                  summary_f = candidate
+                  break
+
+          data = {}
+          if summary_f:
+              with open(summary_f) as f:
+                  try: data = json.load(f)
+                  except: pass
+
+          def pct_color(p):
+              try:
+                  v = float(p)
+                  return '#4ade80' if v >= 70 else '#facc15' if v >= 50 else '#f87171'
+              except:
+                  return '#94a3b8'
+
+          table_rows = ''
+          for key, val in data.items():
+              if key == 'total': continue
+              s = val.get('statements',{}).get('pct',0)
+              b = val.get('branches',{}).get('pct',0)
+              fn= val.get('functions',{}).get('pct',0)
+              l = val.get('lines',{}).get('pct',0)
+              table_rows += f"""<tr>
+              <td><code style="font-size:12px">{key}</code></td>
+              <td style="color:{pct_color(s)}">{s}%</td>
+              <td style="color:{pct_color(b)}">{b}%</td>
+              <td style="color:{pct_color(fn)}">{fn}%</td>
+              <td style="color:{pct_color(l)}">{l}%</td>
+          </tr>"""
+
+          total = data.get('total', {})
+          stats = f"""<div class="stats">
+            <div class="stat"><div class="stat-num" style="color:{pct_color(cov_pct)}">{cov_pct}%</div><div class="stat-label">Lines</div></div>
+            <div class="stat"><div class="stat-num" style="color:{pct_color(cov_stmt)}">{cov_stmt}%</div><div class="stat-label">Statements</div></div>
+            <div class="stat"><div class="stat-num" style="color:{pct_color(cov_branch)}">{cov_branch}%</div><div class="stat-label">Branches</div></div>
+            <div class="stat"><div class="stat-num" style="color:{pct_color(cov_fn)}">{cov_fn}%</div><div class="stat-label">Functions</div></div>
+          </div>"""
+
+          table = f"""<table>
+            <tr><th>Module</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th></tr>
+            {table_rows if table_rows else '<tr><td colspan="5" style="color:#64748b">No module data available</td></tr>'}
+          </table>"""
+
+          write(f"{reports_dir}/coverage/index.html",
+                page("Coverage Report", "📈", "Jest code coverage by module", stats + table))
+
+          # ─────────────────────────────────────────────────────
+          # 7. MAIN DASHBOARD (reports/latest/index.html)
+          # ─────────────────────────────────────────────────────
+          c_color = pct_color(cov_pct)
+          v_color = '#4ade80' if int(vuln) == 0 else '#f87171'
+
+          report_cards = [
+              ("📈", "Coverage",          "coverage",   f"{cov_pct}% lines covered",          c_color),
+              ("🔒", "Snyk Dependencies", "snyk-deps",  "SCA — dependency vulnerabilities",    "#a78bfa"),
+              ("🔍", "Snyk Code (SAST)",  "snyk-code",  "Static source code analysis",         "#a78bfa"),
+              ("🏗️", "Snyk IaC",          "snyk-iac",   "SAM template security",               "#a78bfa"),
+              ("🛡️", "Security Scan",     "security",   "npm audit + Trivy",                   "#fb923c"),
+              ("🔗", "Integration Tests", "integration",f"{t_pass} tests passed",              "#4ade80"),
+          ]
+
+          cards_html = ''
+          for icon, title, folder, desc, accent in report_cards:
+              cards_html += f"""
+            <a href="{folder}/index.html" class="card" style="border-top:3px solid {accent}">
+              <div class="card-icon">{icon}</div>
+              <div class="card-title">{title}</div>
+              <div class="card-desc">{desc}</div>
+              <span class="card-link">Ver reporte →</span>
+            </a>"""
+
+          dashboard = f"""<!DOCTYPE html>
+          <html lang="es">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <title>NANUTECH Quality Dashboard — {sprint}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+            <style>
+              * {{ margin:0; padding:0; box-sizing:border-box }}
+              body {{ font-family:'Inter',system-ui,sans-serif; background:#0a0e27; color:#e2e8f0; min-height:100vh }}
+              .page {{ max-width:1280px; margin:0 auto; padding:28px 20px }}
+
+              .header {{ background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%); border-radius:20px; padding:36px 40px; margin-bottom:28px }}
+              .header-top {{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px }}
+              .brand {{ background:rgba(255,255,255,.1); padding:10px 20px; border-radius:100px; font-weight:700; font-size:15px }}
+              .sprint-tag {{ background:rgba(255,255,255,.12); padding:8px 18px; border-radius:100px; font-size:13px }}
+              .header h1 {{ font-size:38px; font-weight:800; line-height:1.1; margin-bottom:8px }}
+              .header p {{ color:#93c5fd; font-size:14px }}
+
+              .kpis {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:18px; margin-bottom:26px }}
+              .kpi {{ background:#1e293b; border-radius:14px; padding:20px 22px }}
+              .kpi-icon {{ font-size:26px; margin-bottom:10px }}
+              .kpi-label {{ font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em }}
+              .kpi-value {{ font-size:32px; font-weight:800; margin:6px 0 2px }}
+              .kpi-sub {{ font-size:12px; color:#64748b }}
+
+              .prog-wrap {{ background:#1e293b; border-radius:14px; padding:22px 24px; margin-bottom:26px }}
+              .prog-wrap h2 {{ font-size:16px; font-weight:700; margin-bottom:16px; color:#e2e8f0 }}
+              .prog-row {{ display:flex; align-items:center; gap:12px; margin-bottom:12px }}
+              .prog-label {{ width:90px; font-size:12px; color:#94a3b8; flex-shrink:0 }}
+              .prog-bar {{ flex:1; background:#0f172a; border-radius:100px; height:9px; overflow:hidden }}
+              .prog-fill {{ height:100%; border-radius:100px }}
+              .prog-val {{ width:46px; text-align:right; font-size:12px; font-weight:700 }}
+
+              .section-title {{ font-size:18px; font-weight:700; margin-bottom:18px; color:#e2e8f0 }}
+              .cards {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:16px }}
+              .card {{ background:#1e293b; border-radius:14px; padding:20px; text-decoration:none; color:#e2e8f0; display:block; transition:all .2s }}
+              .card:hover {{ transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,.3); background:#243044 }}
+              .card-icon {{ font-size:34px; margin-bottom:10px }}
+              .card-title {{ font-size:15px; font-weight:700; margin-bottom:5px }}
+              .card-desc {{ font-size:12px; color:#64748b; margin-bottom:14px; line-height:1.5 }}
+              .card-link {{ font-size:12px; color:#60a5fa; font-weight:600 }}
+
+              .footer {{ margin-top:28px; text-align:center; color:#334155; font-size:12px; padding:16px }}
+
+              @media(max-width:600px) {{ .header h1 {{ font-size:26px }} .kpis {{ grid-template-columns:1fr 1fr }} }}
+            </style>
+          </head>
+          <body>
+          <div class="page">
+
+            <div class="header">
+              <div class="header-top">
+                <div class="brand">🚛 NANUTECH</div>
+                <div class="sprint-tag">📅 Sprint {sprint}</div>
+              </div>
+              <h1>Quality Dashboard</h1>
+              <p>Reporte de Calidad &amp; Seguridad &nbsp;·&nbsp; Run #{run_id} &nbsp;·&nbsp; {datetime_}</p>
             </div>
-            <div class="footer"><p>Actualizado automáticamente desde GitHub Actions</p></div>
+
+            <div class="kpis">
+              <div class="kpi">
+                <div class="kpi-icon">📊</div>
+                <div class="kpi-label">Line Coverage</div>
+                <div class="kpi-value" style="color:{c_color}">{cov_pct}%</div>
+                <div class="kpi-sub">Stmt: {cov_stmt}%</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-icon">🌿</div>
+                <div class="kpi-label">Branch Coverage</div>
+                <div class="kpi-value" style="color:{c_color}">{cov_branch}%</div>
+                <div class="kpi-sub">Fn: {cov_fn}%</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-icon">✅</div>
+                <div class="kpi-label">Tests Pasados</div>
+                <div class="kpi-value" style="color:#4ade80">{t_pass}</div>
+                <div class="kpi-sub">de {t_total} totales</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-icon">🔒</div>
+                <div class="kpi-label">Vulnerabilidades</div>
+                <div class="kpi-value" style="color:{v_color}">{vuln}</div>
+                <div class="kpi-sub">npm audit</div>
+              </div>
+            </div>
+
+            <div class="prog-wrap">
+              <h2>📈 Coverage por dimensión</h2>
+              <div class="prog-row">
+                <span class="prog-label">Lines</span>
+                <div class="prog-bar"><div class="prog-fill" style="width:{min(float(cov_pct),100)}%;background:{c_color}"></div></div>
+                <span class="prog-val" style="color:{c_color}">{cov_pct}%</span>
+              </div>
+              <div class="prog-row">
+                <span class="prog-label">Statements</span>
+                <div class="prog-bar"><div class="prog-fill" style="width:{min(float(cov_stmt),100)}%;background:{c_color}"></div></div>
+                <span class="prog-val" style="color:{c_color}">{cov_stmt}%</span>
+              </div>
+              <div class="prog-row">
+                <span class="prog-label">Branches</span>
+                <div class="prog-bar"><div class="prog-fill" style="width:{min(float(cov_branch),100)}%;background:#60a5fa"></div></div>
+                <span class="prog-val" style="color:#60a5fa">{cov_branch}%</span>
+              </div>
+              <div class="prog-row">
+                <span class="prog-label">Functions</span>
+                <div class="prog-bar"><div class="prog-fill" style="width:{min(float(cov_fn),100)}%;background:#a78bfa"></div></div>
+                <span class="prog-val" style="color:#a78bfa">{cov_fn}%</span>
+              </div>
+            </div>
+
+            <div class="section-title">📁 Reportes Detallados</div>
+            <div class="cards">{cards_html}</div>
+
+            <div class="footer">
+              🚀 NANUTECH Backend Quality Dashboard &nbsp;·&nbsp; {datetime_}
+            </div>
+
           </div>
           </body>
-          </html>
-          EOF
+          </html>"""
 
+          write(f"{reports_dir}/index.html", dashboard)
+
+          # ─────────────────────────────────────────────────────
+          # 8. SPRINT PAGE (redirect to latest)
+          # ─────────────────────────────────────────────────────
+          write(f"{sprint_dir}/index.html", f"""<!DOCTYPE html>
+          <html><head><meta charset="UTF-8">
+          <meta http-equiv="refresh" content="0; url={base_url}/reports/latest/index.html">
+          <title>Sprint {sprint}</title></head>
+          <body><p>Redirigiendo al dashboard...</p></body></html>""")
+
+          # Metrics JSON for the sprint
+          with open(f"{sprint_dir}/metrics.json", 'w') as f:
+              json.dump({
+                "sprint": sprint, "run_id": run_id, "published_at": datetime_,
+                "coverage": float(cov_pct) if cov_pct else 0,
+                "statements": float(cov_stmt) if cov_stmt else 0,
+                "branches": float(cov_branch) if cov_branch else 0,
+                "functions": float(cov_fn) if cov_fn else 0,
+                "tests_passed": int(t_pass) if t_pass else 0,
+                "tests_total": int(t_total) if t_total else 0,
+                "vulnerabilities": int(vuln) if vuln else 0,
+              }, f, indent=2)
+
+          # ─────────────────────────────────────────────────────
+          # 9. ROOT index.html redirect
+          # ─────────────────────────────────────────────────────
+          write(f"{out_root}/index.html", f"""<!DOCTYPE html>
+          <html><head><meta charset="UTF-8">
+          <meta http-equiv="refresh" content="0; url={base_url}/reports/latest/index.html">
+          <title>NANUTECH Quality</title></head>
+          <body><p>Redirigiendo...</p></body></html>""")
+
+          print("\nAll reports generated successfully!")
+          print(f"Dashboard: {base_url}/reports/latest/index.html")
+          PYEOF
+
+      - name: Run report generator
+        env:
+          SPRINT:      ${{ steps.labels.outputs.sprint }}
+          DATETIME:    ${{ steps.labels.outputs.datetime }}
+          RUN_ID:      ${{ steps.run.outputs.run_id }}
+          COV_PCT:     ${{ steps.metrics.outputs.cov_pct }}
+          COV_STMT:    ${{ steps.metrics.outputs.cov_stmt }}
+          COV_BRANCH:  ${{ steps.metrics.outputs.cov_branch }}
+          COV_FN:      ${{ steps.metrics.outputs.cov_fn }}
+          T_PASS:      ${{ steps.metrics.outputs.t_pass }}
+          T_TOTAL:     ${{ steps.metrics.outputs.t_total }}
+          VULN:        ${{ steps.metrics.outputs.vuln }}
+          REPO_OWNER:  ${{ github.repository_owner }}
+          REPO_NAME:   ${{ github.event.repository.name }}
+        run: |
+          python3 generate_reports.py
+          echo "--- Generated files ---"
+          find docs -type f | sort
+
+      # --------------------------------------------------
+      # 6. Deploy to GitHub Pages
+      # --------------------------------------------------
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -210,4 +695,28 @@ jobs:
           keep_files: true
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: '📊 Publish reports to GitHub Pages'
+          commit_message: 'Publish Quality Dashboard — sprint ${{ steps.labels.outputs.sprint }} (run ${{ steps.run.outputs.run_id }})'
+
+      - name: Print URLs
+        run: |
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+          SPRINT="${{ steps.labels.outputs.sprint }}"
+          BASE="https://${OWNER}.github.io/${REPO}"
+          echo ""
+          echo "=========================================="
+          echo " Reports published successfully!"
+          echo "=========================================="
+          echo ""
+          echo " Dashboard:"
+          echo "   ${BASE}/reports/latest/index.html"
+          echo ""
+          echo " Individual reports:"
+          echo "   Coverage:      ${BASE}/reports/latest/coverage/index.html"
+          echo "   Snyk Deps:     ${BASE}/reports/latest/snyk-deps/index.html"
+          echo "   Snyk Code:     ${BASE}/reports/latest/snyk-code/index.html"
+          echo "   Snyk IaC:      ${BASE}/reports/latest/snyk-iac/index.html"
+          echo "   Security:      ${BASE}/reports/latest/security/index.html"
+          echo "   Integration:   ${BASE}/reports/latest/integration/index.html"
+          echo "   Sprint page:   ${BASE}/sprints/${SPRINT}/index.html"
+          echo ""
