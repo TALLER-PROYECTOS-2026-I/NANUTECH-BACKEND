@@ -1,4 +1,3 @@
-// src/handlers/camion.mjs
 import {
   getAllCamionesController,
   getCamionByIdController,
@@ -36,7 +35,8 @@ export const handler = async (event) => {
 
     return await controller(event);
   } catch (error) {
-    console.error("Error en handler:", error);
+    console.error("Error en camionHandler:", error);
+
     return {
       statusCode: 500,
       headers: {

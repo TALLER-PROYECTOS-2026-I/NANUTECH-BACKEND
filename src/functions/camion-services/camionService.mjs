@@ -1,169 +1,100 @@
 import { CamionRepository } from "./camionRepository.mjs";
 import { Camion } from "./camionModel.mjs";
-import { CamionValidator } from "../../shared/utils/validators/camionValidator.mjs";
-import { ERROR_MESSAGES } from "../../shared/constants/errorMessages.mjs";
+
+const ESTADOS_VALIDOS = [
+  "DISPONIBLE",
+  "EN_JORNADA",
+  "EN_AUXILIO",
+  "MANTENIMIENTO",
+  "INACTIVA",
+];
+
+const COMBUSTIBLES_VALIDOS = [
+  "DIESEL",
+  "GASOLINA",
+  "GNV",
+  "GLP",
+  "ELECTRICO",
+  "HIBRIDO",
+];
+
+function normalizeEstado(estado) {
+  if (!estado) return "DISPONIBLE";
+
+  const value = String(estado).trim().toUpperCase().replaceAll(" ", "_");
+
+  if (value === "EN_USO") return "EN_JORNADA";
+
+  if (!ESTADOS_VALIDOS.includes(value)) {
+    throw new Error("Estado de camión inválido");
+  }
+
+  return value;
+}
 
 export class CamionService {
   constructor() {
     this.repository = new CamionRepository();
   }
 
-  async getAllCamiones() {
-    try {
-      const camiones = await this.repository.getAll();
-      return Camion.fromDatabaseList(camiones);
-    } catch (error) {
-      console.error("Error en getAllCamiones service:", error);
-      throw error;
-    }
+  async getAllCamiones(filters = {}) {
+    const camiones = await this.repository.getAll(filters);
+    return Camion.fromDatabaseList(camiones);
   }
 
   async getCamionById(id) {
-    try {
-      const validatedId = CamionValidator.validateId(id);
-      const camion = await this.repository.getById(validatedId);
-
-      if (!camion) throw new Error(ERROR_MESSAGES.CAMION_NOT_FOUND);
-
-      return Camion.fromDatabase(camion);
-    } catch (error) {
-      console.error("Error en getCamionById service:", error);
-      throw error;
+    if (!id) {
+      throw new Error("El id es requerido");
     }
+
+    const camion = await this.repository.getById(id);
+
+    if (!camion) {
+      throw new Error("Camión no encontrado");
+    }
+
+    return Camion.fromDatabase(camion);
   }
 
-  async createCamion(camionData) {
-    try {
-      const isHu11Payload =
-        camionData.anio !== undefined ||
-        camionData.capacidad_ton !== undefined ||
-        camionData.capacidadTon !== undefined ||
-        camionData.vin !== undefined ||
-        camionData.color !== undefined ||
-        camionData.combustible !== undefined ||
-        camionData.gps !== undefined;
+  async createCamion(camionData = {}) {
+    const validatedData = this.validateCreateCamion(camionData);
 
-      if (isHu11Payload) {
-        return this.createCamionHu11(camionData);
-      }
+    const existingByPlaca = await this.repository.getByPlaca(
+      validatedData.placa,
+    );
 
-      const validatedData = CamionValidator.validateCreateCamion(camionData);
-
-      const existingByPlaca = await this.repository.getByPlaca(
-        validatedData.placa,
-      );
-
-      if (existingByPlaca) {
-        throw new Error(ERROR_MESSAGES.CAMION_PLACA_EXISTS);
-      }
-
-      const newCamion = new Camion(
-        null,
-        validatedData.placa,
-        validatedData.marca,
-        validatedData.modelo,
-        validatedData.estado,
-      );
-
-      const created = await this.repository.create(newCamion.toJSON());
-      return Camion.fromDatabase(created);
-    } catch (error) {
-      console.error("Error en createCamion service:", error);
-      throw error;
+    if (existingByPlaca) {
+      throw new Error("Ya existe un camión con esta placa");
     }
-  }
 
-  async createCamionHu11(camionData) {
-    try {
-      const validatedData = this.validateCreateCamionHu11(camionData);
+    const existingByVin = await this.repository.getByVin(validatedData.vin);
 
-      const existingByPlaca = await this.repository.getByPlacaHu11(
-        validatedData.placa,
-      );
-
-      if (existingByPlaca) {
-        throw new Error("Ya existe un camión con esta placa");
-      }
-
-      const existingByVin = await this.repository.getByVinHu11(
-        validatedData.vin,
-      );
-
-      if (existingByVin) {
-        throw new Error("Ya existe un camión con este VIN");
-      }
-
-      const created = await this.repository.createHu11(validatedData);
-
-      return {
-        ...created,
-        confirmacion: {
-          message: "¡Camión registrado con éxito!",
-          placa: created.placa,
-          modelo: created.modelo,
-        },
-      };
-    } catch (error) {
-      console.error("Error en createCamionHu11 service:", error);
-      throw error;
+    if (existingByVin) {
+      throw new Error("Ya existe un camión con este VIN");
     }
-  }
 
-  async updateCamion(id, updateData) {
-    try {
-      const validatedId = CamionValidator.validateId(id);
+    const created = await this.repository.create(validatedData);
+    const camion = Camion.fromDatabase(created).toJSON();
 
-      const existingCamion = await this.repository.getById(validatedId);
-      if (!existingCamion) throw new Error(ERROR_MESSAGES.CAMION_NOT_FOUND);
-
-      const validatedUpdates = CamionValidator.validateUpdateCamion(updateData);
-
-      if (validatedUpdates.placa) {
-        const existingByPlaca = await this.repository.getByPlaca(
-          validatedUpdates.placa,
-        );
-
-        if (existingByPlaca && existingByPlaca.id !== validatedId) {
-          throw new Error(ERROR_MESSAGES.CAMION_PLACA_EXISTS);
-        }
-      }
-
-      const updated = await this.repository.update(
-        validatedId,
-        validatedUpdates,
-      );
-
-      return Camion.fromDatabase(updated);
-    } catch (error) {
-      console.error("Error en updateCamion service:", error);
-      throw error;
-    }
-  }
-
-  async deleteCamion(id) {
-    try {
-      const validatedId = CamionValidator.validateId(id);
-
-      const existingCamion = await this.repository.getById(validatedId);
-      if (!existingCamion) throw new Error(ERROR_MESSAGES.CAMION_NOT_FOUND);
-
-      await this.repository.delete(validatedId);
-      return { id: validatedId, deleted: true };
-    } catch (error) {
-      console.error("Error en deleteCamion service:", error);
-      throw error;
-    }
+    return {
+      ...camion,
+      confirmacion: {
+        message: "¡Camión registrado con éxito!",
+        placa: camion.placa,
+        modelo: camion.modelo,
+      },
+    };
   }
 
   async getPanel(filters = {}) {
-    return this.repository.getPanelHu11(filters);
+    return this.repository.getPanel(filters);
   }
 
   async exportCsv(filters = {}) {
-    return this.repository.exportCsvHu11(filters);
+    return this.repository.exportCsv(filters);
   }
 
-  validateCreateCamionHu11(data = {}) {
+  validateCreateCamion(data = {}) {
     const requiredFields = [
       "placa",
       "marca",
@@ -231,8 +162,10 @@ export class CamionService {
 
     const tipoCombustible = String(data.combustible).trim().toUpperCase();
 
-    if (!tipoCombustible) {
-      throw new Error("El combustible es obligatorio");
+    if (!COMBUSTIBLES_VALIDOS.includes(tipoCombustible)) {
+      throw new Error(
+        `Combustible inválido. Use: ${COMBUSTIBLES_VALIDOS.join(", ")}`,
+      );
     }
 
     return {
@@ -245,11 +178,14 @@ export class CamionService {
       color,
       tipo_combustible: tipoCombustible,
       gps_habilitado: Boolean(data.gps),
-      estado: "DISPONIBLE",
+      estado: normalizeEstado(data.estado),
       kilometraje_actual: Number(data.kilometraje_actual || 0),
-      fecha_registro: new Date().toISOString().slice(0, 10),
-      ultima_fecha_mantenimiento: data.ultimo_mantenimiento || null,
-      proxima_fecha_mantenimiento: data.proximo_mantenimiento || null,
+      fecha_registro: data.fecha_registro || new Date().toISOString().slice(0, 10),
+      ultima_fecha_mantenimiento:
+        data.ultima_fecha_mantenimiento || data.ultimo_mantenimiento || null,
+      proxima_fecha_mantenimiento:
+        data.proxima_fecha_mantenimiento || data.proximo_mantenimiento || null,
+      notas: data.notas || null,
     };
   }
 }
