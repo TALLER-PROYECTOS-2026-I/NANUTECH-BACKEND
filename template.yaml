@@ -99,7 +99,67 @@ Resources:
       Tags:
         Environment: !Ref StageName
         Proyecto: Nanutech-Backend
-
+  CamionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-camiones"
+      CodeUri: .
+      Handler: src/functions/camion-services/camionHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+          DB_HOST: !Ref DBHost
+          DB_PORT: !Ref DBPort
+          DB_NAME: !Ref DBName
+          DB_USER: !Ref DBUser
+          DB_PASSWORD: !Ref DBPassword
+          DB_SSL_ENABLED: !Ref DBSslEnabled
+      Events:
+        GetCamiones:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones
+            Method: GET
+        GetCamionById:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones/{id}
+            Method: GET
+        CreateCamion:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones
+            Method: POST
+        GetPanelCamiones:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones/panel
+            Method: GET
+        ExportCamionesCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones/exportar/csv
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: camion
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/camion-services/camionHandler.mjs
+          
   JornadaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -446,6 +506,9 @@ Outputs:
   AuthFunctionArn:
     Description: "ARN de la función Auth"
     Value: !GetAtt AuthFunction.Arn
+  CamionFunctionArn:
+    Description: "ARN de la función Camión"
+    Value: !GetAtt CamionFunction.Arn
   MigratorFunctionArn:
     Description: "ARN de la función Migrator"
     Value: !GetAtt MigratorFunction.Arn
