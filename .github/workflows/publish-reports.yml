@@ -6,11 +6,6 @@ on:
     types:
       - completed
   workflow_dispatch:
-    inputs:
-      run_id:
-        description: 'Run ID (vacío = último exitoso)'
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -26,25 +21,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Obtener el run ID
       - name: Get run ID
         id: run
         run: |
-          if [ -n "${{ inputs.run_id }}" ]; then
-            RUN_ID="${{ inputs.run_id }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RUN_ID=$(curl -sf -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci-develop.yml/runs?status=success&per_page=1" \
+              | jq -r '.workflow_runs[0].id // empty')
           else
-            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-              RUN_ID=$(curl -sf -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci-develop.yml/runs?status=success&per_page=1" \
-                | jq -r '.workflow_runs[0].id // empty')
-            else
-              RUN_ID=${{ github.event.workflow_run.id }}
-            fi
+            RUN_ID=${{ github.event.workflow_run.id }}
           fi
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
-          echo "✅ Run ID: $RUN_ID"
 
-      # Descargar SOLO el coverage-html (el reporte completo de Jest)
       - name: Download Jest HTML report
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -52,7 +40,6 @@ jobs:
         run: |
           mkdir -p raw
           
-          # Buscar el artifact coverage-html
           ARTIFACT_ID=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts?per_page=100" \
             | jq -r '.artifacts[] | select(.name=="coverage-html") | .id' | head -1)
@@ -69,83 +56,47 @@ jobs:
             exit 1
           fi
 
-      # Copiar el reporte de Jest a docs/reports/latest/coverage
-      - name: Copy Jest report to docs
+      - name: Copy report to docs
         run: |
           mkdir -p docs/reports/latest
-          # Copiar todo el contenido del reporte de Jest
           cp -r raw/coverage-html/* docs/reports/latest/coverage/
-          echo "✅ Reporte de Jest copiado a docs/reports/latest/coverage/"
+          echo "✅ Reporte copiado"
 
-      # Generar dashboard principal (simple, solo un enlace)
       - name: Generate dashboard
         run: |
           SPRINT=$(date '+%Y-%m')
           DATETIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
-          RUN_ID=${{ steps.run.outputs.run_id }}
           
           cat > docs/reports/latest/index.html << 'EOF'
           <!DOCTYPE html>
-          <html lang="es">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>NANUTECH - Dashboard de Calidad</title>
-              <style>
-                  *{margin:0;padding:0;box-sizing:border-box}
-                  body{font-family:'Segoe UI',system-ui;background:#0a0e27;color:#e2e8f0;padding:24px}
-                  .container{max-width:1000px;margin:0 auto}
-                  .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:24px;padding:40px;margin-bottom:30px}
-                  .header h1{font-size:42px;margin-bottom:10px}
-                  .card{background:#1e293b;border-radius:20px;padding:40px;text-align:center;cursor:pointer;transition:transform 0.2s;text-decoration:none;display:block}
-                  .card:hover{transform:translateY(-4px);background:#243044}
-                  .icon{font-size:64px;margin-bottom:20px}
-                  .title{font-size:28px;font-weight:700;margin-bottom:16px;color:#e2e8f0}
-                  .desc{font-size:16px;color:#94a3b8;margin-bottom:24px}
-                  .badge{background:#22c55e20;color:#22c55e;padding:8px 20px;border-radius:30px;display:inline-block;font-weight:600}
-                  .footer{margin-top:40px;padding:20px;text-align:center;color:#475569;border-top:1px solid #334155}
-                  .info{background:#1e293b;border-radius:16px;padding:20px;margin-top:20px;text-align:center}
-              </style>
+          <html>
+          <head><meta charset="UTF-8"><title>NANUTECH Dashboard</title>
+          <style>
+            body{background:#0a0e27;color:#fff;font-family:system-ui;padding:24px}
+            .container{max-width:800px;margin:0 auto}
+            .card{background:#1e293b;border-radius:20px;padding:40px;text-align:center;cursor:pointer;margin-top:30px}
+            .card:hover{background:#243044}
+            .icon{font-size:64px}
+            h1{font-size:48px}
+            .footer{margin-top:40px;text-align:center;color:#475569}
+          </style>
           </head>
           <body>
           <div class="container">
-              <div class="header">
-                  <h1>🚛 NANUTECH</h1>
-                  <p>Dashboard de Calidad de Software · ${{ SPRINT }} · ${{ DATETIME }}</p>
-                  <p style="font-size:12px;color:#64748b">Run ID: ${{ RUN_ID }}</p>
-              </div>
-              
-              <a href="coverage/index.html" class="card">
-                  <div class="icon">📈</div>
-                  <div class="title">Cobertura de Código</div>
-                  <div class="desc">
-                      Reporte interactivo generado por Jest
-                      <br><br>
-                      ✨ Haz clic en cualquier módulo para ver el detalle de cada archivo
-                      <br>
-                      📊 Cada archivo muestra: Statements, Branches, Functions y Lines
-                      <br>
-                      🎨 Colores: Verde (≥70%), Amarillo (50-69%), Rojo (&lt;50%)
-                  </div>
-                  <span class="badge">Ver reporte interactivo →</span>
-              </a>
-              
-              <div class="info">
-                  💡 <strong>Consejo:</strong> En el reporte de cobertura:
-                  <br>1. Haz clic en cualquier módulo (ej: "auth-services")
-                  <br>2. Verás todos los archivos dentro de ese módulo
-                  <br>3. Haz clic en cualquier archivo para ver el detalle línea por línea
-              </div>
-              
-              <div class="footer">
-                  Reportes generados automáticamente por CI/CD Pipeline
-              </div>
+            <h1>🚛 NANUTECH</h1>
+            <p>Dashboard de Calidad · ${{ SPRINT }} · ${{ DATETIME }}</p>
+            <div class="card" onclick="location.href='coverage/index.html'">
+              <div class="icon">📈</div>
+              <h2>Cobertura de Código</h2>
+              <p>Haz clic para ver el reporte interactivo de Jest</p>
+              <p style="font-size:12px;color:#64748b">Podrás explorar módulos, archivos y líneas</p>
+            </div>
+            <div class="footer">Reporte generado automáticamente</div>
           </div>
           </body>
           </html>
           EOF
           
-          # Redirección principal
           cat > docs/index.html << EOF
           <!DOCTYPE html>
           <html><head><meta http-equiv="refresh" content="0; url=reports/latest/index.html"></head>
@@ -153,7 +104,6 @@ jobs:
           </html>
           EOF
 
-      # Desplegar a GitHub Pages
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -161,23 +111,7 @@ jobs:
           publish_dir: ./docs
           publish_branch: gh-pages
           keep_files: true
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Publish Jest coverage report to GitHub Pages'
 
       - name: Print URL
         run: |
-          OWNER="${{ github.repository_owner }}"
-          REPO="${{ github.event.repository.name }}"
-          echo ""
-          echo "=========================================="
-          echo "✅ Reporte publicado!"
-          echo "=========================================="
-          echo ""
-          echo "📊 Dashboard: https://${OWNER}.github.io/${REPO}/"
-          echo "📈 Cobertura interactiva: https://${OWNER}.github.io/${REPO}/reports/latest/coverage/"
-          echo ""
-          echo "💡 En la página de cobertura:"
-          echo "   • Haz clic en cualquier módulo para ver sus archivos"
-          echo "   • Haz clic en cualquier archivo para ver detalle línea por línea"
-          echo ""
+          echo "✅ Publicado en: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
