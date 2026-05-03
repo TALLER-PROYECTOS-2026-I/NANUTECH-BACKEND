@@ -1,14 +1,14 @@
 name: Publish Reports to GitHub Pages
 
 on:
+  workflow_run:
+    workflows: ["Security & Quality Tests"]
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       run_id:
-        description: 'Run ID del workflow "Security & Quality Tests" (vacío = último exitoso)'
-        required: false
-        type: string
-      sprint_label:
-        description: 'Etiqueta del sprint, ej: 2026-05 (vacío = mes actual)'
+        description: 'Run ID (vacío = último exitoso)'
         required: false
         type: string
 
@@ -20,276 +20,140 @@ permissions:
 
 jobs:
   publish:
-    name: Build & Publish Reports
     runs-on: ubuntu-latest
-
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
     steps:
       - uses: actions/checkout@v4
 
-      # --------------------------------------------------
-      # 1. Resolve Run ID
-      # --------------------------------------------------
-      - name: Resolve run ID
+      # Obtener el run ID
+      - name: Get run ID
         id: run
         run: |
           if [ -n "${{ inputs.run_id }}" ]; then
             RUN_ID="${{ inputs.run_id }}"
-            echo "Using provided run ID: $RUN_ID"
           else
-            echo "Fetching latest successful run of ci-develop.yml..."
-            RUN_ID=$(curl -sf \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci-develop.yml/runs?status=success&per_page=1" \
-              | jq -r '.workflow_runs[0].id // empty')
-            if [ -z "$RUN_ID" ]; then
-              echo "ERROR: No successful run found for ci-develop.yml"
-              exit 1
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              RUN_ID=$(curl -sf -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci-develop.yml/runs?status=success&per_page=1" \
+                | jq -r '.workflow_runs[0].id // empty')
+            else
+              RUN_ID=${{ github.event.workflow_run.id }}
             fi
-            echo "Found latest run: $RUN_ID"
           fi
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "✅ Run ID: $RUN_ID"
 
-      # --------------------------------------------------
-      # 2. Sprint / date labels
-      # --------------------------------------------------
-      - name: Set labels
-        id: labels
-        run: |
-          SPRINT="${{ inputs.sprint_label }}"
-          if [ -z "$SPRINT" ]; then
-            SPRINT=$(date '+%Y-%m')
-          fi
-          echo "sprint=$SPRINT" >> $GITHUB_OUTPUT
-          echo "datetime=$(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
-          echo "iso=$(date -Iseconds)" >> $GITHUB_OUTPUT
-
-      # --------------------------------------------------
-      # 3. Download artifacts via GitHub API
-      # --------------------------------------------------
-      - name: Download all artifacts
+      # Descargar SOLO el coverage-html (el reporte completo de Jest)
+      - name: Download Jest HTML report
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ steps.run.outputs.run_id }}
-          REPO: ${{ github.repository }}
         run: |
           mkdir -p raw
+          
+          # Buscar el artifact coverage-html
+          ARTIFACT_ID=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts?per_page=100" \
+            | jq -r '.artifacts[] | select(.name=="coverage-html") | .id' | head -1)
+          
+          if [ -n "$ARTIFACT_ID" ] && [ "$ARTIFACT_ID" != "null" ]; then
+            curl -sL -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$ARTIFACT_ID/zip" -o coverage-html.zip
+            mkdir -p raw/coverage-html
+            unzip -qo coverage-html.zip -d raw/coverage-html/
+            rm coverage-html.zip
+            echo "✅ coverage-html descargado"
+          else
+            echo "⚠️ coverage-html no encontrado"
+            exit 1
+          fi
 
-          NAMES="coverage-report snyk-deps-results snyk-code-results snyk-iac-results security-results integration-test-results"
-
-          for NAME in $NAMES; do
-            echo "--- Downloading $NAME ---"
-            ARTIFACT_ID=$(curl -sf \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/artifacts?per_page=100" \
-              | jq -r --arg n "$NAME" '.artifacts[] | select(.name==$n) | .id' | head -1)
-
-            if [ -n "$ARTIFACT_ID" ] && [ "$ARTIFACT_ID" != "null" ]; then
-              curl -sL \
-                -H "Authorization: Bearer $GH_TOKEN" \
-                -H "Accept: application/vnd.github+json" \
-                "https://api.github.com/repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" \
-                -o "raw/${NAME}.zip"
-              mkdir -p "raw/$NAME"
-              unzip -qo "raw/${NAME}.zip" -d "raw/$NAME/"
-              rm "raw/${NAME}.zip"
-              echo "  OK: $NAME"
-            else
-              echo "  WARN: $NAME not found in run $RUN_ID"
-              mkdir -p "raw/$NAME"
-            fi
-          done
-
-          echo "--- Downloaded files ---"
-          find raw -type f | sort
-
-      # --------------------------------------------------
-      # 4. Extract metrics
-      # --------------------------------------------------
-      - name: Extract metrics
-        id: metrics
+      # Copiar el reporte de Jest a docs/reports/latest/coverage
+      - name: Copy Jest report to docs
         run: |
-          COV_PCT=0; COV_STMT=0; COV_BRANCH=0; COV_FN=0
-          T_PASS=0; T_TOTAL=0; VULN=0
+          mkdir -p docs/reports/latest
+          # Copiar todo el contenido del reporte de Jest
+          cp -r raw/coverage-html/* docs/reports/latest/coverage/
+          echo "✅ Reporte de Jest copiado a docs/reports/latest/coverage/"
 
-          SUMMARY=$(find raw/coverage-report -name "coverage-summary.json" 2>/dev/null | head -1)
-          if [ -n "$SUMMARY" ]; then
-            COV_PCT=$(jq -r '.total.lines.pct // 0' "$SUMMARY")
-            COV_STMT=$(jq -r '.total.statements.pct // 0' "$SUMMARY")
-            COV_BRANCH=$(jq -r '.total.branches.pct // 0' "$SUMMARY")
-            COV_FN=$(jq -r '.total.functions.pct // 0' "$SUMMARY")
-            echo "Coverage (lines): $COV_PCT%"
-          fi
-
-          TRESULTS=$(find raw/coverage-report -name "test-results.json" 2>/dev/null | head -1)
-          if [ -n "$TRESULTS" ]; then
-            T_PASS=$(jq -r '.numPassedTests // 0' "$TRESULTS")
-            T_TOTAL=$(jq -r '.numTotalTests // 0' "$TRESULTS")
-            echo "Tests: $T_PASS / $T_TOTAL"
-          fi
-
-          AUDIT=$(find raw/security-results -name "npm-audit.json" 2>/dev/null | head -1)
-          if [ -n "$AUDIT" ]; then
-            VULN=$(jq -r '.metadata.vulnerabilities.total // 0' "$AUDIT")
-            echo "Vulnerabilities: $VULN"
-          fi
-
-          echo "cov_pct=$COV_PCT"       >> $GITHUB_OUTPUT
-          echo "cov_stmt=$COV_STMT"     >> $GITHUB_OUTPUT
-          echo "cov_branch=$COV_BRANCH" >> $GITHUB_OUTPUT
-          echo "cov_fn=$COV_FN"         >> $GITHUB_OUTPUT
-          echo "t_pass=$T_PASS"         >> $GITHUB_OUTPUT
-          echo "t_total=$T_TOTAL"       >> $GITHUB_OUTPUT
-          echo "vuln=$VULN"             >> $GITHUB_OUTPUT
-
-      # --------------------------------------------------
-      # 5. Generate ALL HTML reports (Python script)
-      # --------------------------------------------------
-      - name: Create and run report generator
-        env:
-          SPRINT:      ${{ steps.labels.outputs.sprint }}
-          DATETIME:    ${{ steps.labels.outputs.datetime }}
-          RUN_ID:      ${{ steps.run.outputs.run_id }}
-          COV_PCT:     ${{ steps.metrics.outputs.cov_pct }}
-          COV_STMT:    ${{ steps.metrics.outputs.cov_stmt }}
-          COV_BRANCH:  ${{ steps.metrics.outputs.cov_branch }}
-          COV_FN:      ${{ steps.metrics.outputs.cov_fn }}
-          T_PASS:      ${{ steps.metrics.outputs.t_pass }}
-          T_TOTAL:     ${{ steps.metrics.outputs.t_total }}
-          VULN:        ${{ steps.metrics.outputs.vuln }}
-          REPO_OWNER:  ${{ github.repository_owner }}
-          REPO_NAME:   ${{ github.event.repository.name }}
+      # Generar dashboard principal (simple, solo un enlace)
+      - name: Generate dashboard
         run: |
-          cat > generate_reports.py << 'PYEOF'
-          import json, os, shutil
-
-          sprint     = os.environ.get('SPRINT', '2026-05')
-          datetime_  = os.environ.get('DATETIME', '')
-          run_id     = os.environ.get('RUN_ID', '')
-          cov_pct    = os.environ.get('COV_PCT', '0')
-          cov_stmt   = os.environ.get('COV_STMT', '0')
-          cov_branch = os.environ.get('COV_BRANCH', '0')
-          cov_fn     = os.environ.get('COV_FN', '0')
-          t_pass     = os.environ.get('T_PASS', '0')
-          t_total    = os.environ.get('T_TOTAL', '0')
-          vuln       = os.environ.get('VULN', '0')
-          owner      = os.environ.get('REPO_OWNER', '')
-          repo       = os.environ.get('REPO_NAME', '')
-
-          base_url = f"https://{owner}.github.io/{repo}"
-          out_root = "docs"
-          reports_dir = f"{out_root}/reports/latest"
-          sprint_dir  = f"{out_root}/sprints/{sprint}"
-
-          os.makedirs(reports_dir, exist_ok=True)
-          os.makedirs(sprint_dir, exist_ok=True)
-
-          DARK_CSS = """
-          *{margin:0;padding:0;box-sizing:border-box}
-          body{font-family:system-ui,sans-serif;background:#0a0e27;color:#e2e8f0;padding:24px}
-          h1{font-size:26px;margin-bottom:6px}
-          .sub{color:#94a3b8;margin-bottom:24px;font-size:14px}
-          .stats{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:28px}
-          .stat{background:#1e293b;border-radius:12px;padding:16px 22px;min-width:130px;text-align:center}
-          .stat-num{font-size:30px;font-weight:800}
-          .stat-label{font-size:11px;color:#64748b;text-transform:uppercase;margin-top:4px}
-          .row{background:#1e293b;border-radius:10px;padding:14px 16px;margin-bottom:10px}
-          details{margin-top:24px}
-          summary{cursor:pointer;color:#60a5fa;font-weight:600;padding:8px 0}
-          pre{background:#0f172a;padding:14px;border-radius:8px;overflow:auto;font-size:11px;max-height:480px}
-          table{border-collapse:collapse;width:100%;background:#1e293b;border-radius:10px}
-          th,td{padding:11px 14px;text-align:left;border-bottom:1px solid #334155;font-size:13px}
-          th{background:#0f172a;color:#94a3b8;font-size:11px;text-transform:uppercase}
-          a.back{display:inline-block;margin-bottom:18px;color:#60a5fa;text-decoration:none;font-size:13px}
-          """
-
-          def page(title, icon, subtitle, body, back_href=f"{base_url}/reports/latest/"):
-              return f"""<!DOCTYPE html>
-          <html>
-          <head><meta charset="UTF-8"><title>{title}</title><style>{DARK_CSS}</style></head>
+          SPRINT=$(date '+%Y-%m')
+          DATETIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
+          RUN_ID=${{ steps.run.outputs.run_id }}
+          
+          cat > docs/reports/latest/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="es">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>NANUTECH - Dashboard de Calidad</title>
+              <style>
+                  *{margin:0;padding:0;box-sizing:border-box}
+                  body{font-family:'Segoe UI',system-ui;background:#0a0e27;color:#e2e8f0;padding:24px}
+                  .container{max-width:1000px;margin:0 auto}
+                  .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:24px;padding:40px;margin-bottom:30px}
+                  .header h1{font-size:42px;margin-bottom:10px}
+                  .card{background:#1e293b;border-radius:20px;padding:40px;text-align:center;cursor:pointer;transition:transform 0.2s;text-decoration:none;display:block}
+                  .card:hover{transform:translateY(-4px);background:#243044}
+                  .icon{font-size:64px;margin-bottom:20px}
+                  .title{font-size:28px;font-weight:700;margin-bottom:16px;color:#e2e8f0}
+                  .desc{font-size:16px;color:#94a3b8;margin-bottom:24px}
+                  .badge{background:#22c55e20;color:#22c55e;padding:8px 20px;border-radius:30px;display:inline-block;font-weight:600}
+                  .footer{margin-top:40px;padding:20px;text-align:center;color:#475569;border-top:1px solid #334155}
+                  .info{background:#1e293b;border-radius:16px;padding:20px;margin-top:20px;text-align:center}
+              </style>
+          </head>
           <body>
-            <a class="back" href="{back_href}">← Volver al dashboard</a>
-            <h1>{icon} {title}</h1>
-            <div class="sub">{subtitle} · Run #{run_id} · {datetime_}</div>
-            {body}
+          <div class="container">
+              <div class="header">
+                  <h1>🚛 NANUTECH</h1>
+                  <p>Dashboard de Calidad de Software · ${{ SPRINT }} · ${{ DATETIME }}</p>
+                  <p style="font-size:12px;color:#64748b">Run ID: ${{ RUN_ID }}</p>
+              </div>
+              
+              <a href="coverage/index.html" class="card">
+                  <div class="icon">📈</div>
+                  <div class="title">Cobertura de Código</div>
+                  <div class="desc">
+                      Reporte interactivo generado por Jest
+                      <br><br>
+                      ✨ Haz clic en cualquier módulo para ver el detalle de cada archivo
+                      <br>
+                      📊 Cada archivo muestra: Statements, Branches, Functions y Lines
+                      <br>
+                      🎨 Colores: Verde (≥70%), Amarillo (50-69%), Rojo (&lt;50%)
+                  </div>
+                  <span class="badge">Ver reporte interactivo →</span>
+              </a>
+              
+              <div class="info">
+                  💡 <strong>Consejo:</strong> En el reporte de cobertura:
+                  <br>1. Haz clic en cualquier módulo (ej: "auth-services")
+                  <br>2. Verás todos los archivos dentro de ese módulo
+                  <br>3. Haz clic en cualquier archivo para ver el detalle línea por línea
+              </div>
+              
+              <div class="footer">
+                  Reportes generados automáticamente por CI/CD Pipeline
+              </div>
+          </div>
           </body>
-          </html>"""
+          </html>
+          EOF
+          
+          # Redirección principal
+          cat > docs/index.html << EOF
+          <!DOCTYPE html>
+          <html><head><meta http-equiv="refresh" content="0; url=reports/latest/index.html"></head>
+          <body>Redirigiendo...</body>
+          </html>
+          EOF
 
-          def write(path, content):
-              os.makedirs(os.path.dirname(path), exist_ok=True)
-              with open(path, 'w') as f:
-                  f.write(content)
-              print(f"  wrote {path}")
-
-          # SNYK DEPS
-          data = {}
-          jfile = "raw/snyk-deps-results/snyk-deps.json"
-          if os.path.exists(jfile):
-              with open(jfile) as f: data = json.load(f)
-          vulns = data.get('vulnerabilities', [])
-          rows = ''.join(f'<div class="row"><strong>{v.get("packageName","?")}</strong> [{v.get("severity","")}]<div style="margin-top:6px">{v.get("title","")}</div></div>' for v in vulns)
-          stats = f'<div class="stats"><div class="stat"><div class="stat-num">{len(vulns)}</div><div class="stat-label">Total</div></div></div>'
-          write(f"{reports_dir}/snyk-deps/index.html", page("Snyk Dependencies", "🔒", "SCA", stats + (rows or '<p>No vulnerabilities</p>') + f'<details><summary>JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>'))
-
-          # SNYK CODE
-          data = {}
-          jfile = "raw/snyk-code-results/snyk-code.json"
-          if os.path.exists(jfile):
-              with open(jfile) as f: data = json.load(f)
-          results = []
-          for run in data.get('runs', []):
-              results.extend(run.get('results', []))
-          rows = ''.join(f'<div class="row"><strong>{r.get("locations",[{}])[0].get("physicalLocation",{}).get("artifactLocation",{}).get("uri","?")}</strong><div>{r.get("message",{}).get("text","")}</div></div>' for r in results)
-          write(f"{reports_dir}/snyk-code/index.html", page("Snyk Code", "🔍", "SAST", f'<div class="stats"><div class="stat"><div class="stat-num">{len(results)}</div><div class="stat-label">Issues</div></div></div>' + (rows or '<p>No issues</p>') + f'<details><summary>JSON</summary><pre>{json.dumps(data, indent=2)}</pre></details>'))
-
-          # COVERAGE
-          summary_f = None
-          for cand in ["raw/coverage-report/coverage/coverage-summary.json", "raw/coverage-report/coverage-summary.json"]:
-              if os.path.exists(cand): summary_f = cand; break
-          data = {}
-          if summary_f:
-              with open(summary_f) as f: data = json.load(f)
-          table_rows = ''
-          for key, val in data.items():
-              if key == 'total': continue
-              table_rows += f'<tr><td><code>{key}</code></td><td>{val.get("statements",{}).get("pct",0)}%</td><td>{val.get("branches",{}).get("pct",0)}%</td><td>{val.get("functions",{}).get("pct",0)}%</td><td>{val.get("lines",{}).get("pct",0)}%</td></tr>'
-          stats = f'<div class="stats"><div class="stat"><div class="stat-num">{cov_pct}%</div><div class="stat-label">Lines</div></div><div class="stat"><div class="stat-num">{cov_stmt}%</div><div class="stat-label">Statements</div></div><div class="stat"><div class="stat-num">{cov_branch}%</div><div class="stat-label">Branches</div></div><div class="stat"><div class="stat-num">{cov_fn}%</div><div class="stat-label">Functions</div></div></div>'
-          write(f"{reports_dir}/coverage/index.html", page("Coverage Report", "📈", "Jest coverage", stats + f'<table><tr><th>Module</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th></tr>{table_rows if table_rows else "<tr><td colspan=5>No modules</td></tr>"}</table>'))
-
-          # MAIN DASHBOARD
-          cards = ''.join(f'<div style="background:#1e293b;border-radius:12px;padding:16px"><div style="font-size:30px">{icon}</div><div style="font-weight:700">{title}</div><div style="font-size:12px;color:#64748b;margin:8px 0">{desc}</div><a href="{folder}/index.html" style="color:#60a5fa;font-size:12px">Ver reporte →</a></div>' for icon, title, folder, desc in [("📈","Coverage","coverage",f"{cov_pct}% lines"),("🔒","Snyk Deps","snyk-deps","SCA"),("🔍","Snyk Code","snyk-code","SAST"),("🏗️","Snyk IaC","snyk-iac","Infra"),("🛡️","Security","security","npm audit"),("🔗","Integration","integration",f"{t_pass}/{t_total} tests")])
-          dashboard = f"""<!DOCTYPE html>
-          <html><head><meta charset="UTF-8"><title>NANUTECH Dashboard</title><style>
-          body{{background:#0a0e27;font-family:system-ui;padding:30px;color:#e2e8f0}}
-          .header{{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:20px;padding:30px;margin-bottom:30px}}
-          h1{{font-size:36px;margin-bottom:10px}}
-          .stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:30px}}
-          .stat-card{{background:#1e293b;border-radius:14px;padding:20px;text-align:center}}
-          .stat-number{{font-size:32px;font-weight:800}}
-          .cards{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}}
-          </style></head>
-          <body>
-          <div class="header"><h1>🚛 NANUTECH Quality Dashboard</h1><p>Sprint {sprint} · {datetime_} · Run #{run_id}</p></div>
-          <div class="stats"><div class="stat-card"><div class="stat-number">{cov_pct}%</div><div>Coverage</div></div><div class="stat-card"><div class="stat-number">{t_pass}/{t_total}</div><div>Tests</div></div><div class="stat-card"><div class="stat-number">{vuln}</div><div>Vulnerabilities</div></div><div class="stat-card"><div class="stat-number">{len(results)}</div><div>Code Issues</div></div></div>
-          <h2>📁 Reports</h2>
-          <div class="cards">{cards}</div>
-          </body></html>"""
-          write(f"{reports_dir}/index.html", dashboard)
-
-          # Redirects
-          write(f"{sprint_dir}/index.html", f'<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url={base_url}/reports/latest/index.html"></head><body></body></html>')
-          write(f"{out_root}/index.html", f'<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url={base_url}/reports/latest/index.html"></head><body></body></html>')
-          print("\n✅ All reports generated!")
-          PYEOF
-
-          python3 generate_reports.py
-          echo "--- Generated files ---"
-          find docs -type f | sort
-
-      # --------------------------------------------------
-      # 6. Deploy to GitHub Pages
-      # --------------------------------------------------
+      # Desplegar a GitHub Pages
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -299,27 +163,21 @@ jobs:
           keep_files: true
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Publish Quality Dashboard — sprint ${{ steps.labels.outputs.sprint }}'
+          commit_message: 'Publish Jest coverage report to GitHub Pages'
 
-      - name: Print URLs
+      - name: Print URL
         run: |
           OWNER="${{ github.repository_owner }}"
           REPO="${{ github.event.repository.name }}"
-          SPRINT="${{ steps.labels.outputs.sprint }}"
-          BASE="https://${OWNER}.github.io/${REPO}"
           echo ""
           echo "=========================================="
-          echo "✅ Reports published successfully!"
+          echo "✅ Reporte publicado!"
           echo "=========================================="
           echo ""
-          echo "📊 Dashboard: ${BASE}/reports/latest/index.html"
+          echo "📊 Dashboard: https://${OWNER}.github.io/${REPO}/"
+          echo "📈 Cobertura interactiva: https://${OWNER}.github.io/${REPO}/reports/latest/coverage/"
           echo ""
-          echo "📁 Individual reports:"
-          echo "   Coverage:      ${BASE}/reports/latest/coverage/index.html"
-          echo "   Snyk Deps:     ${BASE}/reports/latest/snyk-deps/index.html"
-          echo "   Snyk Code:     ${BASE}/reports/latest/snyk-code/index.html"
-          echo "   Snyk IaC:      ${BASE}/reports/latest/snyk-iac/index.html"
-          echo "   Security:      ${BASE}/reports/latest/security/index.html"
-          echo "   Integration:   ${BASE}/reports/latest/integration/index.html"
-          echo "   Sprint page:   ${BASE}/sprints/${SPRINT}/index.html"
+          echo "💡 En la página de cobertura:"
+          echo "   • Haz clic en cualquier módulo para ver sus archivos"
+          echo "   • Haz clic en cualquier archivo para ver detalle línea por línea"
           echo ""
