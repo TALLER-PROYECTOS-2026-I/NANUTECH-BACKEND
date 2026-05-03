@@ -1,0 +1,213 @@
+name: 📊 Publish Reports to GitHub Pages
+
+on:
+  workflow_run:
+    workflows: ["Security & Quality Tests"]
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  deployments: write
+
+jobs:
+  publish:
+    name: 📈 Publish All Reports
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get workflow run ID
+        id: run
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RUN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/security-quality-tests.yml/runs?status=success&per_page=1" \
+              | jq -r '.workflow_runs[0].id // "0"')
+          else
+            RUN_ID=${{ github.event.workflow_run.id }}
+          fi
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "✅ Using run: $RUN_ID"
+
+      - name: Download coverage HTML
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: ./temp/coverage
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.run.outputs.run_id }}
+        continue-on-error: true
+
+      - name: Download Snyk reports
+        uses: actions/download-artifact@v4
+        with:
+          name: snyk-deps-results
+          path: ./temp/snyk-deps
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.run.outputs.run_id }}
+        continue-on-error: true
+
+      - name: Download security results
+        uses: actions/download-artifact@v4
+        with:
+          name: security-results
+          path: ./temp/security
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.run.outputs.run_id }}
+        continue-on-error: true
+
+      - name: Download integration results
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-test-results
+          path: ./temp/integration
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.run.outputs.run_id }}
+        continue-on-error: true
+
+      - name: Build HTML reports from artifacts
+        run: |
+          mkdir -p docs/reports
+          
+          # ===== COVERAGE REPORT =====
+          if [ -f "./temp/coverage/coverage/coverage-summary.json" ]; then
+            mkdir -p docs/reports/coverage
+            cat > docs/reports/coverage/index.html << 'EOF'
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="UTF-8"><title>Cobertura de Código</title>
+            <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#e2e8f0;}
+            table{border-collapse:collapse;width:100%;background:#1e293b;border-radius:12px;}
+            th,td{padding:12px;text-align:left;border-bottom:1px solid #334155;}
+            th{background:#0f172a;color:#94a3b8;}
+            .coverage-high{color:#10b981;}.coverage-medium{color:#eab308;}.coverage-low{color:#ef4444;}
+            .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:24px;padding:30px;margin-bottom:30px;}</style>
+            </head>
+            <body>
+            <div style="max-width:1400px;margin:0 auto">
+            <div class="header"><h1>📊 Coverage Report</h1><p>Resumen de cobertura por módulo</p></div>
+            EOF
+            
+            # Generar tabla de cobertura
+            echo '<table><tr><th>Módulo</th><th>Statements</th><th>Branches</th><th>Functions</th><th>Lines</th></tr>' >> docs/reports/coverage/index.html
+            jq -r 'to_entries | map(select(.key != "total")) | .[] | "<tr><td><strong>" + .key + "</strong></td><td>" + (.value.statements.pct|tostring) + "%</td><td>" + (.value.branches.pct|tostring) + "%</td><td>" + (.value.functions.pct|tostring) + "%</td><td>" + (.value.lines.pct|tostring) + "%</td></tr>"' \
+              ./temp/coverage/coverage/coverage-summary.json >> docs/reports/coverage/index.html
+            echo '</table></div></body></html>' >> docs/reports/coverage/index.html
+            echo "✅ Coverage report generated"
+          fi
+          
+          # ===== SNYK DEPENDENCIES =====
+          if [ -f "./temp/snyk-deps/snyk-deps.json" ]; then
+            mkdir -p docs/reports/snyk-deps
+            cat > docs/reports/snyk-deps/index.html << 'EOF'
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="UTF-8"><title>Snyk Dependencies</title>
+            <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#e2e8f0;}
+            .vuln{background:#1e293b;padding:16px;margin:12px 0;border-radius:12px;border-left:4px solid #ef4444;}
+            .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:24px;padding:30px;margin-bottom:30px;}
+            pre{background:#0f172a;padding:15px;border-radius:8px;overflow-x:auto;}</style>
+            </head>
+            <body><div style="max-width:1400px;margin:0 auto">
+            <div class="header"><h1>🔒 Snyk Dependencies</h1><p>Vulnerabilidades en dependencias</p></div>
+            <div id="content"></div>
+            <script>
+            fetch('snyk-deps.json').then(r=>r.json()).then(data=>{
+                const vulns=data.vulnerabilities||[];
+                document.getElementById('content').innerHTML='<h2>Total: '+vulns.length+'</h2>'+
+                vulns.map(v=>'<div class="vuln"><strong>📦 '+v.packageName+'</strong><br>🔴 Severidad: '+v.severity+'<br>📝 '+v.title+'</div>').join('')+
+                '<details><summary>JSON</summary><pre>'+JSON.stringify(data,null,2)+'</pre></details>';
+            });
+            </script>
+            </div></body></html>
+            EOF
+            cp ./temp/snyk-deps/snyk-deps.json docs/reports/snyk-deps/
+            echo "✅ Snyk dependencies report generated"
+          fi
+          
+          # ===== SNYK CODE =====
+          if [ -f "./temp/snyk-code/snyk-code.json" ]; then
+            mkdir -p docs/reports/snyk-code
+            cat > docs/reports/snyk-code/index.html << 'EOF'
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="UTF-8"><title>Snyk Code</title>
+            <style>body{font-family:system-ui;background:#0a0e27;padding:20px;color:#e2e8f0;}
+            .issue{background:#1e293b;padding:16px;margin:12px 0;border-radius:12px;}
+            .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:24px;padding:30px;margin-bottom:30px;}</style>
+            </head>
+            <body><div style="max-width:1400px;margin:0 auto">
+            <div class="header"><h1>🔍 Snyk Code</h1><p>Análisis SAST</p></div>
+            <div id="content"></div>
+            <script>
+            fetch('snyk-code.json').then(r=>r.json()).then(data=>{
+                const results=data.runs?.[0]?.results||[];
+                document.getElementById('content').innerHTML='<h2>Total Issues: '+results.length+'</h2>'+
+                results.map(r=>'<div class="issue"><strong>📍 '+(r.locations?.[0]?.physicalLocation?.artifactLocation?.uri||'Unknown')+'</strong><br>⚠️ '+(r.message?.text||'')+'</div>').join('')+
+                '<details><summary>JSON</summary><pre>'+JSON.stringify(data,null,2)+'</pre></details>';
+            });
+            </script>
+            </div></body></html>
+            EOF
+            cp ./temp/snyk-code/snyk-code.json docs/reports/snyk-code/
+            echo "✅ Snyk code report generated"
+          fi
+          
+          # ===== MAIN INDEX =====
+          cat > docs/reports/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head><meta charset="UTF-8"><title>NANUTECH Reports</title>
+          <style>
+            *{margin:0;padding:0;box-sizing:border-box;}
+            body{font-family:system-ui;background:#0a0e27;padding:40px;color:#e2e8f0;}
+            .container{max-width:1200px;margin:0 auto;}
+            h1{font-size:48px;margin-bottom:16px;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+            .subtitle{color:#94a3b8;margin-bottom:40px;}
+            .reports-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px;}
+            .card{background:#1e293b;border-radius:20px;padding:24px;transition:transform 0.2s;text-decoration:none;color:#e2e8f0;display:block;}
+            .card:hover{transform:translateY(-4px);background:#334155;}
+            .card-icon{font-size:48px;margin-bottom:16px;}
+            .card-title{font-size:20px;font-weight:700;margin-bottom:8px;}
+            .card-desc{font-size:14px;color:#94a3b8;}
+            .footer{text-align:center;margin-top:60px;padding-top:30px;border-top:1px solid #334155;color:#475569;}
+          </style>
+          </head>
+          <body>
+          <div class="container">
+            <h1>📊 NANUTECH Reports</h1>
+            <p class="subtitle">Reportes generados automáticamente por el pipeline CI/CD</p>
+            <div class="reports-grid">
+              <a href="coverage/index.html" class="card"><div class="card-icon">📈</div><div class="card-title">Coverage Report</div><div class="card-desc">Cobertura de código por módulo</div></a>
+              <a href="snyk-deps/index.html" class="card"><div class="card-icon">🔒</div><div class="card-title">Snyk Dependencies</div><div class="card-desc">Vulnerabilidades en dependencias</div></a>
+              <a href="snyk-code/index.html" class="card"><div class="card-icon">🔍</div><div class="card-title">Snyk Code</div><div class="card-desc">Análisis SAST de código fuente</div></a>
+              <a href="snyk-iac/index.html" class="card"><div class="card-icon">🏗️</div><div class="card-title">Snyk IaC</div><div class="card-desc">Infraestructura como código</div></a>
+              <a href="security/index.html" class="card"><div class="card-icon">🛡️</div><div class="card-title">Security Report</div><div class="card-desc">Trivy + npm audit</div></a>
+              <a href="integration/index.html" class="card"><div class="card-icon">🔗</div><div class="card-title">Integration Tests</div><div class="card-desc">Resultados de pruebas de integración</div></a>
+            </div>
+            <div class="footer"><p>Actualizado automáticamente desde GitHub Actions</p></div>
+          </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          publish_branch: gh-pages
+          keep_files: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: '📊 Publish reports to GitHub Pages'
