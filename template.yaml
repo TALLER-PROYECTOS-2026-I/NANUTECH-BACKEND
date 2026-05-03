@@ -149,42 +149,7 @@ Resources:
         EntryPoints:
           - src/functions/jornada-services/jornadaHandler.mjs
 
-  CamionFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "${StageName}-camiones"
-      CodeUri: .
-      Handler: src/functions/camion-services/camionHandler.handler
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - VPCAccessPolicy: {}
-      Environment:
-        Variables:
-          LOG_LEVEL: "debug"
-      Events:
-        GetAll:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /camiones
-            Method: GET
-        GetById:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /camiones/{id}
-            Method: GET
-      Tags:
-        Environment: !Ref StageName
-        Servicio: camion
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Sourcemap: true
-        EntryPoints:
-          - src/functions/camion-services/camionHandler.mjs
+  
 
   ConductorFunction:
     Type: AWS::Serverless::Function
