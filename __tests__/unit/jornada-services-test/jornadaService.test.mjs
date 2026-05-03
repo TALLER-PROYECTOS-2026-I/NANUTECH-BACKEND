@@ -11,6 +11,8 @@ jest.unstable_mockModule(
       checkConductorActivo: jest.fn(),
       startTurn: jest.fn(),
       finishTurn: jest.fn(),
+      findAll: jest.fn(),
+      exportAll: jest.fn(),
     })),
   }),
 );
@@ -173,5 +175,96 @@ describe("JornadaService", () => {
       message: "La jornada solo puede finalizarse cuando está EN_PROCESO.",
       code: "JORNADA_NOT_IN_PROGRESS",
     });
+  });
+
+  test("obtiene todas las jornadas sin filtros y delega al repository", async () => {
+    jornadaService.repository.findAll.mockResolvedValue([
+      { id: "jor-1", duracion_total: "08:00", tiene_observaciones: false },
+    ]);
+
+    const result = await jornadaService.getAllJornadas();
+
+    expect(jornadaService.repository.findAll).toHaveBeenCalledWith({});
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("jor-1");
+  });
+
+  test("pasa los filtros al repository en getAllJornadas", async () => {
+    jornadaService.repository.findAll.mockResolvedValue([]);
+
+    const filtros = { q: "ABC-123", conductor_id: "cond-1", fecha_desde: "2026-01-01", fecha_hasta: "2026-04-30" };
+    await jornadaService.getAllJornadas(filtros);
+
+    expect(jornadaService.repository.findAll).toHaveBeenCalledWith(filtros);
+  });
+
+  test("genera CSV con los datos de exportación", async () => {
+    jornadaService.repository.exportAll.mockResolvedValue([
+      {
+        id: "jor-1",
+        fecha: "2026-04-08",
+        conductor: "Juan Perez",
+        placa: "ABC-123",
+        contrato: "CON-001",
+        hora_inicio: "2026-04-08 08:00:00",
+        hora_fin: "2026-04-08 16:00:00",
+        duracion_total: "08:00",
+        km_recorridos: 150,
+        estado: "COMPLETADA",
+        observaciones: null,
+      },
+    ]);
+
+    const csv = await jornadaService.generateCsv({});
+
+    expect(typeof csv).toBe("string");
+    expect(csv).toContain("ID Jornada,Fecha,Conductor,Placa del Camion");
+    expect(csv).toContain("jor-1");
+    expect(csv).toContain("ABC-123");
+    expect(csv).toContain("08:00");
+    expect(jornadaService.repository.exportAll).toHaveBeenCalledWith({});
+  });
+
+  test("genera CSV vacío cuando no hay jornadas", async () => {
+    jornadaService.repository.exportAll.mockResolvedValue([]);
+
+    const csv = await jornadaService.generateCsv({});
+
+    expect(csv).toBe(
+      "ID Jornada,Fecha,Conductor,Placa del Camion,Contrato,Hora Inicio,Hora Fin,Duracion Total,KM Recorridos,Estado,Observaciones",
+    );
+  });
+
+  test("escapa correctamente valores con comas en el CSV", async () => {
+    jornadaService.repository.exportAll.mockResolvedValue([
+      {
+        id: "jor-1",
+        fecha: "2026-04-08",
+        conductor: "Perez, Juan",
+        placa: "ABC-123",
+        contrato: "CON-001",
+        hora_inicio: null,
+        hora_fin: null,
+        duracion_total: "Sin iniciar",
+        km_recorridos: 0,
+        estado: "REGISTRADA",
+        observaciones: 'Nota con "comillas"',
+      },
+    ]);
+
+    const csv = await jornadaService.generateCsv({});
+    const lines = csv.split('\n');
+
+    expect(lines[1]).toContain('"Perez, Juan"');
+    expect(lines[1]).toContain('"Nota con ""comillas"""');
+  });
+
+  test("pasa los filtros al repository en generateCsv", async () => {
+    jornadaService.repository.exportAll.mockResolvedValue([]);
+
+    const filtros = { conductor_id: "cond-1", fecha_desde: "2026-04-01" };
+    await jornadaService.generateCsv(filtros);
+
+    expect(jornadaService.repository.exportAll).toHaveBeenCalledWith(filtros);
   });
 });
