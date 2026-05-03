@@ -6,6 +6,11 @@ on:
     types:
       - completed
   workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Run ID (vacío = último exitoso)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -24,7 +29,9 @@ jobs:
       - name: Get run ID
         id: run
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ -n "${{ inputs.run_id }}" ]; then
+            RUN_ID="${{ inputs.run_id }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             RUN_ID=$(curl -sf -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci-develop.yml/runs?status=success&per_page=1" \
               | jq -r '.workflow_runs[0].id // empty')
@@ -32,8 +39,9 @@ jobs:
             RUN_ID=${{ github.event.workflow_run.id }}
           fi
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "✅ Run ID: $RUN_ID"
 
-      - name: Download Jest HTML report
+      - name: Download coverage HTML artifact
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ steps.run.outputs.run_id }}
@@ -60,38 +68,54 @@ jobs:
         run: |
           mkdir -p docs/reports/latest
           cp -r raw/coverage-html/* docs/reports/latest/coverage/
-          echo "✅ Reporte copiado"
+          echo "✅ Reporte copiado a docs/reports/latest/coverage/"
 
       - name: Generate dashboard
         run: |
           SPRINT=$(date '+%Y-%m')
           DATETIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
+          RUN_ID=${{ steps.run.outputs.run_id }}
           
           cat > docs/reports/latest/index.html << 'EOF'
           <!DOCTYPE html>
-          <html>
-          <head><meta charset="UTF-8"><title>NANUTECH Dashboard</title>
-          <style>
-            body{background:#0a0e27;color:#fff;font-family:system-ui;padding:24px}
-            .container{max-width:800px;margin:0 auto}
-            .card{background:#1e293b;border-radius:20px;padding:40px;text-align:center;cursor:pointer;margin-top:30px}
-            .card:hover{background:#243044}
-            .icon{font-size:64px}
-            h1{font-size:48px}
-            .footer{margin-top:40px;text-align:center;color:#475569}
-          </style>
+          <html lang="es">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>NANUTECH - Dashboard de Calidad</title>
+              <style>
+                  *{margin:0;padding:0;box-sizing:border-box}
+                  body{background:#0a0e27;color:#e2e8f0;font-family:system-ui,sans-serif;padding:24px}
+                  .container{max-width:1000px;margin:0 auto}
+                  .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:24px;padding:40px;margin-bottom:30px}
+                  .header h1{font-size:42px;margin-bottom:10px}
+                  .card{background:#1e293b;border-radius:20px;padding:40px;text-align:center;cursor:pointer;transition:transform 0.2s;text-decoration:none;display:block}
+                  .card:hover{transform:translateY(-4px);background:#243044}
+                  .icon{font-size:64px;margin-bottom:16px}
+                  .title{font-size:24px;font-weight:700;margin-bottom:8px;color:#e2e8f0}
+                  .desc{font-size:14px;color:#94a3b8;margin-bottom:16px}
+                  .badge{display:inline-block;background:#22c55e20;color:#22c55e;padding:8px 20px;border-radius:30px;font-weight:600}
+                  .footer{margin-top:40px;padding:20px;text-align:center;color:#475569;border-top:1px solid #334155}
+              </style>
           </head>
           <body>
           <div class="container">
-            <h1>🚛 NANUTECH</h1>
-            <p>Dashboard de Calidad · ${{ SPRINT }} · ${{ DATETIME }}</p>
-            <div class="card" onclick="location.href='coverage/index.html'">
-              <div class="icon">📈</div>
-              <h2>Cobertura de Código</h2>
-              <p>Haz clic para ver el reporte interactivo de Jest</p>
-              <p style="font-size:12px;color:#64748b">Podrás explorar módulos, archivos y líneas</p>
-            </div>
-            <div class="footer">Reporte generado automáticamente</div>
+              <div class="header">
+                  <h1>🚛 NANUTECH</h1>
+                  <p>Dashboard de Calidad de Software · Sprint ${{ SPRINT }} · ${{ DATETIME }}</p>
+                  <p style="font-size:12px;color:#64748b">Run ID: ${{ RUN_ID }}</p>
+              </div>
+              
+              <a href="coverage/index.html" class="card">
+                  <div class="icon">📈</div>
+                  <div class="title">Cobertura de Código</div>
+                  <div class="desc">Reporte interactivo de Jest. Haz clic para explorar módulos, archivos y líneas.</div>
+                  <span class="badge">Ver reporte →</span>
+              </a>
+              
+              <div class="footer">
+                  Reportes generados automáticamente por CI/CD Pipeline
+              </div>
           </div>
           </body>
           </html>
@@ -111,7 +135,17 @@ jobs:
           publish_dir: ./docs
           publish_branch: gh-pages
           keep_files: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Publish coverage report to GitHub Pages'
 
       - name: Print URL
         run: |
-          echo "✅ Publicado en: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          echo ""
+          echo "=========================================="
+          echo "✅ Reporte publicado!"
+          echo "=========================================="
+          echo ""
+          echo "📊 Dashboard: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          echo "📈 Cobertura: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/coverage/"
+          echo ""
