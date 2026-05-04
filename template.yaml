@@ -199,17 +199,23 @@ Resources:
         Variables:
           LOG_LEVEL: "debug"
       Events:
-        Create:
+        CreateJornada:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
             Path: /jornadas
             Method: POST
-        GetCurrent:
+        GetCurrentJornada:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
             Path: /jornadas/actual/{conductorId}
+            Method: GET
+        GetAllJornadas:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas
             Method: GET
         StartTurn:
           Type: Api
@@ -347,30 +353,30 @@ Resources:
         Variables:
           LOG_LEVEL: "debug"
       Events:
+        GetIndicadores:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /contratos/indicadores
+            Method: GET
         GetVigentes:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
             Path: /contratos/vigentes
             Method: GET
-        GetDetalle:
+        GetContratoById:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
             Path: /contratos/{id}
             Method: GET
-        UpdateContrato:
+        GetAllContratos:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
-            Path: /contratos/{id}
-            Method: PUT
-        AssignUnidades:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /contratos/{id}/unidades
-            Method: PUT
+            Path: /contratos
+            Method: GET
       Tags:
         Environment: !Ref StageName
         Servicio: contrato
@@ -535,7 +541,7 @@ Outputs:
   
   AuthFunctionArn:
     Description: "ARN de la función Auth"
-    Value: !GetAtt AuthFunction.Arn
+    Value: !GetAtt AuthFunctionArn
   
   CamionFunctionArn:
     Description: "ARN de la función Camión"
