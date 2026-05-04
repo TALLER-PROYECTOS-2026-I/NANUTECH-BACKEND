@@ -256,7 +256,7 @@ Globals:
       LogFormat: JSON
     Tags:
       Environment: !Ref StageName
-      Proyecto: Nanuetch-Backend
+      Proyecto: Nanutech-Backend
     Tracing: Active
 
 Resources:
@@ -272,7 +272,7 @@ Resources:
       TracingEnabled: true
       Tags:
         Environment: !Ref StageName
-        Proyecto: Nanuetch-Backend
+        Proyecto: Nanutech-Backend
 
   CamionFunction:
     Type: AWS::Serverless::Function
@@ -344,4 +344,4 @@ Outputs:
 | 4   | Seguir el formato de respuesta del backend (`success`, `data`, `message`) |
 | 5   | Incluir pruebas unitarias y de integración con extensión `.test.mjs`      |
 | 6   | Coordinar cambios técnicos con los líderes antes de implementar           |
-| 7   | No modificar `package.json` sin autorización del equipo DevSecOps         |
+| 7   | No modificar `package.json` sin autorización del equipo DevSecOps         |||

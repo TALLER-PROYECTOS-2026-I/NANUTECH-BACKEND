@@ -20,6 +20,46 @@ function getEnvironmentName() {
 }
 
 /**
+ * Configuración SSL mejorada para RDS
+ * Soluciona el error: "no pg_hba.conf entry for host, no encryption"
+ */
+function getSslConfig() {
+  const env = getEnvironmentName();
+  const explicitSsl = process.env.DB_SSL_ENABLED?.toLowerCase();
+  
+  // Para entornos locales o pruebas sin SSL
+  if (isLocal && explicitSsl !== "true") {
+    console.log(`🔓 [${env}] SSL deshabilitado (entorno local)`);
+    return false;
+  }
+
+  // Si explícitamente se pide false
+  if (explicitSsl === "false") {
+    console.log(`🔓 [${env}] SSL deshabilitado por configuración`);
+    return false;
+  }
+
+  // Configuración SSL para RDS (default o explícitamente true)
+  // RDS requiere SSL pero NO necesita verificación estricta del certificado
+  // a menos que estés usando certificados personalizados
+  const sslConfig = {
+    rejectUnauthorized: false, // AWS RDS funciona con rejectUnauthorized: false
+    // Para producción con certificados específicos, usar:
+    // ca: fs.readFileSync('./rds-ca-2019-root.pem').toString()
+  };
+
+  // Si el entorno requiere verificación estricta (solo para seguridad máxima)
+  if (process.env.DB_SSL_REJECT_UNAUTHORIZED?.toLowerCase() === "true") {
+    sslConfig.rejectUnauthorized = true;
+    console.log(`🔒 [${env}] SSL con verificación estricta habilitada`);
+  } else {
+    console.log(`🔒 [${env}] SSL habilitado (modo flexible para RDS)`);
+  }
+
+  return sslConfig;
+}
+
+/**
  * Obtener pool de conexiones
  * Las variables de entorno vienen de GitHub Environments:
  * - Rama testing → Environment: testing (variables de testing en AWS)
@@ -41,7 +81,7 @@ async function getPool() {
     port: parseInt(process.env.DB_PORT || "5432"),
     max: 20, // Máximo de conexiones en el pool
     idleTimeoutMillis: 30000, // Tiempo que una conexión inactiva permanece
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 10000, // Aumentado a 10 segundos para conexiones SSL
   };
 
   // Validar que todas las variables necesarias existan
@@ -60,29 +100,53 @@ async function getPool() {
     throw new Error("Configuración de base de datos incompleta");
   }
 
-  // SSL solo en la nube (testing y production)
-  poolConfig.ssl = {
-    rejectUnauthorized: false,
-  };
+  // Agregar configuración SSL si es necesario
+  const sslConfig = getSslConfig();
+  if (sslConfig) {
+    poolConfig.ssl = sslConfig;
+    console.log(`🔒 [${env}] SSL configurado para conexión a RDS`);
+  } else {
+    console.log(`🔓 [${env}] Conexión sin SSL`);
+  }
 
   console.log(
     `🔌 [${env}] Creando pool de conexiones a: ${poolConfig.host}/${poolConfig.database}`,
   );
-  pool = new Pool(poolConfig);
-
-  // Eventos de diagnóstico
-  pool.on("connect", () =>
-    console.log(`✅ [${env}] Nueva conexión establecida`),
-  );
-  pool.on("error", (err) => console.error(`❌ [${env}] Error en pool:`, err));
-
-  // Probar conexión inicial
+  
   try {
+    pool = new Pool(poolConfig);
+
+    // Eventos de diagnóstico
+    pool.on("connect", () => {
+      console.log(`✅ [${env}] Nueva conexión establecida${sslConfig ? ' (SSL)' : ''}`);
+    });
+    
+    pool.on("error", (err) => {
+      console.error(`❌ [${env}] Error en pool:`, err.message);
+    });
+
+    // Probar conexión inicial
     const client = await pool.connect();
-    console.log(`✅ [${env}] Conectado exitosamente a ${poolConfig.database}`);
+    
+    // Verificar si la conexión es SSL
+    if (client.connection && client.connection.stream) {
+      const isSSL = client.connection.stream.encrypted;
+      console.log(`✅ [${env}] Conectado exitosamente a ${poolConfig.database}${isSSL ? ' 🔒 SSL activo' : ' 🔓 SSL inactivo'}`);
+    } else {
+      console.log(`✅ [${env}] Conectado exitosamente a ${poolConfig.database}`);
+    }
+    
     client.release();
   } catch (error) {
     console.error(`❌ [${env}] Error de conexión inicial:`, error.message);
+    
+    // Si el error es relacionado con SSL, dar una sugerencia
+    if (error.message.includes("SSL") || error.message.includes("encryption")) {
+      console.error(`💡 [${env}] Sugerencia: Verifica la configuración SSL en RDS.`);
+      console.error(`   - Si RDS requiere SSL, asegúrate que DB_SSL_ENABLED=true`);
+      console.error(`   - Si RDS NO requiere SSL, asegúrate que DB_SSL_ENABLED=false`);
+    }
+    
     pool = null;
     throw error;
   }
@@ -115,7 +179,7 @@ export async function query(text, params = []) {
     return result;
   } catch (error) {
     console.error(`❌ [${env}] Error en query:`, error.message);
-    console.error(`   Query:`, text);
+    console.error(`   Query:`, text.substring(0, 200));
     throw error;
   }
 }
@@ -140,4 +204,31 @@ export async function closePool() {
 }
 
 // Exportar todo
-export default { query, getClient, closePool, getPool };
+export default { query, getClient, closePool, getPool, setPoolForTests, resetPoolForTests };
+
+// Funciones auxiliares para tests (mantener igual)
+export async function setPoolForTests(externalPool) {
+  if (pool && pool !== externalPool && typeof pool.end === "function") {
+    try {
+      await pool.end();
+    } catch (error) {
+      console.warn("⚠️ Error cerrando pool anterior de tests:", error.message);
+    }
+  }
+
+  pool = externalPool;
+  console.log(`🧪 [${getEnvironmentName()}] Pool de pruebas inyectado`);
+}
+
+export async function resetPoolForTests() {
+  if (pool && typeof pool.end === "function") {
+    try {
+      await pool.end();
+    } catch (error) {
+      console.warn("⚠️ Error cerrando pool en reset:", error.message);
+    }
+  }
+
+  pool = null;
+  console.log(`🧪 [${getEnvironmentName()}] Pool de pruebas reseteado`);
+}

@@ -1,0 +1,113 @@
+name: Security - Snyk (SAST + SCA + IaC)
+
+on:
+  pull_request:
+    branches: [ develop ]
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  snyk-dependencies:
+    name: Snyk - Dependencias (SCA)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias raíz
+        run: npm ci
+
+      - name: Snyk - Escanear dependencias
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: >
+            --severity-threshold=high
+            --sarif-file-output=snyk-deps.sarif
+            --all-projects
+
+      - name: Subir resultados SCA a GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-deps.sarif
+          category: snyk-dependencies
+
+  snyk-code:
+    name: Snyk - Código fuente (SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Snyk - Escanear código fuente
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: >
+            --severity-threshold=high
+            --sarif-file-output=snyk-code.sarif
+            --include-ignores
+
+      - name: Subir resultados SAST a GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-code.sarif
+          category: snyk-code
+
+  snyk-iac:
+    name: Snyk - Infraestructura SAM (IaC)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Snyk - Escanear IaC (SAM template)
+        uses: snyk/actions/iac@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: >
+            --severity-threshold=high
+            --sarif-file-output=snyk-iac.sarif
+          file: template.yaml
+
+      - name: Subir resultados IaC a GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-iac.sarif
+          category: snyk-iac
