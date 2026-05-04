@@ -1,4 +1,7 @@
-import { getAllVigentesController,createContratoController } from "./contratoController.mjs";
+import {
+  getAllVigentesController,
+  createContratoController,
+} from "./contratoController.mjs";
 
 const routes = {
   "GET /contratos/vigentes": getAllVigentesController,
@@ -12,8 +15,14 @@ export const handler = async (event) => {
     if (!controller) {
       return {
         statusCode: 404,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({ success: false, message: `Ruta ${routeKey} no encontrada` }),
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({
+          success: false,
+          message: `Ruta ${routeKey} no encontrada`,
+        }),
       };
     }
     return await controller(event);
@@ -21,8 +30,15 @@ export const handler = async (event) => {
     console.error("Error en handler:", error);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({ success: false, error: "Error interno del servidor", message: error.message }),
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify({
+        success: false,
+        error: "Error interno del servidor",
+        message: error.message,
+      }),
     };
   }
 };

@@ -36,6 +36,7 @@ const parseJsonBody = (body) => {
   }
 };
 
+
 /**
  * Obtiene todos los contratos vigentes activos.
  *
@@ -94,3 +95,4 @@ export const createContratoController = async (event) => {
     );
   }
 };
+

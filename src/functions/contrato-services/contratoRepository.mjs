@@ -21,7 +21,7 @@ export class ContratoRepository {
     try {
       await client.query("BEGIN");
 
-      const codigo = `CONT-${Date.now()}`;
+      const codigo = this.generateCodigoContrato();
       const totalReferencial = this.calculateTotalReferencial(data);
 
       // 1. Insertar contrato principal
@@ -45,7 +45,7 @@ export class ContratoRepository {
       `,
         [
           codigo,
-          data.cliente,
+          data.cliente.trim(),
           data.ruc,
           data.descripcion || null,
           data.tipo_servicio,
@@ -69,7 +69,12 @@ export class ContratoRepository {
       )
       VALUES ($1,$2,$3,$4)
       `,
-        [contrato.id, data.origen, data.destino, Number(data.distancia_estimada_km).toFixed(2)],
+        [
+          contrato.id,
+          data.origen.trim(),
+          data.destino.trim(),
+          Number(data.distancia_estimada_km).toFixed(2),
+        ],
       );
 
       // 3. Tarifas
@@ -93,8 +98,26 @@ export class ContratoRepository {
         ],
       );
 
-      const fullResult = await client.query(
-        `SELECT 
+      const fullResult = await this.getFullContratoByIdWithClient(
+        client,
+        contrato.id,
+      );
+
+      await client.query("COMMIT");
+
+      return fullResult;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+
+  async getFullContratoByIdWithClient(client, id) {
+    const result = await client.query(
+      `SELECT 
           c.id,
           c.codigo,
           c.cliente,
@@ -110,26 +133,24 @@ export class ContratoRepository {
           cr.origen,
           cr.destino,
           cr.distancia_estimada_km,
+          ct.tarifa_base,
           ct.tarifa_por_km,
           ct.tarifa_por_hora,
+          ct.tarifa_por_tonelada,
           ct.tarifa_espera,
           ct.total_referencial
-        FROM contratos c
-        JOIN contrato_rutas cr ON cr.contrato_id = c.id
-        JOIN contrato_tarifas ct ON ct.contrato_id = c.id
-        WHERE c.id = $1`,
-        [contrato.id]
-      );
+       FROM contratos c
+       JOIN contrato_rutas cr ON cr.contrato_id = c.id
+       JOIN contrato_tarifas ct ON ct.contrato_id = c.id
+       WHERE c.id = $1`,
+      [id],
+    );
 
-      await client.query("COMMIT");
+    return result.rows[0];
+  }
 
-      return fullResult.rows[0];
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+  generateCodigoContrato() {
+    return `CONT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   }
 
   calculateTotalReferencial(data) {
