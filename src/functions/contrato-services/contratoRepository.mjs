@@ -24,11 +24,16 @@ export class ContratoRepository {
 
   // HU07 - Obtener tarifas del contrato
   async getTarifasByContrato(id) {
-    const result = await db.query(
-      `SELECT * FROM contrato_tarifas WHERE contrato_id = $1`,
-      [id],
-    );
-    return result.rows[0];
+    try {
+      const result = await db.query(
+        `SELECT * FROM contrato_tarifas WHERE contrato_id = $1`,
+        [id],
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.warn("⚠️ Tabla contrato_tarifas no existe aún");
+      return null; // 👈 IMPORTANTE
+    }
   }
 
   // HU07 - Actualizar contrato (fechas, tipo servicio)

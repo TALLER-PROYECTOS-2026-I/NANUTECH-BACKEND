@@ -7,6 +7,7 @@ export class ContratoService {
     const rows = await contratoRepository.getAllVigentes();
     return Contrato.fromDatabaseList(rows);
   }
+
   // HU07 - Criterio 1
   async getDetalleContrato(id) {
     const repo = new ContratoRepository();
@@ -17,31 +18,83 @@ export class ContratoService {
     return { contrato, tarifas };
   }
 
-  // HU07 - Criterios 2, 4 + T31 + T32
+  // HU07 - Criterios 2, 4 + historial + validaciones
   async updateContrato(id, data, ip) {
     const repo = new ContratoRepository();
 
     const actual = await repo.getById(id);
 
-    // Regla de negocio
-    if (data.fecha_fin && data.fecha_fin < data.fecha_inicio) {
+    // =========================
+    // ✅ VALIDACIONES
+    // =========================
+
+    // Fecha fin >= fecha inicio
+    if (
+      data.fecha_fin &&
+      data.fecha_inicio &&
+      data.fecha_fin < data.fecha_inicio
+    ) {
       throw new Error("Fecha fin no puede ser menor a inicio");
     }
 
-    // Auditoría
-    if (data.fecha_fin !== actual.fecha_fin) {
+    // Tarifa > 0
+    if (data.tarifa !== undefined && Number(data.tarifa) <= 0) {
+      throw new Error("La tarifa no puede ser 0");
+    }
+    // 🔥 NUEVO: Descripción obligatoria
+    if (data.descripcion !== undefined && data.descripcion.trim() === "") {
+      throw new Error("La descripción no puede estar vacía");
+    }
+
+    // =========================
+    // 🧾 AUDITORÍA (HISTORIAL)
+    // =========================
+
+    // Fecha fin
+    if (data.fecha_fin !== undefined && data.fecha_fin !== actual.fecha_fin) {
       await repo.insertHistorial({
         contrato_id: id,
         campo: "fecha_fin",
-        anterior: actual.fecha_fin,
-        nuevo: data.fecha_fin,
-        ip,
+        valor_anterior: actual.fecha_fin,
+        valor_nuevo: data.fecha_fin,
+        ip_address: ip,
       });
     }
 
-    // Update
+    // 🔥 Tarifa (IMPORTANTE PARA TC00120)
+    if (
+      data.tarifa !== undefined &&
+      Number(data.tarifa) !== Number(actual.tarifa)
+    ) {
+      await repo.insertHistorial({
+        contrato_id: id,
+        campo: "tarifa",
+        valor_anterior: actual.tarifa,
+        valor_nuevo: data.tarifa,
+        ip_address: ip,
+      });
+    }
+
+    // (Recomendado) Descripción
+    if (
+      data.descripcion !== undefined &&
+      data.descripcion !== actual.descripcion
+    ) {
+      await repo.insertHistorial({
+        contrato_id: id,
+        campo: "descripcion",
+        valor_anterior: actual.descripcion,
+        valor_nuevo: data.descripcion,
+        ip_address: ip,
+      });
+    }
+
+    // =========================
+    // 📝 UPDATE
+    // =========================
     await repo.updateContrato(id, data);
 
+    // Tarifas (tabla secundaria)
     if (data.tarifas) {
       await repo.updateTarifas(id, data.tarifas);
     }
