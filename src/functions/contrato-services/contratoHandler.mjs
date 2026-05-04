@@ -1,7 +1,15 @@
-import { getAllVigentesController } from "./contratoController.mjs";
+import {
+  getAllVigentesController,
+  getIndicadoresController,
+  getAllContratosController,
+  getContratoByIdController,
+} from "./contratoController.mjs";
 
 const routes = {
+  "GET /contratos/indicadores": getIndicadoresController,
   "GET /contratos/vigentes": getAllVigentesController,
+  "GET /contratos/{id}": getContratoByIdController,
+  "GET /contratos": getAllContratosController,
 };
 
 export const handler = async (event) => {
