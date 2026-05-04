@@ -541,7 +541,7 @@ Outputs:
   
   AuthFunctionArn:
     Description: "ARN de la función Auth"
-    Value: !GetAtt AuthFunctionArn
+    Value: !GetAtt AuthFunction.Arn
   
   CamionFunctionArn:
     Description: "ARN de la función Camión"
