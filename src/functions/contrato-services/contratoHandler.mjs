@@ -1,7 +1,8 @@
-import { getAllVigentesController } from "./contratoController.mjs";
+import { getAllVigentesController,createContratoController } from "./contratoController.mjs";
 
 const routes = {
   "GET /contratos/vigentes": getAllVigentesController,
+  "POST /contratos": createContratoController,
 };
 
 export const handler = async (event) => {
