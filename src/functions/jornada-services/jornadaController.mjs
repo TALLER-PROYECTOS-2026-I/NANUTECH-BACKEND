@@ -80,13 +80,58 @@ export const finishTurnController = async (event) => {
     return resolveErrorResponse(error);
   }
 };
-export const getAllJornadasController = async (_event) => {
+
+export const getAllJornadasController = async (event) => {
   try {
     const jornadaService = new JornadaService();
-    const data = await jornadaService.getAllJornadas();
+    const { q, conductor_id, fecha_desde, fecha_hasta } =
+      event.queryStringParameters || {};
+
+    // Validación de rango de fechas
+    if (fecha_desde && fecha_hasta && fecha_desde > fecha_hasta) {
+      return errorResponse(
+        "La fecha de inicio no puede ser posterior a la fecha de fin.",
+        400,
+        { code: "INVALID_DATE_RANGE" }
+      );
+    }
+
+    const data = await jornadaService.getAllJornadas({
+      q,
+      conductor_id,
+      fecha_desde,
+      fecha_hasta,
+    });
     return successResponse(data, "Jornadas obtenidas exitosamente.");
   } catch (error) {
     console.error("Error en getAllJornadasController:", error);
+    return resolveErrorResponse(error);
+  }
+};
+
+export const exportCsvController = async (event) => {
+  try {
+    const jornadaService = new JornadaService();
+    const { q, conductor_id, fecha_desde, fecha_hasta } =
+      event.queryStringParameters || {};
+    const csv = await jornadaService.generateCsv({
+      q,
+      conductor_id,
+      fecha_desde,
+      fecha_hasta,
+    });
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename="jornadas.csv"',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: csv,
+    };
+  } catch (error) {
+    console.error("Error en exportCsvController:", error);
     return resolveErrorResponse(error);
   }
 };

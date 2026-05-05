@@ -5,15 +5,19 @@ jest.unstable_mockModule(
   () => ({
     JornadaService: jest.fn().mockImplementation(() => ({
       createJornada: jest.fn(),
+      getAllJornadas: jest.fn(),
       getCurrentJornada: jest.fn(),
       startTurn: jest.fn(),
       finishTurn: jest.fn(),
+      generateCsv: jest.fn(),
     })),
   }),
 );
 
 const {
   createJornadaController,
+  getAllJornadasController,
+  exportCsvController,
   getCurrentJornadaController,
   startTurnController,
   finishTurnController,
@@ -104,5 +108,99 @@ describe("JornadaController", () => {
     });
 
     expect(result.statusCode).toBe(400);
+  });
+
+  test("obtiene todas las jornadas sin filtros", async () => {
+    JornadaService.mockImplementation(() => ({
+      getAllJornadas: jest.fn().mockResolvedValue([
+        { id: "jor-1", estado: "COMPLETADA", duracion_total: "08:00", tiene_observaciones: false },
+      ]),
+    }));
+
+    const result = await getAllJornadasController({ queryStringParameters: null });
+
+    expect(result.statusCode).toBe(200);
+    const body = JSON.parse(result.body);
+    expect(body.success).toBe(true);
+    expect(body.data).toHaveLength(1);
+  });
+
+  test("obtiene jornadas filtradas por texto de búsqueda", async () => {
+    const mockGetAll = jest.fn().mockResolvedValue([]);
+    JornadaService.mockImplementation(() => ({ getAllJornadas: mockGetAll }));
+
+    await getAllJornadasController({
+      queryStringParameters: { q: "ABC" },
+    });
+
+    expect(mockGetAll).toHaveBeenCalledWith(
+      expect.objectContaining({ q: "ABC" }),
+    );
+  });
+
+  test("obtiene jornadas filtradas por conductor y rango de fechas", async () => {
+    const mockGetAll = jest.fn().mockResolvedValue([]);
+    JornadaService.mockImplementation(() => ({ getAllJornadas: mockGetAll }));
+
+    await getAllJornadasController({
+      queryStringParameters: {
+        conductor_id: "cond-1",
+        fecha_desde: "2026-01-01",
+        fecha_hasta: "2026-04-30",
+      },
+    });
+
+    expect(mockGetAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conductor_id: "cond-1",
+        fecha_desde: "2026-01-01",
+        fecha_hasta: "2026-04-30",
+      }),
+    );
+  });
+
+  test("exporta jornadas como CSV sin filtros", async () => {
+    JornadaService.mockImplementation(() => ({
+      generateCsv: jest.fn().mockResolvedValue(
+        "ID Jornada,Fecha,Conductor,Placa del Camion,Contrato,Hora Inicio,Hora Fin,Duracion Total,KM Recorridos,Estado,Observaciones\njor-1,2026-04-08,Juan Perez,ABC-123,CON-001,,,,150,COMPLETADA,",
+      ),
+    }));
+
+    const result = await exportCsvController({ queryStringParameters: null });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.headers["Content-Type"]).toBe("text/csv");
+    expect(result.headers["Content-Disposition"]).toContain("jornadas.csv");
+    expect(result.body).toContain("ID Jornada");
+  });
+
+  test("exporta jornadas con filtros aplicados", async () => {
+    const mockGenerateCsv = jest.fn().mockResolvedValue("ID Jornada,...\n");
+    JornadaService.mockImplementation(() => ({ generateCsv: mockGenerateCsv }));
+
+    await exportCsvController({
+      queryStringParameters: { fecha_desde: "2026-04-01", fecha_hasta: "2026-04-30" },
+    });
+
+    expect(mockGenerateCsv).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fecha_desde: "2026-04-01",
+        fecha_hasta: "2026-04-30",
+      }),
+    );
+  });
+
+  test("devuelve error controlado cuando falla la exportación CSV", async () => {
+    JornadaService.mockImplementation(() => ({
+      generateCsv: jest.fn().mockRejectedValue({
+        message: "Error de base de datos.",
+        statusCode: 500,
+        code: "DB_ERROR",
+      }),
+    }));
+
+    const result = await exportCsvController({ queryStringParameters: null });
+
+    expect(result.statusCode).toBe(500);
   });
 });
