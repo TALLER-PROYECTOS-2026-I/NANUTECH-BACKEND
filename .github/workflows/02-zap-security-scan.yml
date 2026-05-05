@@ -1,0 +1,124 @@
+name: 2. Escanear con OWASP ZAP
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Entorno a escanear'
+        required: true
+        default: 'testing'
+        options:
+          - testing
+          - dev
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  scan:
+    name: Escanear API
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Descargar endpoints descubiertos
+        uses: actions/download-artifact@v4
+        with:
+          name: endpoints-discovered
+          path: ./
+
+      - name: Verificar archivo
+        run: |
+          if [ ! -f endpoints-discovered.json ]; then
+            echo "❌ No se encontró endpoints-discovered.json"
+            echo "Ejecuta primero '1. Descubrir Endpoints'"
+            exit 1
+          fi
+          echo "✅ Usando endpoints-discovered.json"
+          cat endpoints-discovered.json | head -30
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Obtener URL de la API
+        id: get-api
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name nanutech-backend-${{ github.event.inputs.environment }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
+            --output text)
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "✅ API URL: $API_URL"
+
+      - name: Crear contexto ZAP
+        run: |
+          cat > nanutech.context << 'CONTEXT'
+          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+          <configuration>
+              <context>
+                  <name>Nanutech-Backend</name>
+                  <inscope>
+                      <url>.*execute-api.*/.*</url>
+                  </inscope>
+                  <authentication>
+                      <type>2</type>
+                      <loginurl>API_URL_PLACEHOLDER/auth/login</loginurl>
+                      <loginrequestbody>{"email":"{username}","password":"{password}"}</loginrequestbody>
+                      <loggedinindicator>accessToken</loggedinindicator>
+                  </authentication>
+                  <users>
+                      <user>
+                          <name>Admin</name>
+                          <credentials>
+                              <username>admin@nanutech.com</username>
+                              <password>Admin123!</password>
+                          </credentials>
+                      </user>
+                      <user>
+                          <name>Chofer</name>
+                          <credentials>
+                              <username>chofer1@nanutech.com</username>
+                              <password>Chofer123!</password>
+                          </credentials>
+                      </user>
+                  </users>
+                  <parameters>
+                      <parameter><name>conductorId</name><value>22222222-2222-2222-2222-222222222222</value></parameter>
+                      <parameter><name>unidadId</name><value>aaaa0001-0000-0000-0000-000000000001</value></parameter>
+                      <parameter><name>contratoId</name><value>bbbb0001-0000-0000-0000-000000000001</value></parameter>
+                  </parameters>
+                  <forcenotauthed>
+                      <url>.*/auth/login</url>
+                      <url>.*/auth/forgot-password</url>
+                  </forcenotauthed>
+              </context>
+          </configuration>
+          CONTEXT
+          
+          sed -i "s|API_URL_PLACEHOLDER|${{ steps.get-api.outputs.api_url }}|g" nanutech.context
+
+      - name: Ejecutar ZAP Scan
+        uses: zaproxy/action-api-scan@v0.9.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: ${{ steps.get-api.outputs.api_url }}
+          api_spec: endpoints-discovered.json
+          context: nanutech.context
+          user: admin@nanutech.com
+          cmd_options: -a -r report.html
+
+      - name: Subir reporte
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: report.html
+          retention-days: 30
