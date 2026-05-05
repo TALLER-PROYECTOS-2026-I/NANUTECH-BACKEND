@@ -7,9 +7,20 @@ on:
         description: 'Entorno a escanear'
         required: true
         default: 'testing'
+        type: choice
         options:
           - testing
           - dev
+      run_id:
+        description: 'ID de la ejecución que generó el artifact (ej: 25405493641)'
+        required: true
+        default: ''
+        type: string
+      artifact_name:
+        description: 'Nombre del artifact a descargar'
+        required: false
+        default: 'endpoints-discovered'
+        type: string
 
 permissions:
   id-token: write
@@ -28,18 +39,27 @@ jobs:
       - name: Descargar endpoints descubiertos
         uses: actions/download-artifact@v4
         with:
-          name: endpoints-discovered
+          name: ${{ github.event.inputs.artifact_name }}
           path: ./
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verificar archivo
         run: |
           if [ ! -f endpoints-discovered.json ]; then
             echo "❌ No se encontró endpoints-discovered.json"
-            echo "Ejecuta primero '1. Descubrir Endpoints'"
+            echo ""
+            echo "📌 CÓMO OBTENER EL RUN_ID:"
+            echo "   1. Ve a Actions → '1. Descubrir Endpoints'"
+            echo "   2. Haz clic en la ejecución que generó el artifact"
+            echo "   3. Copia el número del RUN_ID (está en la URL)"
+            echo "   4. Ejecuta este workflow y pega ese número"
             exit 1
           fi
+          
           echo "✅ Usando endpoints-discovered.json"
-          cat endpoints-discovered.json | head -30
+          COUNT=$(jq '.paths | length' endpoints-discovered.json)
+          echo "📊 Se escanearán $COUNT endpoints"
 
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
@@ -119,6 +139,6 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: zap-report
+          name: zap-report-${{ github.event.inputs.environment }}
           path: report.html
           retention-days: 30
