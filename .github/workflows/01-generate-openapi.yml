@@ -1,0 +1,86 @@
+name: Generate OpenAPI Spec
+
+on:
+  workflow_dispatch:                   # ✅ SOLO MANUAL - TÚ LO EJECUTAS
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  generate:
+    name: Generar OpenAPI desde el código
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Extraer endpoints del código
+        id: extract-endpoints
+        run: |
+          # Script para extraer endpoints de tus controladores
+          cat > extract-endpoints.js << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Buscar todos los archivos handler.mjs
+          const handlers = [];
+          function findHandlers(dir) {
+            const files = fs.readdirSync(dir);
+            for (const file of files) {
+              const fullPath = path.join(dir, file);
+              if (fs.statSync(fullPath).isDirectory()) {
+                findHandlers(fullPath);
+              } else if (file === 'handler.mjs' || file === 'camionHandler.mjs') {
+                handlers.push(fullPath);
+              }
+            }
+          }
+          
+          findHandlers('./src/functions');
+          
+          // Extraer rutas de cada handler
+          const paths = {};
+          for (const handler of handlers) {
+            const content = fs.readFileSync(handler, 'utf8');
+            const routeMatches = content.matchAll(/(GET|POST|PUT|DELETE)\s+\/([^\s'"]+)/g);
+            for (const match of routeMatches) {
+              const method = match[1].toLowerCase();
+              const route = '/' + match[2];
+              if (!paths[route]) paths[route] = {};
+              paths[route][method] = { summary: `${method} ${route}` };
+            }
+          }
+          
+          // Generar OpenAPI
+          const openapi = {
+            openapi: '3.0.0',
+            info: { title: 'Nanutech API', version: '1.0.0' },
+            paths: paths
+          };
+          
+          fs.writeFileSync('openapi-generated.yaml', JSON.stringify(openapi, null, 2));
+          console.log(`✅ Generados ${Object.keys(paths).length} endpoints`);
+          EOF
+          
+          node extract-endpoints.js
+
+      - name: Subir OpenAPI generado
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi-generated.yaml
+          retention-days: 30
+
+      - name: Guardar en el repositorio
+        run: |
+          cp openapi-generated.yaml openapi-latest.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add openapi-latest.yaml
+          git diff --staged --quiet || git commit -m "chore: actualizar OpenAPI spec [skip ci]"
+          git push || echo "No se pudo hacer push"
