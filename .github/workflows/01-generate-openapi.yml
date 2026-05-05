@@ -1,7 +1,7 @@
 name: Generate OpenAPI Spec
 
 on:
-  workflow_dispatch:                   # ✅ SOLO MANUAL - TÚ LO EJECUTAS
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -19,60 +19,130 @@ jobs:
       - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Extraer endpoints del código
+      - name: Extraer endpoints del código (ES Module version)
         id: extract-endpoints
         run: |
-          # Script para extraer endpoints de tus controladores
-          cat > extract-endpoints.js << 'EOF'
-          const fs = require('fs');
-          const path = require('path');
+          # Script para extraer endpoints usando ES modules
+          cat > extract-endpoints.mjs << 'EOF'
+          import fs from 'fs';
+          import path from 'path';
+          import { fileURLToPath } from 'url';
+          
+          const __filename = fileURLToPath(import.meta.url);
+          const __dirname = path.dirname(__filename);
           
           // Buscar todos los archivos handler.mjs
           const handlers = [];
+          
           function findHandlers(dir) {
+            if (!fs.existsSync(dir)) return;
             const files = fs.readdirSync(dir);
             for (const file of files) {
               const fullPath = path.join(dir, file);
-              if (fs.statSync(fullPath).isDirectory()) {
+              const stat = fs.statSync(fullPath);
+              if (stat.isDirectory()) {
                 findHandlers(fullPath);
-              } else if (file === 'handler.mjs' || file === 'camionHandler.mjs') {
+              } else if (file.includes('Handler.mjs') || file === 'handler.mjs' || file === 'camionHandler.mjs') {
                 handlers.push(fullPath);
               }
             }
           }
           
           findHandlers('./src/functions');
+          console.log(`📁 Encontrados ${handlers.length} archivos handler`);
           
           // Extraer rutas de cada handler
           const paths = {};
+          
           for (const handler of handlers) {
             const content = fs.readFileSync(handler, 'utf8');
-            const routeMatches = content.matchAll(/(GET|POST|PUT|DELETE)\s+\/([^\s'"]+)/g);
+            
+            // Buscar patrones de rutas en el código
+            // Patrón 1: "GET /camiones"
+            const routeMatches = content.matchAll(/(?:GET|POST|PUT|DELETE)\s+['"]([^'"]+)['"]/g);
             for (const match of routeMatches) {
-              const method = match[1].toLowerCase();
-              const route = '/' + match[2];
+              const fullRoute = match[1];
+              const parts = fullRoute.split(' ');
+              let method, route;
+              
+              if (parts.length === 2) {
+                method = parts[0].toLowerCase();
+                route = parts[1];
+              } else {
+                method = 'get';
+                route = fullRoute;
+              }
+              
+              if (!route.startsWith('/')) route = '/' + route;
               if (!paths[route]) paths[route] = {};
-              paths[route][method] = { summary: `${method} ${route}` };
+              paths[route][method] = { summary: `${method.toUpperCase()} ${route}` };
+            }
+            
+            // Patrón 2: En el objeto routes
+            const routeObjMatches = content.matchAll(/(GET|POST|PUT|DELETE)\s+(\/[^\s'"]+)/g);
+            for (const match of routeObjMatches) {
+              const method = match[1].toLowerCase();
+              let route = match[2];
+              if (!route.startsWith('/')) route = '/' + route;
+              if (!paths[route]) paths[route] = {};
+              paths[route][method] = { summary: `${method.toUpperCase()} ${route}` };
             }
           }
+          
+          console.log(`✅ Encontrados ${Object.keys(paths).length} endpoints únicos`);
           
           // Generar OpenAPI
           const openapi = {
             openapi: '3.0.0',
-            info: { title: 'Nanutech API', version: '1.0.0' },
+            info: {
+              title: 'Nanutech Backend API',
+              version: '1.0.0',
+              description: 'API generada automáticamente desde el código'
+            },
+            servers: [
+              { url: 'https://tu-api.execute-api.us-east-1.amazonaws.com/testing' }
+            ],
+            components: {
+              securitySchemes: {
+                BearerAuth: {
+                  type: 'http',
+                  scheme: 'bearer',
+                  bearerFormat: 'JWT'
+                }
+              }
+            },
             paths: paths
           };
           
           fs.writeFileSync('openapi-generated.yaml', JSON.stringify(openapi, null, 2));
-          console.log(`✅ Generados ${Object.keys(paths).length} endpoints`);
+          console.log(`✅ OpenAPI generado con ${Object.keys(paths).length} endpoints`);
+          
+          // Mostrar endpoints encontrados
+          console.log('\n📋 ENDPOINTS ENCONTRADOS:');
+          Object.keys(paths).sort().forEach(route => {
+            const methods = Object.keys(paths[route]);
+            console.log(`   ${methods.join(', ').toUpperCase().padEnd(10)} ${route}`);
+          });
           EOF
           
-          node extract-endpoints.js
+          node extract-endpoints.mjs
 
-      - name: Subir OpenAPI generado
+      - name: Verificar OpenAPI generado
+        run: |
+          if [ ! -f openapi-generated.yaml ]; then
+            echo "❌ Error: No se generó openapi-generated.yaml"
+            exit 1
+          fi
+          
+          echo "✅ OpenAPI generado exitosamente"
+          echo ""
+          echo "📄 Contenido del OpenAPI:"
+          head -50 openapi-generated.yaml
+
+      - name: Subir OpenAPI como artifact
         uses: actions/upload-artifact@v4
         with:
-          name: openapi-spec
+          name: openapi-spec-${{ github.run_id }}
           path: openapi-generated.yaml
           retention-days: 30
 
@@ -84,3 +154,5 @@ jobs:
           git add openapi-latest.yaml
           git diff --staged --quiet || git commit -m "chore: actualizar OpenAPI spec [skip ci]"
           git push || echo "No se pudo hacer push"
+          
+          echo "✅ openapi-latest.yaml guardado en el repositorio"
