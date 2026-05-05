@@ -1,0 +1,106 @@
+name: 1. Descubrir Endpoints
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Entorno de la API'
+        required: true
+        default: 'testing'
+        options:
+          - testing
+          - dev
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  discover:
+    name: Descubrir endpoints del código
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Extraer endpoints automáticamente
+        run: |
+          cat > discover-endpoints.mjs << 'EOF'
+          import fs from 'fs';
+          import path from 'path';
+          
+          // Buscar TODOS los handlers
+          const handlers = [];
+          
+          function findHandlers(dir) {
+            if (!fs.existsSync(dir)) return;
+            const files = fs.readdirSync(dir);
+            for (const file of files) {
+              const fullPath = path.join(dir, file);
+              const stat = fs.statSync(fullPath);
+              if (stat.isDirectory()) {
+                findHandlers(fullPath);
+              } else if (file.includes('Handler.mjs') || file === 'handler.mjs') {
+                handlers.push(fullPath);
+              }
+            }
+          }
+          
+          findHandlers('./src/functions');
+          console.log(`📁 Encontrados ${handlers.length} handlers`);
+          
+          // Extraer rutas de cada handler
+          const paths = {};
+          
+          for (const handler of handlers) {
+            const content = fs.readFileSync(handler, 'utf8');
+            
+            // Patrón 1: Objeto routes
+            const routeMatches = content.matchAll(/(GET|POST|PUT|DELETE)\s+['"]([^'"]+)['"]/g);
+            for (const match of routeMatches) {
+              const method = match[1].toLowerCase();
+              let route = match[2];
+              if (!route.startsWith('/')) route = '/' + route;
+              if (!paths[route]) paths[route] = {};
+              paths[route][method] = { 
+                summary: `${method.toUpperCase()} ${route}`,
+                description: `Endpoint de ${path.basename(handler)}`
+              };
+            }
+          }
+          
+          console.log(`✅ Descubiertos ${Object.keys(paths).length} endpoints`);
+          
+          // Mostrar resultados
+          console.log('\n📋 ENDPOINTS DESCUBIERTOS:');
+          Object.keys(paths).sort().forEach(route => {
+            const methods = Object.keys(paths[route]);
+            console.log(`   ${methods.join(', ').toUpperCase().padEnd(8)} ${route}`);
+          });
+          
+          // Guardar como JSON
+          const openapi = {
+            openapi: '3.0.0',
+            info: {
+              title: 'Nanutech API',
+              version: '1.0.0',
+              description: 'Endpoints descubiertos automáticamente'
+            },
+            paths: paths
+          };
+          
+          fs.writeFileSync('endpoints-discovered.json', JSON.stringify(openapi, null, 2));
+          EOF
+          
+          node discover-endpoints.mjs
+
+      - name: Subir endpoints descubiertos
+        uses: actions/upload-artifact@v4
+        with:
+          name: endpoints-discovered
+          path: endpoints-discovered.json
+          retention-days: 7
