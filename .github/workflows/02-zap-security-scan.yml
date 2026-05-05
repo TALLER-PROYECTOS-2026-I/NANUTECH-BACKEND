@@ -16,17 +16,11 @@ on:
         required: true
         default: ''
         type: string
-      artifact_name:
-        description: 'Nombre del artifact a descargar'
-        required: false
-        default: 'endpoints-discovered'
-        type: string
 
 permissions:
   id-token: write
   contents: read
-  security-events: write
-  # issues: write  ← NO incluir esta línea
+  # ⚠️ NOTA: NO incluir "issues: write"
 
 env:
   AWS_REGION: us-east-1
@@ -40,18 +34,10 @@ jobs:
       - name: Descargar endpoints descubiertos
         uses: actions/download-artifact@v4
         with:
-          name: ${{ github.event.inputs.artifact_name }}
+          name: endpoints-discovered
           path: ./
           run-id: ${{ github.event.inputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verificar archivo
-        run: |
-          if [ ! -f endpoints-discovered.json ]; then
-            echo "❌ No se encontró endpoints-discovered.json"
-            exit 1
-          fi
-          echo "✅ Usando endpoints-discovered.json"
 
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
@@ -109,16 +95,12 @@ jobs:
           
           sed -i "s|API_URL_PLACEHOLDER|${{ steps.get-api.outputs.api_url }}|g" nanutech.context
 
-      - name: Ejecutar ZAP Scan
-        uses: zaproxy/action-api-scan@v0.9.0
+      - name: Ejecutar ZAP Baseline Scan (NO crea Issues)
+        uses: zaproxy/action-baseline@v0.13.0
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           target: ${{ steps.get-api.outputs.api_url }}
-          api_spec: endpoints-discovered.json
-          context: nanutech.context
-          user: admin@nanutech.com
-          fail_action: false  # ← NO crear issue automáticamente
           cmd_options: -a -r report.html
+          # ⚠️ NOTA: action-baseline NO tiene parámetro 'token' ni crea Issues
 
       - name: Subir reporte
         uses: actions/upload-artifact@v4
