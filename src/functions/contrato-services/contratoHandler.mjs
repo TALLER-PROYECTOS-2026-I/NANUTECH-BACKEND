@@ -1,25 +1,20 @@
 import {
   getAllVigentesController,
-  getDetalleController,
+  getIndicadoresController,
+  getAllContratosController,
+  getContratoByIdController,
   updateContratoController,
   assignUnidadesController,
 } from "./contratoController.mjs";
 
 const routes = {
-  // EXISTENTE
+  "GET /contratos/indicadores": getIndicadoresController,
   "GET /contratos/vigentes": getAllVigentesController,
+  "GET /contratos": getAllContratosController,
+  "GET /contratos/{id}": getContratoByIdController,
 
-  // =========================
-  // HU07 - Detalle y Configuración de Contrato
-  // =========================
-
-  // Obtener detalle de contrato
-  "GET /contratos/{id}": getDetalleController,
-
-  // Editar contrato (fechas, tarifa, etc.)
+  // 🔥 HU07
   "PUT /contratos/{id}": updateContratoController,
-
-  // Asignar unidades (camiones)
   "PUT /contratos/{id}/unidades": assignUnidadesController,
 };
 

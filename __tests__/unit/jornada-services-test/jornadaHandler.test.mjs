@@ -4,7 +4,8 @@ jest.unstable_mockModule(
   "../../../src/functions/jornada-services/jornadaController.mjs",
   () => ({
     createJornadaController: jest.fn(),
-    getAllJornadasController: jest.fn(), 
+    getAllJornadasController: jest.fn(),
+    exportCsvController: jest.fn(),
     getCurrentJornadaController: jest.fn(),
     startTurnController: jest.fn(),
     finishTurnController: jest.fn(),
@@ -50,6 +51,37 @@ describe("JornadaHandler", () => {
     });
 
     expect(jornadaController.getCurrentJornadaController).toHaveBeenCalled();
+    expect(result.statusCode).toBe(200);
+  });
+
+  test("delegates GET /jornadas to getAllJornadasController", async () => {
+    jornadaController.getAllJornadasController.mockResolvedValue({
+      statusCode: 200,
+      body: JSON.stringify({ success: true }),
+    });
+
+    const result = await handler({
+      httpMethod: "GET",
+      resource: "/jornadas",
+    });
+
+    expect(jornadaController.getAllJornadasController).toHaveBeenCalled();
+    expect(result.statusCode).toBe(200);
+  });
+
+  test("delegates GET /jornadas/exportar to exportCsvController", async () => {
+    jornadaController.exportCsvController.mockResolvedValue({
+      statusCode: 200,
+      headers: { "Content-Type": "text/csv" },
+      body: "ID Jornada,...",
+    });
+
+    const result = await handler({
+      httpMethod: "GET",
+      resource: "/jornadas/exportar",
+    });
+
+    expect(jornadaController.exportCsvController).toHaveBeenCalled();
     expect(result.statusCode).toBe(200);
   });
 

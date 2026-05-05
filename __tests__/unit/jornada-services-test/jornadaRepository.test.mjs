@@ -110,4 +110,90 @@ describe("JornadaRepository", () => {
     expect(query).toContain("duracion_total_segundos");
     expect(values).toEqual(["jor-1", "ok"]);
   });
+
+  test("findAll sin filtros retorna todas las jornadas con duracion_total y tiene_observaciones", async () => {
+    mockQuery.mockResolvedValue({
+      rows: [{ id: "jor-1", duracion_total: "08:00", tiene_observaciones: false }],
+    });
+
+    const result = await repository.findAll();
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("duracion_total");
+    expect(query).toContain("tiene_observaciones");
+    expect(query).toContain("ORDER BY j.created_at DESC");
+    expect(params).toEqual([]);
+    expect(result[0].id).toBe("jor-1");
+    expect(mockRelease).toHaveBeenCalled();
+  });
+
+  test("findAll filtra por texto de búsqueda general con ILIKE", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.findAll({ q: "ABC" });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("ILIKE");
+    expect(query).toContain("un.placa");
+    expect(params).toEqual(["%ABC%"]);
+  });
+
+  test("findAll filtra por conductor_id", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.findAll({ conductor_id: "cond-1" });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("j.conductor_id = $");
+    expect(params).toContain("cond-1");
+  });
+
+  test("findAll filtra por rango de fechas", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.findAll({ fecha_desde: "2026-01-01", fecha_hasta: "2026-04-30" });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("j.fecha_jornada >=");
+    expect(query).toContain("j.fecha_jornada <=");
+    expect(params).toContain("2026-01-01");
+    expect(params).toContain("2026-04-30");
+  });
+
+  test("findAll combina múltiples filtros con AND", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.findAll({ conductor_id: "cond-1", fecha_desde: "2026-04-01" });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("WHERE");
+    expect(params).toHaveLength(2);
+  });
+
+  test("exportAll retorna columnas para CSV con placa separada", async () => {
+    mockQuery.mockResolvedValue({
+      rows: [{ id: "jor-1", placa: "ABC-123", duracion_total: "08:00" }],
+    });
+
+    const result = await repository.exportAll({});
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("un.placa");
+    expect(query).toContain("duracion_total");
+    expect(query).toContain("TO_CHAR(j.hora_inicio");
+    expect(query).toContain("TO_CHAR(j.hora_fin");
+    expect(params).toEqual([]);
+    expect(result[0].placa).toBe("ABC-123");
+    expect(mockRelease).toHaveBeenCalled();
+  });
+
+  test("exportAll aplica los mismos filtros que findAll", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.exportAll({ q: "XYZ", conductor_id: "cond-2" });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("ILIKE");
+    expect(params).toEqual(["%XYZ%", "cond-2"]);
+  });
 });

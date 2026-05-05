@@ -82,9 +82,9 @@ CREATE TABLE camiones (
 const pgMemSeedSQL = `
 INSERT INTO usuarios (id, cognito_sub, correo, nombres, apellidos, rol, telefono, dni)
 VALUES
-('11111111-1111-1111-1111-111111111111', 'cognito-admin-001', 'admin@nanutech.com', 'Jimena', 'Rodriguez', 'ADMIN', '999111222', '70000001'),
-('22222222-2222-2222-2222-222222222222', 'cognito-driver-001', 'chofer1@nanutech.com', 'Carlos', 'Mendoza', 'CHOFER', '999222333', '70000002'),
-('33333333-3333-3333-3333-333333333333', 'cognito-driver-002', 'chofer2@nanutech.com', 'Luis', 'Ramirez', 'CHOFER', '999333444', '70000003');
+('11111111-1111-1111-1111-111111111111', '7438d4b8-0021-7065-dda7-7bbdfa75c929', 'admin@nanutech.com', 'Jimena', 'Rodriguez', 'ADMIN', '999111222', '70000001'),
+('22222222-2222-2222-2222-222222222222', 'c4f84478-a051-707b-d0ee-ad4d95480a7c', 'chofer1@nanutech.com', 'Carlos', 'Mendoza', 'CHOFER', '999222333', '70000002'),
+('33333333-3333-3333-3333-333333333333', 'cognito-sub-chofer-002', 'chofer2@nanutech.com', 'Luis', 'Ramirez', 'CHOFER', '999333444', '70000003');
 
 INSERT INTO unidades (id, placa, marca, modelo, anio, capacidad_ton, estado)
 VALUES

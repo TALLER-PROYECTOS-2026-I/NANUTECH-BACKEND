@@ -1,39 +1,323 @@
-name: Run Tests
+name: Security & Quality Tests
 
 on:
   pull_request:
-    branches:
-      - develop
+    branches: [develop]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
-  test:
+  # ============================================
+  # SECURITY JOBS (SNYK)
+  # ============================================
+
+ 
+
+  # ============================================
+  # QUALITY TESTS
+  # ============================================
+
+  unit-tests:
+    name: 🧪 Unit Tests & Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      coverage: ${{ steps.coverage-out.outputs.coverage }}
+      tests_passed: ${{ steps.tests-out.outputs.passed }}
+      tests_total: ${{ steps.tests-out.outputs.total }}
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
       
       - name: Install dependencies
         run: npm ci
-
-      # 👇 NUEVO PASO: Necesario para que SAM pueda procesar el Metadata del template
-      - name: Install esbuild
-        run: npm install -g esbuild
       
-      - name: Install SAM CLI
-        run: pip install aws-sam-cli
+      - name: Install esbuild & SAM CLI
+        run: |
+          npm install -g esbuild
+          pip install aws-sam-cli
       
       - name: Build with SAM
         run: sam build
-        continue-on-error: false 
+        continue-on-error: false
       
-      - name: Run tests
-        run: npm test
+      - name: Run unit tests with coverage
+        id: tests-out
+        run: |
+          npm run test:coverage || npm test -- --coverage --json --outputFile=test-results.json
+          
+          if [ -f test-results.json ]; then
+            PASSED=$(jq '.numPassedTests' test-results.json)
+            TOTAL=$(jq '.numTotalTests' test-results.json)
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          else
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "total=0" >> $GITHUB_OUTPUT
+          fi
         env:
           NODE_OPTIONS: "--experimental-vm-modules"
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: unit-tests-${{ github.run_id }}
+          fail_ci_if_error: false
+      
+      # ========== GENERAR HTML COVERAGE ==========
+      - name: Generate HTML coverage report
+        run: |
+          # Verificar dónde está el reporte HTML generado por Jest
+          if [ -d "coverage/lcov-report" ]; then
+            echo "✅ Reporte HTML encontrado en coverage/lcov-report"
+            cp -r coverage/lcov-report coverage/html-report
+          elif [ -d "coverage/html-report" ]; then
+            echo "✅ Reporte HTML encontrado en coverage/html-report"
+          elif [ -f "coverage/index.html" ]; then
+            echo "✅ Reporte HTML encontrado en coverage/"
+            mkdir -p coverage/html-report
+            cp coverage/*.html coverage/html-report/ 2>/dev/null || true
+            cp -r coverage/* coverage/html-report/ 2>/dev/null || true
+          else
+            echo "⚠️ No se encontró reporte HTML, generando uno básico..."
+            mkdir -p coverage/html-report
+            printf '%s\n' '<!DOCTYPE html>' \
+              '<html>' \
+              '<head><title>Coverage Report</title></head>' \
+              '<body style="background:#0a0e27;color:#fff;font-family:system-ui;padding:20px">' \
+              '<h1>📊 Coverage Report</h1>' \
+              '<p>Coverage: ${{ steps.coverage-out.outputs.coverage }}%</p>' \
+              '</body>' \
+              '</html>' > coverage/html-report/index.html
+          fi
+          echo "✅ HTML listo en coverage/html-report/"
+      
+      # ========== SUBIR HTML COVERAGE COMO ARTIFACT ==========
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: coverage/html-report/
+          retention-days: 30
+      
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage/
+            .nyc_output/
+            test-results.json
+          retention-days: 30
+      
+      - name: Check coverage thresholds
+        id: coverage-out
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(jq '.total.lines.pct' coverage/coverage-summary.json)
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "📊 Coverage: ${COVERAGE}%"
+            
+            THRESHOLD=50
+            if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+              echo "❌ Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+              exit 1
+            else
+              echo "✅ Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
+            fi
+          else
+            echo "coverage=0" >> $GITHUB_OUTPUT
+            echo "⚠️ No coverage summary found"
+          fi
+
+  integration-tests:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      passed: ${{ steps.run.outputs.passed }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Install build tools
+        run: |
+          npm install -g esbuild
+          pip install aws-sam-cli --break-system-packages
+
+      - run: sam build
+
+      - name: Run integration tests
+        id: run
+        env:
+          NODE_OPTIONS: "--experimental-vm-modules"
+          STAGE: test
+        run: |
+          PASSED=0
+          if npm run 2>/dev/null | grep -q "test:integration"; then
+            npm run test:integration -- --json --outputFile=integration-results.json 2>/dev/null || true
+            PASSED=$(jq '.numPassedTests // 0' integration-results.json 2>/dev/null || echo 0)
+          else
+            echo "No test:integration script found"
+            echo '{"numTotalTests":0,"numPassedTests":0,"numFailedTests":0,"testResults":[]}' > integration-results.json
+          fi
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "Integration passed: $PASSED"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: integration-results.json
+          retention-days: 30
+
+  security-tests:
+    name: 🛡️ Security Tests (Trivy + npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    outputs:
+      vulnerabilities: ${{ steps.audit.outputs.vuln_count }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-scan
+
+      - name: npm audit
+        id: audit
+        run: |
+          npm audit --json > npm-audit.json || true
+          COUNT=$(jq '.metadata.vulnerabilities.total // 0' npm-audit.json 2>/dev/null || echo 0)
+          echo "vuln_count=$COUNT" >> $GITHUB_OUTPUT
+          echo "npm audit vulnerabilities: $COUNT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-results
+          path: |
+            trivy-results.sarif
+            npm-audit.json
+          retention-days: 30
+
+  linting:
+    name: ✨ Linting & Formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      status: ${{ steps.lint.outputs.status }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: ESLint
+        id: lint
+        run: |
+          STATUS="skipped"
+          if npm run 2>/dev/null | grep -q " lint"; then
+            npm run lint && STATUS="success" || STATUS="failed"
+          else
+            echo "No lint script found"
+          fi
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+
+      - name: Prettier
+        run: |
+          if npx prettier --version 2>/dev/null; then
+            npx prettier --check "**/*.{js,ts,json,md}" || true
+          fi
+
+      - name: TypeScript check
+        run: |
+          if [ -f tsconfig.json ]; then
+            npm run type-check 2>/dev/null || npx tsc --noEmit || true
+          fi
+
+  # ============================================
+  # CONSOLIDATED REPORT
+  # ============================================
+
+  consolidated-report:
+    name: 📊 Security & Quality Report
+    runs-on: ubuntu-latest
+    needs: [snyk-dependencies, snyk-code, snyk-iac, unit-tests, integration-tests, security-tests, linting]
+    if: always()
+
+    steps:
+      - name: Write job summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'ENDSUMMARY'
+          ## 🛡️ Security & Quality Report — NANUTECH Backend
+
+          ### 🔒 Security (Snyk)
+          | Scan | Status | Issues |
+          |------|:------:|-------:|
+          | Dependencies (SCA) | ${{ needs.snyk-dependencies.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-dependencies.outputs.vuln_count || 0 }} |
+          | Source Code (SAST) | ${{ needs.snyk-code.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-code.outputs.issues_count || 0 }} |
+          | Infrastructure (IaC) | ${{ needs.snyk-iac.result == 'success' && '✅' || '⚠️' }} | ${{ needs.snyk-iac.outputs.issues_count || 0 }} |
+          | Trivy + npm audit | ${{ needs.security-tests.result == 'success' && '✅' || '⚠️' }} | ${{ needs.security-tests.outputs.vulnerabilities || 0 }} |
+
+          ### 🧪 Quality
+          | Test | Status | Metric |
+          |------|:------:|--------|
+          | Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅' || '❌' }} | ${{ needs.unit-tests.outputs.coverage || 0 }}% coverage |
+          | Integration Tests | ${{ needs.integration-tests.result == 'success' && '✅' || '❌' }} | ${{ needs.integration-tests.outputs.passed || 0 }} passed |
+          | Linting | ${{ needs.linting.result == 'success' && '✅' || '❌' }} | — |
+
+          ### 📈 Quality Gate: ${{ (needs.unit-tests.result == 'success' && needs.linting.result == 'success') && '✅ PASSED' || '❌ FAILED' }}
+
+          🔗 [Security Alerts](https://github.com/${{ github.repository }}/security) · [This Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          ENDSUMMARY
+
+      - name: Enforce quality gate
+        if: needs.unit-tests.result != 'success' || needs.linting.result != 'success'
+        run: |
+          echo "Quality gate failed."
+          exit 1

@@ -20,6 +20,45 @@ const BASE_SELECT = `
   FROM jornadas
 `;
 
+const DURATION_SQL = `
+  CASE
+    WHEN j.hora_fin IS NOT NULL
+      THEN LPAD((EXTRACT(EPOCH FROM (j.hora_fin - j.hora_inicio))::BIGINT / 3600)::TEXT, 2, '0') || ':' ||
+           LPAD(((EXTRACT(EPOCH FROM (j.hora_fin - j.hora_inicio))::BIGINT % 3600) / 60)::TEXT, 2, '0')
+    WHEN j.estado = 'EN_PROCESO' THEN 'En curso'
+    WHEN j.estado = 'REGISTRADA' THEN 'Sin iniciar'
+    ELSE '-'
+  END
+`;
+
+function buildFilters({ q, conductor_id, fecha_desde, fecha_hasta } = {}) {
+  const conditions = [];
+  const params = [];
+
+  if (q) {
+    params.push(`%${q}%`);
+    const idx = params.length;
+    conditions.push(`(un.placa ILIKE $${idx} OR u.nombres || ' ' || u.apellidos ILIKE $${idx})`);
+  }
+  if (conductor_id) {
+    params.push(conductor_id);
+    conditions.push(`j.conductor_id = $${params.length}`);
+  }
+  if (fecha_desde) {
+    params.push(fecha_desde);
+    conditions.push(`j.fecha_jornada >= $${params.length}`);
+  }
+  if (fecha_hasta) {
+    params.push(fecha_hasta);
+    conditions.push(`j.fecha_jornada <= $${params.length}`);
+  }
+
+  return {
+    whereClause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+    params,
+  };
+}
+
 export class JornadaRepository {
   async create(jornadaData) {
     const client = await getClient();
@@ -214,35 +253,70 @@ export class JornadaRepository {
       client.release();
     }
   }
-  async findAll() {
-  const client = await getClient();
-  try {
-    const result = await client.query(`
-      SELECT
-        j.id,
-        j.fecha_jornada AS fecha,
-        u.nombres || ' ' || u.apellidos AS conductor,
-        un.placa || ' - ' || un.marca || ' ' || un.modelo AS camion,
-        c.codigo AS contrato,
-        CASE
-          WHEN j.hora_inicio IS NOT NULL AND j.hora_fin IS NOT NULL
-            THEN TO_CHAR(j.hora_inicio, 'HH:MI AM') || ' - ' || TO_CHAR(j.hora_fin, 'HH:MI AM')
-          WHEN j.hora_inicio IS NOT NULL
-            THEN TO_CHAR(j.hora_inicio, 'HH:MI AM') || ' - En curso'
-          ELSE 'Sin iniciar'
-        END AS horario,
-        j.km_recorridos AS km,
-        j.estado,
-        j.observaciones
-      FROM jornadas j
-      JOIN usuarios u ON u.id = j.conductor_id
-      JOIN unidades un ON un.id = j.unidad_id
-      JOIN contratos c ON c.id = j.contrato_id
-      ORDER BY j.created_at DESC;
-    `);
-    return result.rows;
-  } finally {
-    client.release();
+
+  async findAll(filtros = {}) {
+    const client = await getClient();
+    try {
+      const { whereClause, params } = buildFilters(filtros);
+      const result = await client.query(`
+        SELECT
+          j.id,
+          j.fecha_jornada AS fecha,
+          u.nombres || ' ' || u.apellidos AS conductor,
+          un.placa || ' - ' || un.marca || ' ' || un.modelo AS camion,
+          c.codigo AS contrato,
+          CASE
+            WHEN j.hora_inicio IS NOT NULL AND j.hora_fin IS NOT NULL
+              THEN TO_CHAR(j.hora_inicio, 'HH:MI AM') || ' - ' || TO_CHAR(j.hora_fin, 'HH:MI AM')
+            WHEN j.hora_inicio IS NOT NULL
+              THEN TO_CHAR(j.hora_inicio, 'HH:MI AM') || ' - En curso'
+            ELSE 'Sin iniciar'
+          END AS horario,
+          j.km_recorridos AS km,
+          j.estado,
+          j.observaciones,
+          ${DURATION_SQL} AS duracion_total,
+          (j.observaciones IS NOT NULL AND j.observaciones <> '') AS tiene_observaciones
+        FROM jornadas j
+        JOIN usuarios u ON u.id = j.conductor_id
+        JOIN unidades un ON un.id = j.unidad_id
+        JOIN contratos c ON c.id = j.contrato_id
+        ${whereClause}
+        ORDER BY j.created_at DESC;
+      `, params);
+      return result.rows;
+    } finally {
+      client.release();
+    }
   }
-}
+
+  async exportAll(filtros = {}) {
+    const client = await getClient();
+    try {
+      const { whereClause, params } = buildFilters(filtros);
+      const result = await client.query(`
+        SELECT
+          j.id,
+          TO_CHAR(j.fecha_jornada, 'YYYY-MM-DD') AS fecha,
+          u.nombres || ' ' || u.apellidos AS conductor,
+          un.placa,
+          c.codigo AS contrato,
+          TO_CHAR(j.hora_inicio, 'YYYY-MM-DD HH24:MI:SS') AS hora_inicio,
+          TO_CHAR(j.hora_fin, 'YYYY-MM-DD HH24:MI:SS') AS hora_fin,
+          ${DURATION_SQL} AS duracion_total,
+          j.km_recorridos,
+          j.estado,
+          j.observaciones
+        FROM jornadas j
+        JOIN usuarios u ON u.id = j.conductor_id
+        JOIN unidades un ON un.id = j.unidad_id
+        JOIN contratos c ON c.id = j.contrato_id
+        ${whereClause}
+        ORDER BY j.created_at DESC;
+      `, params);
+      return result.rows;
+    } finally {
+      client.release();
+    }
+  }
 }

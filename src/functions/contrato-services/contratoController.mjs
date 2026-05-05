@@ -1,8 +1,5 @@
 import { ContratoService } from "./contratoService.mjs";
-import {
-  successResponse,
-  errorResponse,
-} from "../../shared/utils/response/response.mjs";
+import { successResponse, errorResponse } from "../../shared/utils/response/response.mjs";
 import { SUCCESS_MESSAGES } from "../../shared/constants/successMessages.mjs";
 
 export const getAllVigentesController = async (event) => {
@@ -15,21 +12,58 @@ export const getAllVigentesController = async (event) => {
     return errorResponse(error.message, 500);
   }
 };
-// HU07 - Obtener detalle
-export const getDetalleController = async (event) => {
+
+// 🔥 NUEVO (develop)
+export const getIndicadoresController = async (_event) => {
   try {
-    const service = new ContratoService();
-    const id = event.pathParameters.id;
-
-    const data = await service.getDetalleContrato(id);
-
-    return successResponse(data, "Detalle de contrato obtenido");
+    const contratoService = new ContratoService();
+    const indicadores = await contratoService.getIndicadores();
+    return successResponse(indicadores, "Indicadores de contratos obtenidos exitosamente.");
   } catch (error) {
+    console.error("Error en getIndicadoresController:", error);
     return errorResponse(error.message, 500);
   }
 };
 
-// HU07 - Actualizar contrato
+// 🔥 NUEVO (develop)
+export const getAllContratosController = async (event) => {
+  try {
+    const { q, estado, page, limit, order_by } = event.queryStringParameters || {};
+    const contratoService = new ContratoService();
+
+    const result = await contratoService.getAllContratos({ q, estado }, { page, limit, order_by });
+
+    return successResponse(result, SUCCESS_MESSAGES.CONTRATOS_RETRIEVED);
+  } catch (error) {
+    console.error("Error en getAllContratosController:", error);
+    return errorResponse(error.message, 500);
+  }
+};
+
+// 🔥 REEMPLAZA tu getDetalle
+export const getContratoByIdController = async (event) => {
+  try {
+    const { id } = event.pathParameters || {};
+
+    if (!id) {
+      return errorResponse("El id del contrato es requerido.", 400);
+    }
+
+    const contratoService = new ContratoService();
+    const contrato = await contratoService.getContratoById(id);
+
+    if (!contrato) {
+      return errorResponse("Contrato no encontrado.", 404);
+    }
+
+    return successResponse(contrato, SUCCESS_MESSAGES.CONTRATO_RETRIEVED);
+  } catch (error) {
+    console.error("Error en getContratoByIdController:", error);
+    return errorResponse(error.message, 500);
+  }
+};
+
+// 🔥 TUYO (HU07)
 export const updateContratoController = async (event) => {
   try {
     const service = new ContratoService();
@@ -45,7 +79,7 @@ export const updateContratoController = async (event) => {
   }
 };
 
-// HU07 - Asignar unidades
+// 🔥 TUYO (HU07)
 export const assignUnidadesController = async (event) => {
   try {
     const service = new ContratoService();
