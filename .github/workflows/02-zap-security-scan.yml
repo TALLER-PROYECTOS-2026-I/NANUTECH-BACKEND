@@ -12,7 +12,7 @@ on:
           - testing
           - dev
       run_id:
-        description: 'ID de la ejecución que generó el artifact (de "1. Descubrir Endpoints")'
+        description: 'ID de la ejecución que generó el artifact'
         required: true
         default: ''
         type: string
@@ -20,7 +20,7 @@ on:
 permissions:
   id-token: write
   contents: read
-  # ✅ NOTA: NO incluir "issues: write" - así no puede crear Issues
+  # ❌ NO incluir "issues: write"
 
 env:
   AWS_REGION: us-east-1
@@ -39,23 +39,17 @@ jobs:
           run-id: ${{ github.event.inputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verificar archivo de endpoints
+      - name: Mostrar endpoints a escanear
         run: |
-          if [ ! -f endpoints-discovered.json ]; then
-            echo "❌ No se encontró endpoints-discovered.json"
-            echo ""
-            echo "📌 CÓMO OBTENER EL RUN_ID:"
-            echo "   1. Ve a Actions → '1. Descubrir Endpoints'"
-            echo "   2. Haz clic en la ejecución que generó el artifact"
-            echo "   3. Copia el número del RUN_ID (está en la URL)"
-            echo "   4. Ejecuta este workflow y pega ese número"
-            exit 1
-          fi
-          
-          COUNT=$(jq '.paths | length' endpoints-discovered.json)
-          echo "✅ Usando endpoints-discovered.json con $COUNT endpoints"
+          echo "=========================================="
+          echo "📋 ENDPOINTS QUE SE ESCANEARÁN:"
+          echo "=========================================="
+          cat endpoints-discovered.json | jq -r '.paths | keys[]' | head -30
+          echo ""
+          TOTAL=$(jq '.paths | length' endpoints-discovered.json)
+          echo "✅ Total de endpoints a escanear: $TOTAL"
 
-      - name: Configure AWS credentials
+      - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -70,7 +64,6 @@ jobs:
             --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
             --output text)
           echo "api_url=$API_URL" >> $GITHUB_OUTPUT
-          echo "✅ API URL: $API_URL"
 
       - name: Crear contexto ZAP
         run: |
@@ -111,46 +104,45 @@ jobs:
           CONTEXT
           
           sed -i "s|API_URL_PLACEHOLDER|${{ steps.get-api.outputs.api_url }}|g" nanutech.context
-          echo "✅ Contexto ZAP creado"
 
-      - name: Ejecutar ZAP Scan (SIN ISSUES)
+      - name: Ejecutar ZAP API Scan (TODOS los endpoints)
         uses: zaproxy/action-api-scan@v0.9.0
         with:
           target: ${{ steps.get-api.outputs.api_url }}
+          api_spec: endpoints-discovered.json   # ← CLAVE: Usar tu archivo
+          context: nanutech.context             # ← CLAVE: Para autenticación
           cmd_options: -a -r report.html -J report.json
-          # ✅ NOTA: Sin 'token', sin 'api_spec', sin 'context', sin 'user'
-          # ✅ Así ZAP no tiene permisos para crear Issues
+          # ❌ SIN token - así no puede crear Issues
 
-      - name: Subir reporte como artifact
+      - name: Subir reporte
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: zap-security-report-${{ github.event.inputs.environment }}
+          name: zap-full-report-${{ github.event.inputs.environment }}
           path: |
             report.html
             report.json
           retention-days: 30
 
-      - name: Mostrar resumen
+      - name: Resumen de resultados
         if: always()
         run: |
           echo "=========================================="
-          echo "✅ ESCANEO COMPLETADO"
+          echo "📊 ENDPOINTS EVALUADOS:"
           echo "=========================================="
           
           if [ -f report.json ]; then
+            # Mostrar qué endpoints se evaluaron
+            echo "🔍 Endpoints evaluados por ZAP:"
+            jq -r '.site[].alerts[].url' report.json 2>/dev/null | sort -u | head -20
+            
             HIGH=$(jq '[.site[]?.alerts[]? | select(.riskcode == "3")] | length' report.json 2>/dev/null || echo "0")
             MEDIUM=$(jq '[.site[]?.alerts[]? | select(.riskcode == "2")] | length' report.json 2>/dev/null || echo "0")
             LOW=$(jq '[.site[]?.alerts[]? | select(.riskcode == "1")] | length' report.json 2>/dev/null || echo "0")
             
-            echo "📊 RESULTADOS:"
+            echo ""
+            echo "📋 VULNERABILIDADES:"
             echo "   🔴 High: $HIGH"
             echo "   🟡 Medium: $MEDIUM"
             echo "   🔵 Low: $LOW"
           fi
-          
-          echo ""
-          echo "📥 Reporte disponible en Artifacts:"
-          echo "   zap-security-report-${{ github.event.inputs.environment }}"
-          echo ""
-          echo "📄 Descargar report.html para ver los detalles completos"
