@@ -86,6 +86,16 @@ export const getAllJornadasController = async (event) => {
     const jornadaService = new JornadaService();
     const { q, conductor_id, fecha_desde, fecha_hasta } =
       event.queryStringParameters || {};
+
+    // Validación de rango de fechas
+    if (fecha_desde && fecha_hasta && fecha_desde > fecha_hasta) {
+      return errorResponse(
+        "La fecha de inicio no puede ser posterior a la fecha de fin.",
+        400,
+        { code: "INVALID_DATE_RANGE" }
+      );
+    }
+
     const data = await jornadaService.getAllJornadas({
       q,
       conductor_id,
