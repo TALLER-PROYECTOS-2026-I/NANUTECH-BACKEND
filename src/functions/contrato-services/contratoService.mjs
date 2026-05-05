@@ -41,7 +41,7 @@ export class ContratoService {
 
     return {
       contrato, // ❌ quita el || null
-      tarifas,
+      tarifas, // ❌ quita el || []
     };
   }
 
