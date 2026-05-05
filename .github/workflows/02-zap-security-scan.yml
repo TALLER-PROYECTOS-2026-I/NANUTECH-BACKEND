@@ -12,7 +12,7 @@ on:
           - testing
           - dev
       run_id:
-        description: 'ID de la ejecución que generó el artifact (ej: 25405493641)'
+        description: 'ID de la ejecución que generó el artifact'
         required: true
         default: ''
         type: string
@@ -26,6 +26,7 @@ permissions:
   id-token: write
   contents: read
   security-events: write
+  # issues: write  ← NO incluir esta línea
 
 env:
   AWS_REGION: us-east-1
@@ -48,18 +49,9 @@ jobs:
         run: |
           if [ ! -f endpoints-discovered.json ]; then
             echo "❌ No se encontró endpoints-discovered.json"
-            echo ""
-            echo "📌 CÓMO OBTENER EL RUN_ID:"
-            echo "   1. Ve a Actions → '1. Descubrir Endpoints'"
-            echo "   2. Haz clic en la ejecución que generó el artifact"
-            echo "   3. Copia el número del RUN_ID (está en la URL)"
-            echo "   4. Ejecuta este workflow y pega ese número"
             exit 1
           fi
-          
           echo "✅ Usando endpoints-discovered.json"
-          COUNT=$(jq '.paths | length' endpoints-discovered.json)
-          echo "📊 Se escanearán $COUNT endpoints"
 
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
@@ -76,7 +68,6 @@ jobs:
             --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
             --output text)
           echo "api_url=$API_URL" >> $GITHUB_OUTPUT
-          echo "✅ API URL: $API_URL"
 
       - name: Crear contexto ZAP
         run: |
@@ -100,13 +91,6 @@ jobs:
                           <credentials>
                               <username>admin@nanutech.com</username>
                               <password>Admin123!</password>
-                          </credentials>
-                      </user>
-                      <user>
-                          <name>Chofer</name>
-                          <credentials>
-                              <username>chofer1@nanutech.com</username>
-                              <password>Chofer123!</password>
                           </credentials>
                       </user>
                   </users>
@@ -133,6 +117,7 @@ jobs:
           api_spec: endpoints-discovered.json
           context: nanutech.context
           user: admin@nanutech.com
+          fail_action: false  # ← NO crear issue automáticamente
           cmd_options: -a -r report.html
 
       - name: Subir reporte
