@@ -262,13 +262,13 @@ export class ContratoRepository {
         c.estado,
         c.activo,
         CASE WHEN c.fecha_fin IS NOT NULL
-          THEN EXTRACT(DAY FROM (c.fecha_fin - CURRENT_DATE))::INT
+          THEN (c.fecha_fin - CURRENT_DATE)::INT
         END AS dias_para_vencer,
         (SELECT COUNT(*)::INT FROM contrato_unidades
          WHERE contrato_id = c.id AND activo = TRUE) AS camiones_asignados,
         CASE
           WHEN c.fecha_fin IS NOT NULL
-            AND EXTRACT(DAY FROM (c.fecha_fin - CURRENT_DATE)) BETWEEN 0 AND 30
+            AND (c.fecha_fin - CURRENT_DATE) BETWEEN 0 AND 30
             THEN TRUE
           ELSE FALSE
         END AS proximo_a_vencer
@@ -299,11 +299,11 @@ export class ContratoRepository {
         c.created_at,
         c.updated_at,
         CASE WHEN c.fecha_fin IS NOT NULL
-          THEN EXTRACT(DAY FROM (c.fecha_fin - CURRENT_DATE))::INT
+          THEN (c.fecha_fin - CURRENT_DATE)::INT
         END AS dias_para_vencer,
         CASE
           WHEN c.fecha_fin IS NOT NULL
-            AND EXTRACT(DAY FROM (c.fecha_fin - CURRENT_DATE)) BETWEEN 0 AND 30
+            AND (c.fecha_fin - CURRENT_DATE) BETWEEN 0 AND 30
             THEN TRUE
           ELSE FALSE
         END AS proximo_a_vencer,

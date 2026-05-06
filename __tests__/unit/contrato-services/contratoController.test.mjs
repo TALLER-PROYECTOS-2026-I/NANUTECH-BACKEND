@@ -48,6 +48,8 @@ beforeAll(async () => {
     getAllContratosController,
     getContratoByIdController,
   } = await import("../../../src/functions/contrato-services/contratoController.mjs"));
+  ({ getCurrentSession } =
+    await import("../../../src/functions/auth-services/authService.mjs"));
 });
 
 describe("contratoController", () => {
@@ -152,6 +154,7 @@ describe("contratoController", () => {
       );
     });
   });
+  
   describe("createContratoController", () => {
     it("debería registrar contrato exitosamente con status 200", async () => {
       const body = {
