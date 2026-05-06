@@ -1,6 +1,8 @@
 # Archivos/carpetas que no deben subirse al PR
 *.yaml
 *.yml
+!openapi-latest.yaml      # ← EXCEPCIÓN: permitir este archivo
+!openapi-generated.yaml 
 node_modules/
 .aws-sam/
 env.json

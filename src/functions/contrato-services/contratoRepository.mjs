@@ -18,6 +18,7 @@ function buildFilters({ q, estado } = {}) {
     const idx = params.length;
     conditions.push(`(c.codigo ILIKE $${idx} OR c.cliente ILIKE $${idx})`);
   }
+
   if (estado) {
     params.push(estado);
     conditions.push(`c.estado = $${params.length}`);
@@ -31,20 +32,165 @@ function buildFilters({ q, estado } = {}) {
 
 export class ContratoRepository {
   async getAllVigentes() {
-    const result = await db.query(
-      `SELECT id, codigo, cliente, descripcion,
-              fecha_inicio, fecha_fin, tarifa, moneda, estado, activo
-       FROM contratos
-       WHERE activo = TRUE
-         AND estado = 'VIGENTE'
-         AND fecha_inicio <= CURRENT_DATE
-         AND (fecha_fin IS NULL OR fecha_fin >= CURRENT_DATE)
-       ORDER BY cliente`
-    );
+    const result = await db.query(`
+      SELECT id, codigo, cliente, descripcion,
+             fecha_inicio, fecha_fin, tarifa, moneda, estado, activo
+      FROM contratos
+      WHERE activo = TRUE
+        AND estado = 'VIGENTE'
+        AND fecha_inicio <= CURRENT_DATE
+        AND (fecha_fin IS NULL OR fecha_fin >= CURRENT_DATE)
+      ORDER BY cliente
+    `);
     return result.rows;
   }
 
-  // 🔥 IMPORTANTE: corregido con alias "c"
+  // ✅ 🔥 ESTE MÉTODO FALTABA (ARREGLA TU TEST)
+  async getIndicadores() {
+    const result = await db.query(`
+    SELECT
+      COUNT(*) AS total_contratos,
+      COUNT(*) FILTER (WHERE estado = 'VIGENTE') AS contratos_activos,
+      COUNT(*) FILTER (WHERE estado = 'VENCIDO') AS contratos_vencidos,
+      COUNT(*) FILTER (WHERE estado = 'VIGENTE' AND fecha_fin <= NOW() + INTERVAL '30 days') AS proximos_a_vencer,
+      COUNT(*) FILTER (WHERE camion_id IS NOT NULL) AS camiones_asignados,
+
+      -- distribución por estado
+      (
+        SELECT json_agg(t)
+        FROM (
+          SELECT estado, COUNT(*) AS total
+          FROM contratos
+          GROUP BY estado
+        ) t
+      ) AS distribucion_por_estado,
+
+      -- distribución por tipo de servicio ✅ (ESTA ES LA CLAVE)
+      (
+        SELECT json_agg(t)
+        FROM (
+          SELECT tipo_servicio, COUNT(*) AS total
+          FROM contratos
+          GROUP BY tipo_servicio
+        ) t
+      ) AS distribucion_por_tipo_servicio
+
+    FROM contratos;
+  `);
+
+    return result.rows[0];
+  }
+
+  // 🔥 =========================
+  // CREATE (DEVELOP)
+  // 🔥 =========================
+  async createContrato(data) {
+    const client = await db.getClient();
+
+    try {
+      await client.query("BEGIN");
+
+      const codigo = this.generateCodigoContrato();
+      const totalReferencial = this.calculateTotalReferencial(data);
+
+      const contratoResult = await client.query(
+        `
+        INSERT INTO contratos (
+          codigo, cliente, ruc, descripcion, tipo_servicio,
+          fecha_inicio, fecha_fin, tarifa, moneda, estado, activo
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'VIGENTE',TRUE)
+        RETURNING *
+        `,
+        [
+          codigo,
+          data.cliente.trim(),
+          data.ruc,
+          data.descripcion || null,
+          data.tipo_servicio,
+          data.fecha_inicio,
+          data.fecha_fin || null,
+          totalReferencial,
+          data.moneda || "PEN",
+        ]
+      );
+
+      const contrato = contratoResult.rows[0];
+
+      await client.query(
+        `
+        INSERT INTO contrato_rutas (contrato_id, origen, destino, distancia_estimada_km)
+        VALUES ($1,$2,$3,$4)
+        `,
+        [
+          contrato.id,
+          data.origen.trim(),
+          data.destino.trim(),
+          Number(data.distancia_estimada_km).toFixed(2),
+        ]
+      );
+
+      await client.query(
+        `
+        INSERT INTO contrato_tarifas (
+          contrato_id, tarifa_por_km, tarifa_por_hora,
+          tarifa_espera, total_referencial
+        )
+        VALUES ($1,$2,$3,$4,$5)
+        `,
+        [
+          contrato.id,
+          Number(data.tarifa_por_km).toFixed(2),
+          Number(data.tarifa_por_hora || 0).toFixed(2),
+          Number(data.tarifa_espera || 0).toFixed(2),
+          totalReferencial,
+        ]
+      );
+
+      const full = await this.getFullContratoByIdWithClient(client, contrato.id);
+
+      await client.query("COMMIT");
+      return full;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getFullContratoByIdWithClient(client, id) {
+    const result = await client.query(
+      `
+      SELECT 
+        c.*,
+        cr.origen, cr.destino, cr.distancia_estimada_km,
+        ct.tarifa_por_km, ct.tarifa_por_hora,
+        ct.tarifa_espera, ct.total_referencial
+      FROM contratos c
+      JOIN contrato_rutas cr ON cr.contrato_id = c.id
+      JOIN contrato_tarifas ct ON ct.contrato_id = c.id
+      WHERE c.id = $1
+      `,
+      [id]
+    );
+
+    return result.rows[0];
+  }
+
+  generateCodigoContrato() {
+    return `CONT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  }
+
+  calculateTotalReferencial(data) {
+    const distancia = Number(data.distancia_estimada_km || 0);
+    const tarifaPorKm = Number(data.tarifa_por_km || 0);
+    return Number((distancia * tarifaPorKm).toFixed(2));
+  }
+
+  // 🔥 =========================
+  // HU07 (UPDATE + HISTORIAL)
+  // 🔥 =========================
   async getById(id) {
     const result = await db.query(`SELECT * FROM contratos c WHERE c.id = $1`, [id]);
     return result.rows[0];
@@ -54,41 +200,46 @@ export class ContratoRepository {
     try {
       const result = await db.query(`SELECT * FROM contrato_tarifas WHERE contrato_id = $1`, [id]);
       return result.rows[0];
-    } catch (error) {
-      console.warn("⚠️ Tabla contrato_tarifas no existe aún");
+    } catch {
       return null;
     }
   }
 
   async updateContrato(id, data) {
     await db.query(
-      `UPDATE contratos
-       SET fecha_inicio = $1,
-           fecha_fin = $2,
-           tipo_servicio = $3,
-           descripcion = $4,
-           tarifa = $5
-       WHERE id = $6`,
+      `
+      UPDATE contratos
+      SET fecha_inicio = $1,
+          fecha_fin = $2,
+          tipo_servicio = $3,
+          descripcion = $4,
+          tarifa = $5
+      WHERE id = $6
+      `,
       [data.fecha_inicio, data.fecha_fin, data.tipo_servicio, data.descripcion, data.tarifa, id]
     );
   }
 
   async updateTarifas(id, tarifas) {
     await db.query(
-      `UPDATE contrato_tarifas
-       SET tarifa_base = $1,
-           tarifa_por_hora = $2,
-           tarifa_por_tonelada = $3
-       WHERE contrato_id = $4`,
+      `
+      UPDATE contrato_tarifas
+      SET tarifa_base = $1,
+          tarifa_por_hora = $2,
+          tarifa_por_tonelada = $3
+      WHERE contrato_id = $4
+      `,
       [tarifas.base, tarifas.hora, tarifas.tonelada, id]
     );
   }
 
   async insertHistorial(data) {
     await db.query(
-      `INSERT INTO contratos_historial
-       (contrato_id, accion, campo, valor_anterior, valor_nuevo, ip_address)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
+      `
+      INSERT INTO contratos_historial
+      (contrato_id, accion, campo, valor_anterior, valor_nuevo, ip_address)
+      VALUES ($1,$2,$3,$4,$5,$6)
+      `,
       [
         data.contrato_id,
         "UPDATE",
@@ -103,7 +254,7 @@ export class ContratoRepository {
   async insertUnidad(contrato_id, unidad_id) {
     await db.query(
       `INSERT INTO contrato_unidades (contrato_id, unidad_id)
-       VALUES ($1, $2)`,
+       VALUES ($1,$2)`,
       [contrato_id, unidad_id]
     );
   }
@@ -112,46 +263,9 @@ export class ContratoRepository {
     await db.query(`DELETE FROM contrato_unidades WHERE contrato_id = $1`, [contrato_id]);
   }
 
-  async getIndicadores() {
-    const result = await db.query(`
-      WITH
-        dist_estado AS (
-          SELECT estado, COUNT(*)::INT AS cantidad
-          FROM contratos
-          GROUP BY estado
-        ),
-        dist_tipo AS (
-          SELECT tipo_servicio, COUNT(*)::INT AS cantidad
-          FROM contratos
-          WHERE tipo_servicio IS NOT NULL
-          GROUP BY tipo_servicio
-        )
-      SELECT
-        (SELECT COUNT(*)::INT FROM contratos) AS total_contratos,
-        (SELECT COUNT(*)::INT FROM contratos
-         WHERE estado = 'VIGENTE' AND activo = TRUE) AS contratos_activos,
-        (SELECT COUNT(*)::INT FROM contratos
-         WHERE estado = 'VENCIDO') AS contratos_vencidos,
-        (SELECT COUNT(*)::INT FROM contratos
-         WHERE estado = 'VIGENTE'
-           AND fecha_fin BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days') AS proximos_a_vencer,
-        (SELECT COUNT(DISTINCT cu.unidad_id)::INT
-         FROM contrato_unidades cu
-         JOIN contratos c ON c.id = cu.contrato_id
-         WHERE c.estado = 'VIGENTE') AS camiones_asignados,
-        COALESCE(
-          (SELECT json_agg(row_to_json(d)) FROM dist_estado d),
-          '[]'::json
-        ) AS distribucion_por_estado,
-        COALESCE(
-          (SELECT json_agg(row_to_json(t)) FROM dist_tipo t),
-          '[]'::json
-        ) AS distribucion_por_tipo_servicio
-    `);
-    return result.rows[0];
-  }
-
-  // 🔥 AQUÍ ESTABA EL ERROR GRANDE
+  // 🔥 =========================
+  // LIST + DETALLE
+  // 🔥 =========================
   async findAll({ q, estado } = {}, { page = 1, limit = 10, order_by = "fecha_fin" } = {}) {
     const { whereClause, params } = buildFilters({ q, estado });
 
@@ -164,35 +278,34 @@ export class ContratoRepository {
       `SELECT COUNT(*)::INT AS total FROM contratos c ${whereClause}`,
       params
     );
-    const total = parseInt(countResult.rows[0].total);
 
-    const dataParams = [...params, limitNum, offset];
+    const total = parseInt(countResult.rows[0].total);
 
     const result = await db.query(
       `
-      SELECT 
+      SELECT
         c.*,
-        (c.fecha_fin - CURRENT_DATE) AS dias_para_vencer,
-        COUNT(cu.unidad_id) AS camiones_asignados,
-        CASE 
-          WHEN (c.fecha_fin - CURRENT_DATE) <= 7 THEN true
-          ELSE false
+        CASE WHEN c.fecha_fin IS NOT NULL
+          THEN (c.fecha_fin - CURRENT_DATE)::INT
+        END AS dias_para_vencer,
+        (SELECT COUNT(*) FROM contrato_unidades WHERE contrato_id = c.id) AS camiones_asignados,
+        CASE
+          WHEN c.fecha_fin IS NOT NULL
+            AND (c.fecha_fin - CURRENT_DATE) BETWEEN 0 AND 30
+          THEN TRUE ELSE FALSE
         END AS proximo_a_vencer
       FROM contratos c
-      LEFT JOIN contrato_unidades cu ON cu.contrato_id = c.id
       ${whereClause}
-      GROUP BY c.id
-      ORDER BY ${orderField} ASC
+      ORDER BY ${orderField}
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
-    `,
-      dataParams
+      `,
+      [...params, limitNum, offset]
     );
 
     return { rows: result.rows, total, page: pageNum, limit: limitNum };
   }
 
-  // 🔥 CORREGIDO (joins + alias)
-  async findById(contratoId) {
+  async findById(id) {
     const result = await db.query(
       `
       SELECT 
@@ -211,8 +324,8 @@ export class ContratoRepository {
       LEFT JOIN unidades u ON u.id = cu.unidad_id
       WHERE c.id = $1
       GROUP BY c.id
-    `,
-      [contratoId]
+      `,
+      [id]
     );
 
     return result.rows[0] || null;

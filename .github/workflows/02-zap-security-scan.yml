@@ -1,0 +1,148 @@
+name: 2. Escanear con OWASP ZAP
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Entorno a escanear'
+        required: true
+        default: 'testing'
+        type: choice
+        options:
+          - testing
+          - dev
+      run_id:
+        description: 'ID de la ejecución que generó el artifact'
+        required: true
+        default: ''
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+  # ❌ NO incluir "issues: write"
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  scan:
+    name: Escanear API
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Descargar endpoints descubiertos
+        uses: actions/download-artifact@v4
+        with:
+          name: endpoints-discovered
+          path: ./
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mostrar endpoints a escanear
+        run: |
+          echo "=========================================="
+          echo "📋 ENDPOINTS QUE SE ESCANEARÁN:"
+          echo "=========================================="
+          cat endpoints-discovered.json | jq -r '.paths | keys[]' | head -30
+          echo ""
+          TOTAL=$(jq '.paths | length' endpoints-discovered.json)
+          echo "✅ Total de endpoints a escanear: $TOTAL"
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Obtener URL de la API
+        id: get-api
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name nanutech-backend-${{ github.event.inputs.environment }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
+            --output text)
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+
+      - name: Crear contexto ZAP
+        run: |
+          cat > nanutech.context << 'CONTEXT'
+          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+          <configuration>
+              <context>
+                  <name>Nanutech-Backend</name>
+                  <inscope>
+                      <url>.*execute-api.*/.*</url>
+                  </inscope>
+                  <authentication>
+                      <type>2</type>
+                      <loginurl>API_URL_PLACEHOLDER/auth/login</loginurl>
+                      <loginrequestbody>{"email":"{username}","password":"{password}"}</loginrequestbody>
+                      <loggedinindicator>accessToken</loggedinindicator>
+                  </authentication>
+                  <users>
+                      <user>
+                          <name>Admin</name>
+                          <credentials>
+                              <username>admin@nanutech.com</username>
+                              <password>Admin123!</password>
+                          </credentials>
+                      </user>
+                  </users>
+                  <parameters>
+                      <parameter><name>conductorId</name><value>22222222-2222-2222-2222-222222222222</value></parameter>
+                      <parameter><name>unidadId</name><value>aaaa0001-0000-0000-0000-000000000001</value></parameter>
+                      <parameter><name>contratoId</name><value>bbbb0001-0000-0000-0000-000000000001</value></parameter>
+                  </parameters>
+                  <forcenotauthed>
+                      <url>.*/auth/login</url>
+                      <url>.*/auth/forgot-password</url>
+                  </forcenotauthed>
+              </context>
+          </configuration>
+          CONTEXT
+          
+          sed -i "s|API_URL_PLACEHOLDER|${{ steps.get-api.outputs.api_url }}|g" nanutech.context
+
+      - name: Ejecutar ZAP API Scan (TODOS los endpoints)
+        uses: zaproxy/action-api-scan@v0.9.0
+        with:
+          target: ${{ steps.get-api.outputs.api_url }}
+          api_spec: endpoints-discovered.json   # ← CLAVE: Usar tu archivo
+          context: nanutech.context             # ← CLAVE: Para autenticación
+          cmd_options: -a -r report.html -J report.json
+          # ❌ SIN token - así no puede crear Issues
+
+      - name: Subir reporte
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-full-report-${{ github.event.inputs.environment }}
+          path: |
+            report.html
+            report.json
+          retention-days: 30
+
+      - name: Resumen de resultados
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "📊 ENDPOINTS EVALUADOS:"
+          echo "=========================================="
+          
+          if [ -f report.json ]; then
+            # Mostrar qué endpoints se evaluaron
+            echo "🔍 Endpoints evaluados por ZAP:"
+            jq -r '.site[].alerts[].url' report.json 2>/dev/null | sort -u | head -20
+            
+            HIGH=$(jq '[.site[]?.alerts[]? | select(.riskcode == "3")] | length' report.json 2>/dev/null || echo "0")
+            MEDIUM=$(jq '[.site[]?.alerts[]? | select(.riskcode == "2")] | length' report.json 2>/dev/null || echo "0")
+            LOW=$(jq '[.site[]?.alerts[]? | select(.riskcode == "1")] | length' report.json 2>/dev/null || echo "0")
+            
+            echo ""
+            echo "📋 VULNERABILIDADES:"
+            echo "   🔴 High: $HIGH"
+            echo "   🟡 Medium: $MEDIUM"
+            echo "   🔵 Low: $LOW"
+          fi

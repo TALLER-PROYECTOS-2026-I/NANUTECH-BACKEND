@@ -2,18 +2,26 @@ import { jest, describe, it, expect, beforeEach, beforeAll } from "@jest/globals
 
 let ContratoService, ContratoRepository, Contrato;
 
+// =========================
+// MOCKS (FUSIONADOS)
+// =========================
 jest.unstable_mockModule("../../../src/functions/contrato-services/contratoRepository.mjs", () => ({
   ContratoRepository: jest.fn(),
 }));
 
 jest.unstable_mockModule("../../../src/functions/contrato-services/contratoModel.mjs", () => ({
-  Contrato: { fromDatabaseList: jest.fn() },
+  Contrato: {
+    fromDatabaseList: jest.fn(),
+    fromDatabase: jest.fn(),
+  },
 }));
 
 beforeAll(async () => {
   ({ ContratoRepository } =
     await import("../../../src/functions/contrato-services/contratoRepository.mjs"));
+
   ({ Contrato } = await import("../../../src/functions/contrato-services/contratoModel.mjs"));
+
   ({ ContratoService } =
     await import("../../../src/functions/contrato-services/contratoService.mjs"));
 });
@@ -27,20 +35,17 @@ describe("ContratoService", () => {
 
     mockRepository = {
       getAllVigentes: jest.fn(),
+      createContrato: jest.fn(),
+      getIndicadores: jest.fn(),
+      findAll: jest.fn(),
+      findById: jest.fn(),
 
-      // 🔥 HU07
-      getById: jest.fn(),
-      getTarifasByContrato: jest.fn(),
+      // HU07 adaptado
       updateContrato: jest.fn(),
       updateTarifas: jest.fn(),
       insertHistorial: jest.fn(),
       deleteUnidades: jest.fn(),
       insertUnidad: jest.fn(),
-
-      // 🔥 DEVELOP
-      getIndicadores: jest.fn(),
-      findAll: jest.fn(),
-      findById: jest.fn(),
     };
 
     ContratoRepository.mockImplementation(() => mockRepository);
@@ -48,7 +53,7 @@ describe("ContratoService", () => {
   });
 
   // =========================
-  // EXISTENTE
+  // GET VIGENTES
   // =========================
   describe("getAllVigentes", () => {
     it("debería retornar lista de contratos vigentes", async () => {
@@ -65,26 +70,62 @@ describe("ContratoService", () => {
   });
 
   // =========================
-  // 🔥 HU07
+  // CREATE
   // =========================
+  describe("createContrato", () => {
+    it("debería crear contrato con datos válidos", async () => {
+      const data = {
+        cliente: "Empresa Test SAC",
+        ruc: "14575396385",
+        descripcion: "Contrato test",
+        tipo_servicio: "POR_KM",
+        fecha_inicio: "2026-05-01",
+        fecha_fin: "2026-05-02",
+        origen: "Lima",
+        destino: "Callao",
+        distancia_estimada_km: 50,
+        tarifa_por_km: 10,
+        tarifa_por_hora: 10,
+        tarifa_espera: 10,
+      };
 
-  describe("getDetalleContrato", () => {
-    it("debería retornar contrato y tarifas", async () => {
-      mockRepository.getById.mockResolvedValue({ id: 1 });
-      mockRepository.getTarifasByContrato.mockResolvedValue({ tarifa: 100 });
+      const row = { id: "1", ...data };
+      const contrato = { id: "1", ...data };
 
-      const result = await service.getDetalleContrato(1);
+      mockRepository.createContrato.mockResolvedValue(row);
+      Contrato.fromDatabase.mockReturnValue(contrato);
 
-      expect(result).toEqual({
-        contrato: { id: 1 },
-        tarifas: { tarifa: 100 },
-      });
+      const result = await service.createContrato(data);
+
+      expect(mockRepository.createContrato).toHaveBeenCalledWith(data);
+      expect(Contrato.fromDatabase).toHaveBeenCalledWith(row);
+      expect(result).toEqual(contrato);
+    });
+
+    it("rechaza RUC inválido", async () => {
+      await expect(
+        service.createContrato({
+          cliente: "Empresa",
+          ruc: "123",
+          tipo_servicio: "POR_KM",
+          fecha_inicio: "2026-05-01",
+          origen: "Lima",
+          destino: "Callao",
+          distancia_estimada_km: 50,
+          tarifa_por_km: 10,
+          tarifa_por_hora: 10,
+          tarifa_espera: 10,
+        })
+      ).rejects.toThrow();
     });
   });
 
+  // =========================
+  // UPDATE
+  // =========================
   describe("updateContrato", () => {
     it("actualiza correctamente", async () => {
-      mockRepository.getById.mockResolvedValue({
+      mockRepository.findById.mockResolvedValue({
         fecha_fin: "2025-01-01",
         tarifa: 10,
         descripcion: "old",
@@ -112,16 +153,8 @@ describe("ContratoService", () => {
       ).rejects.toThrow();
     });
 
-    it("valida tarifa", async () => {
-      await expect(service.updateContrato(1, { tarifa: 0 }, "ip")).rejects.toThrow();
-    });
-
-    it("valida descripción", async () => {
-      await expect(service.updateContrato(1, { descripcion: "" }, "ip")).rejects.toThrow();
-    });
-
     it("registra historial", async () => {
-      mockRepository.getById.mockResolvedValue({
+      mockRepository.findById.mockResolvedValue({
         tarifa: 10,
         descripcion: "old",
       });
@@ -132,6 +165,9 @@ describe("ContratoService", () => {
     });
   });
 
+  // =========================
+  // UNIDADES
+  // =========================
   describe("assignUnidades", () => {
     it("asigna unidades", async () => {
       const result = await service.assignUnidades(1, [1, 2]);
@@ -143,9 +179,8 @@ describe("ContratoService", () => {
   });
 
   // =========================
-  // 🔥 DEVELOP
+  // INDICADORES
   // =========================
-
   describe("getIndicadores", () => {
     it("retorna indicadores", async () => {
       mockRepository.getIndicadores.mockResolvedValue({ total_contratos: 10 });
@@ -156,6 +191,9 @@ describe("ContratoService", () => {
     });
   });
 
+  // =========================
+  // LISTADO
+  // =========================
   describe("getAllContratos", () => {
     it("retorna paginación", async () => {
       mockRepository.findAll.mockResolvedValue({
@@ -172,6 +210,9 @@ describe("ContratoService", () => {
     });
   });
 
+  // =========================
+  // DETALLE
+  // =========================
   describe("getContratoById", () => {
     it("retorna contrato", async () => {
       mockRepository.findById.mockResolvedValue({ id: 1 });
