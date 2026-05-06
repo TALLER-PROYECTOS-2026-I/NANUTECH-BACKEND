@@ -90,7 +90,7 @@ export class ContratoService {
   }
 
   // =========================
-  // LISTADO
+  // LISTADO bueno
   // =========================
   async getAllContratos(filtros = {}, pagination = {}) {
     const { rows, total, page, limit } = await this.contratoRepository.findAll(filtros, pagination);
