@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: API para gestión de camiones - Nanutech Backend
-# Nombre del stage (dev, test, prod) que se usará para desplegar la API
+
 Transform:
   - AWS::Serverless-2016-10-31
 
@@ -100,6 +100,92 @@ Resources:
         Environment: !Ref StageName
         Proyecto: Nanutech-Backend
 
+  CamionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-camiones"
+      CodeUri: .
+      Handler: src/functions/camion-services/camionHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        GetCamiones:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones
+            Method: GET
+        GetCamionById:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones/{id}
+            Method: GET
+        CreateCamion:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones
+            Method: POST
+        GetPanelCamiones:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones/panel
+            Method: GET
+        ExportCamionesCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /camiones/exportar/csv
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: camion
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/camion-services/camionHandler.mjs
+
+  DashboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-dashboard"
+      CodeUri: .
+      Handler: src/functions/dashboard-services/dashboardHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        GetDashboard:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /dashboard
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: dashboard
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/dashboard-services/dashboardHandler.mjs
+
   JornadaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -113,17 +199,23 @@ Resources:
         Variables:
           LOG_LEVEL: "debug"
       Events:
-        Create:
+        CreateJornada:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
             Path: /jornadas
             Method: POST
-        GetCurrent:
+        GetCurrentJornada:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
             Path: /jornadas/actual/{conductorId}
+            Method: GET
+        GetAllJornadas:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas
             Method: GET
         StartTurn:
           Type: Api
@@ -149,34 +241,65 @@ Resources:
         EntryPoints:
           - src/functions/jornada-services/jornadaHandler.mjs
 
-  CamionFunction:
+  GpsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${StageName}-camiones"
+      FunctionName: !Sub "${StageName}-gps"
       CodeUri: .
-      Handler: src/functions/camion-services/camionHandler.handler
+      Handler: src/functions/gps-services/gpsHandler.handler
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
       Environment:
         Variables:
           LOG_LEVEL: "debug"
+          GPS_SPEED_LIMIT_KMH: "90"
       Events:
-        GetAll:
+        GetGpsProviders:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
-            Path: /camiones
+            Path: /gps/proveedores
             Method: GET
-        GetById:
+        GetGpsTemplate:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
-            Path: /camiones/{id}
+            Path: /gps/plantilla
+            Method: GET
+        GetGpsTemplateByProvider:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/plantilla/{proveedor}
+            Method: GET
+        ValidateGpsCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/validar
+            Method: POST
+        ImportGpsCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/importar
+            Method: POST
+        GetGpsSummary:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/resumen
+            Method: GET
+        ListGpsRegistros:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/registros
             Method: GET
       Tags:
         Environment: !Ref StageName
-        Servicio: camion
+        Servicio: gps
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -184,7 +307,7 @@ Resources:
         Target: es2022
         Sourcemap: true
         EntryPoints:
-          - src/functions/camion-services/camionHandler.mjs
+          - src/functions/gps-services/gpsHandler.mjs
 
   ConductorFunction:
     Type: AWS::Serverless::Function
@@ -230,11 +353,29 @@ Resources:
         Variables:
           LOG_LEVEL: "debug"
       Events:
+        GetIndicadores:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /contratos/indicadores
+            Method: GET
         GetVigentes:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
             Path: /contratos/vigentes
+            Method: GET
+        GetContratoById:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /contratos/{id}
+            Method: GET
+        GetAllContratos:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /contratos
             Method: GET
       Tags:
         Environment: !Ref StageName
@@ -300,17 +441,6 @@ Resources:
       Environment:
         Variables:
           LOG_LEVEL: "debug"
-          AUTH_PROVIDER: !Ref AuthProvider
-          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
-          COGNITO_CLIENT_ID: !Ref CognitoClientId
-          SESSION_TIMEOUT_SECONDS: !Ref SessionTimeoutSeconds
-          AUTH_TOKEN_SECRET: !Ref AuthTokenSecret
-          DB_HOST: !Ref DBHost
-          DB_USER: !Ref DBUser
-          DB_PASSWORD: !Ref DBPassword
-          DB_NAME: !Ref DBName
-          DB_PORT: !Ref DBPort
-          DB_SSL_ENABLED: !Ref DBSslEnabled
       Events:
         Login:
           Type: Api
@@ -362,12 +492,6 @@ Resources:
       Environment:
         Variables:
           LOG_LEVEL: "debug"
-          DB_HOST: !Ref DBHost
-          DB_USER: !Ref DBUser
-          DB_PASSWORD: !Ref DBPassword
-          DB_NAME: !Ref DBName
-          DB_PORT: !Ref DBPort
-          DB_SSL_ENABLED: !Ref DBSslEnabled
 
   MigratorFunctionPermission:
     Type: AWS::Lambda::Permission
@@ -394,24 +518,39 @@ Outputs:
   ApiEndpoint:
     Description: "URL del endpoint de API Gateway"
     Value: !Sub "https://${NanutechApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}"
+  
+  DashboardFunctionArn:
+    Description: "ARN de la función Dashboard"
+    Value: !GetAtt DashboardFunction.Arn
+  
   JornadaFunctionArn:
     Description: "ARN de la función Jornada"
     Value: !GetAtt JornadaFunction.Arn
-  CamionFunctionArn:
-    Description: "ARN de la función Camion"
-    Value: !GetAtt CamionFunction.Arn
+  
   ConductorFunctionArn:
     Description: "ARN de la función Conductor"
     Value: !GetAtt ConductorFunction.Arn
+  
   ContratoFunctionArn:
     Description: "ARN de la función Contrato"
     Value: !GetAtt ContratoFunction.Arn
+  
   UnidadFunctionArn:
     Description: "ARN de la función Unidad"
     Value: !GetAtt UnidadFunction.Arn
+  
   AuthFunctionArn:
     Description: "ARN de la función Auth"
     Value: !GetAtt AuthFunction.Arn
+  
+  CamionFunctionArn:
+    Description: "ARN de la función Camión"
+    Value: !GetAtt CamionFunction.Arn
+  
   MigratorFunctionArn:
     Description: "ARN de la función Migrator"
     Value: !GetAtt MigratorFunction.Arn
+  
+  GpsFunctionArn:
+    Description: "ARN de la función GPS"
+    Value: !GetAtt GpsFunction.Arn

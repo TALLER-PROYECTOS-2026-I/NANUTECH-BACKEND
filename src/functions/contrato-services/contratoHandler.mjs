@@ -1,11 +1,17 @@
 import {
   getAllVigentesController,
   createContratoController,
+  getIndicadoresController,
+  getAllContratosController,
+  getContratoByIdController,
 } from "./contratoController.mjs";
 
 const routes = {
+  "GET /contratos/indicadores": getIndicadoresController,
   "GET /contratos/vigentes": getAllVigentesController,
   "POST /contratos": createContratoController,
+  "GET /contratos/{id}": getContratoByIdController,
+  "GET /contratos": getAllContratosController,
 };
 
 export const handler = async (event) => {

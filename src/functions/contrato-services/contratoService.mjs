@@ -115,4 +115,26 @@ export class ContratoService {
       throw new Error("La tarifa por espera debe ser mayor o igual a 0");
     }
   }
+
+  async getIndicadores() {
+    return this.contratoRepository.getIndicadores();
+  }
+
+  async getAllContratos(filtros = {}, pagination = {}) {
+    const { rows, total, page, limit } = await this.contratoRepository.findAll(filtros, pagination);
+    return {
+      data: rows,
+      meta: {
+        total,
+        page,
+        limit,
+        total_pages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getContratoById(id) {
+    return this.contratoRepository.findById(id);
+  }
+
 }

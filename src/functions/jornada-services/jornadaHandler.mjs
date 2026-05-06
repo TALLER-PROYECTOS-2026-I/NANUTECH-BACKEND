@@ -1,6 +1,7 @@
 import {
   createJornadaController,
   getAllJornadasController,
+  exportCsvController,
   getCurrentJornadaController,
   startTurnController,
   finishTurnController,
@@ -9,6 +10,7 @@ import { errorResponse } from "../../shared/utils/response/response.mjs";
 
 const ROUTES = {
   "POST /jornadas": createJornadaController,
+  "GET /jornadas/exportar": exportCsvController,
   "GET /jornadas/actual/{conductorId}": getCurrentJornadaController,
   "GET /jornadas": getAllJornadasController,
   "POST /jornadas/iniciar": startTurnController,
@@ -29,4 +31,3 @@ export const handler = async (event) => {
 
   return routeHandler(event);
 };
-

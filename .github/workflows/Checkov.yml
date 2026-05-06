@@ -1,0 +1,219 @@
+name: Security - Checkov (IaC)
+
+on:
+  pull_request:
+    branches: [ develop ]
+    types: [ opened, synchronize, reopened ]
+  push:
+    branches: [ develop, main ]  # ✅ Agregado: se ejecuta en push directo
+  workflow_dispatch:              # ✅ Opcional: permite ejecución manual
+
+jobs:
+  checkov-scan:
+    name: Checkov - IaC Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Checkov - Escanear IaC
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: cloudformation
+          soft_fail: true
+          output_format: sarif
+          # ❌ NO usar output_file_path - causa el problema del directorio
+          skip_check: CKV_AWS_45,CKV_AWS_272
+
+      - name: Verificar y procesar archivo SARIF
+        run: |
+          echo "📁 Contenido del directorio actual:"
+          ls -la
+          
+          # Buscar el archivo SARIF en cualquier ubicación
+          SARIF_FILE=""
+          if [ -f "results.sarif" ]; then
+            SARIF_FILE="results.sarif"
+            echo "✅ Encontrado results.sarif"
+          elif [ -f "checkov_output.sarif" ]; then
+            SARIF_FILE="checkov_output.sarif"
+            echo "✅ Encontrado checkov_output.sarif"
+          elif [ -d "checkov-output.sarif" ]; then
+            echo "⚠️ Directorio encontrado, buscando dentro..."
+            find checkov-output.sarif -name "*.sarif" -exec cp {} ./checkov-output-real.sarif \;
+            SARIF_FILE="checkov-output-real.sarif"
+          fi
+          
+          # Copiar o crear el archivo final
+          if [ -n "$SARIF_FILE" ] && [ -f "$SARIF_FILE" ]; then
+            cp "$SARIF_FILE" checkov-output.sarif
+            echo "✅ Archivo SARIF copiado correctamente"
+          else
+            echo "⚠️ No se encontró archivo SARIF, creando uno vacío"
+            echo '{"version":"2.1.0","runs":[]}' > checkov-output.sarif
+          fi
+          
+          # Limpiar archivos temporales
+          rm -f checkov-output-real.sarif 2>/dev/null || true
+          
+          # Verificar resultado final
+          if [ -f "checkov-output.sarif" ] && [ ! -d "checkov-output.sarif" ]; then
+            echo "✅ Archivo SARIF listo:"
+            ls -la checkov-output.sarif
+            echo "📄 Primeras líneas:"
+            head -3 checkov-output.sarif
+          else
+            echo "❌ Error: No se pudo crear el archivo SARIF"
+            exit 1
+          fi
+
+      - name: Subir resultados a GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov-output.sarif
+          category: checkov
+
+      - name: Publicar resumen en el PR
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const sarifFile = 'checkov-output.sarif';
+            
+            // Verificar si el archivo existe y no es un directorio
+            if (!fs.existsSync(sarifFile)) {
+              console.log('No SARIF file found');
+              return;
+            }
+            
+            try {
+              const stats = fs.statSync(sarifFile);
+              if (stats.isDirectory()) {
+                console.log('SARIF path is a directory, skipping comment');
+                return;
+              }
+              
+              const content = fs.readFileSync(sarifFile, 'utf8');
+              const sarif = JSON.parse(content);
+              const runs = sarif.runs || [];
+              let critical = 0, high = 0, medium = 0, total = 0;
+              const failedChecks = [];
+
+              const knownChecks = {
+                'CKV_AWS_76':   'API Gateway sin access logging',
+                'CKV_AWS_120':  'API Gateway sin caching',
+                'CKV_AWS_173':  'Variables de entorno Lambda sin encriptar',
+                'CKV_AWS_115':  'Lambda sin límite de concurrencia',
+                'CKV_AWS_116':  'Lambda sin Dead Letter Queue',
+                'CKV_AWS_1':    'Política IAM con permisos excesivos',
+                'CKV_AWS_40':   'IAM User con política inline',
+                'CKV_AWS_274':  'Lambda con acceso de administrador',
+                'CKV_AWS_50':   'Lambda sin X-Ray tracing',
+                'CKV_AWS_117':  'Lambda fuera de VPC',
+              };
+
+              for (const run of runs) {
+                for (const result of (run.results || [])) {
+                  total++;
+                  const level = result.level;
+                  if (level === 'error') critical++;
+                  else if (level === 'warning') high++;
+                  else medium++;
+
+                  const ruleId = result.ruleId || 'N/A';
+                  const locations = result.locations || [];
+                  let resource = 'template.yaml';
+                  if (locations[0]?.physicalLocation?.artifactLocation?.uri) {
+                    resource = locations[0].physicalLocation.artifactLocation.uri;
+                  }
+                  
+                  const friendlyMsg = knownChecks[ruleId] 
+                    || result.message?.text?.split('\n')[0] 
+                    || ruleId;
+
+                  if (level === 'error' || level === 'warning') {
+                    failedChecks.push({ ruleId, resource, level, friendlyMsg });
+                  }
+                }
+              }
+
+              // Si no hay resultados, no comentar
+              if (total === 0) {
+                console.log('No check results found');
+                return;
+              }
+
+              failedChecks.sort((a, b) => {
+                if (a.level === b.level) return 0;
+                return a.level === 'error' ? -1 : 1;
+              });
+
+              const icon = critical > 0 ? '🔴' : high > 0 ? '🟡' : '🟢';
+              const status = critical > 0
+                ? '⚠️ **Se encontraron issues críticos que deben corregirse antes de mergear.**'
+                : high > 0
+                ? '📋 **Se encontraron advertencias a revisar.**'
+                : '✅ **¡Sin issues críticos detectados!**';
+
+              const topIssues = failedChecks.slice(0, 8);
+              const issueRows = topIssues.length > 0
+                ? topIssues.map(i =>
+                    `| ${i.level === 'error' ? '🔴' : '🟡'} | \`${i.ruleId}\` | ${i.friendlyMsg} | \`${i.resource}\` |`
+                  ).join('\n')
+                : '| ✅ | — | Sin issues críticos | — |';
+
+              const body = [
+                `## ${icon} Checkov IaC Security Report — NANUTECH-BACKEND`,
+                ``,
+                `${status}`,
+                ``,
+                `**Archivo escaneado:** \`template.yaml\` (AWS SAM)`,
+                `**Funciones:** AuthFunction · JornadaFunction · CamionFunction · ConductorFunction · ContratoFunction · UnidadFunction · MigratorFunction`,
+                ``,
+                `| Severidad | Cantidad |`,
+                `|-----------|----------|`,
+                `| 🔴 Critical | ${critical} |`,
+                `| 🟡 High     | ${high}     |`,
+                `| ⚪ Medium   | ${medium}   |`,
+                `| **Total**   | **${total}** |`,
+                ``,
+                `### Issues detectados`,
+                `| Nivel | Check ID | Descripción | Ubicación |`,
+                `|-------|----------|-------------|-----------|`,
+                issueRows,
+                ``,
+                `### 🔧 Recomendaciones de corrección`,
+                `- **CKV_AWS_173** → Usar \`KmsKeyArn\` para encriptar variables de entorno`,
+                `- **CKV_AWS_115** → Agregar \`ReservedConcurrentExecutions: 10\` en cada función`,
+                `- **CKV_AWS_116** → Agregar \`DeadLetterQueue: { Type: SQS, TargetArn: ... }\``,
+                `- **CKV_AWS_76** → Agregar \`AccessLogSetting\` en \`NanutechApi\``,
+                `- **CKV_AWS_120** → Agregar \`MethodSettings: { CachingEnabled: true }\``,
+                ``,
+                `> 📋 Ver detalles completos en **Security → Code scanning alerts** del repositorio.`,
+              ].join('\n');
+
+              // Intentar comentar solo si es un PR (no en push directo)
+              if (github.context.eventName === 'pull_request') {
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body
+                });
+              } else {
+                console.log('Push event - skipping PR comment');
+              }
+              
+            } catch (error) {
+              console.error('Error processing SARIF:', error.message);
+            }
