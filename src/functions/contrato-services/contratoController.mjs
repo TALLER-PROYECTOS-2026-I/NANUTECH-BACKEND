@@ -20,6 +20,12 @@ import { getCurrentSession } from "../auth-services/authService.mjs";
  * POST /contratos
  * =========================================================
  */
+
+
+/**
+ * Convierte el body recibido por Lambda en un objeto JSON.
+ * Si el body viene mal formado, retorna un error controlado 400.
+ */
 const parseJsonBody = (body) => {
   if (!body) return {};
 
@@ -57,29 +63,46 @@ export const getAllVigentesController = async (event) => {
   }
 };
 
+/**
+ * Endpoint:
+ * POST /contratos
+ *
+ * Responsabilidad:
+ * - Validar que el usuario autenticado tenga rol GERENTE.
+ * - Procesar el body recibido desde frontend o Postman.
+ * - Delegar la lógica de negocio al ContratoService.
+ * - Retornar una respuesta controlada al cliente.
+ */
 export const createContratoController = async (event) => {
   try {
+    // Obtiene el token enviado en el header Authorization.
     const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
 
+    // Valida el token y obtiene la sesión actual del usuario.
     const session = await getCurrentSession(authorizationHeader);
 
-    // Validación de seguridad:
-    // Solo Gerente de Operaciones puede registrar contratos
+    // Regla de seguridad: solo el Gerente de Operaciones puede registrar contratos.
     if (session.role !== "gerente") {
       return errorResponse("Solo el Gerente de Operaciones puede registrar contratos", 403, {
         code: "FORBIDDEN_ROLE",
       });
     }
 
+    // Convierte el body del request de string JSON a objeto JavaScript.
     const body = parseJsonBody(event.body);
 
+    // Instancia el servicio donde se aplican las reglas de negocio de la HU14.
     const contratoService = new ContratoService();
+    
+    // Registra el contrato usando la capa Service.
     const contrato = await contratoService.createContrato(body);
 
+    // Retorna respuesta exitosa al cliente.
     return successResponse(contrato, "Contrato registrado correctamente");
   } catch (error) {
     console.error("Error en createContratoController:", error);
 
+    // Retorna errores controlados de validación, autorización o procesamiento.
     return errorResponse(error.message || "Error al registrar contrato", error.statusCode || 400, {
       code: error.code || "CONTRATO_CREATE_ERROR",
     });
