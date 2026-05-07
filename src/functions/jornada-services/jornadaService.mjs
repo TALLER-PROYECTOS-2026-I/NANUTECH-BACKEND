@@ -4,6 +4,14 @@ import { JornadaValidator } from "../../shared/utils/validators/jornadaValidator
 
 const ACTIVE_STATES = new Set(["REGISTRADA", "PENDIENTE", "EN_PROCESO"]);
 
+/**
+ * Construye un error tipado para el dominio de jornadas.
+ *
+ * @param {string} message - Mensaje descriptivo del error
+ * @param {number} [statusCode=400] - Código HTTP asociado
+ * @param {string} [code="JORNADA_ERROR"] - Código de error interno para el cliente
+ * @returns {Error} Error enriquecido con statusCode y code
+ */
 function createJornadaError(message, statusCode = 400, code = "JORNADA_ERROR") {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -11,6 +19,14 @@ function createJornadaError(message, statusCode = 400, code = "JORNADA_ERROR") {
   return error;
 }
 
+/**
+ * Escapa un valor para ser incluido de forma segura en un CSV.
+ * Envuelve en comillas dobles si el valor contiene comas, comillas o saltos de línea,
+ * escapando las comillas internas duplicándolas (RFC 4180).
+ *
+ * @param {*} value - Valor a escapar (cualquier tipo; se convierte a string)
+ * @returns {string} Valor escapado listo para CSV, o cadena vacía si es null/undefined
+ */
 const escapeCsv = (value) => {
   if (value === null || value === undefined) return '';
   const str = String(value);
@@ -20,11 +36,32 @@ const escapeCsv = (value) => {
   return str;
 };
 
+/**
+ * Servicio de dominio para la gestión de jornadas de conductores.
+ * Coordina la validación de datos, las reglas de negocio y el acceso al repositorio.
+ */
 export class JornadaService {
   constructor() {
     this.repository = new JornadaRepository();
   }
 
+  /**
+   * Crea una nueva jornada verificando que ni el conductor ni la unidad
+   * tengan una jornada activa o pendiente en el momento del registro.
+   *
+   * @param {Object} jornadaData - Datos de la nueva jornada (sin validar)
+   * @param {number} jornadaData.conductor_id - ID del conductor asignado
+   * @param {number} jornadaData.unidad_id - ID de la unidad/camión asignada
+   * @param {number} jornadaData.contrato_id - ID del contrato asociado
+   * @param {string} [jornadaData.fecha_jornada] - Fecha de la jornada (default: fecha actual del servidor)
+   * @param {string} [jornadaData.origen] - Punto de partida
+   * @param {string} [jornadaData.destino] - Punto de llegada
+   * @param {number} [jornadaData.km_recorridos] - Kilómetros estimados
+   * @param {string} [jornadaData.observaciones] - Observaciones iniciales
+   * @returns {Promise<Jornada>} La jornada creada mapeada al modelo de dominio
+   * @throws {Error} 400 UNIDAD_CON_JORNADA_ACTIVA si la unidad ya está ocupada
+   * @throws {Error} 400 CONDUCTOR_CON_JORNADA_ACTIVA si el conductor ya está ocupado
+   */
   async createJornada(jornadaData) {
     const validatedData = JornadaValidator.validateCreateJornada(jornadaData);
 
@@ -54,6 +91,15 @@ export class JornadaService {
     return Jornada.fromDatabase(createdDb);
   }
 
+  /**
+   * Obtiene la jornada activa más reciente de un conductor.
+   * Solo considera jornadas en estado REGISTRADA, PENDIENTE o EN_PROCESO.
+   * Retorna null cuando no existe jornada activa; el dashboard usa este valor
+   * para decidir si mostrar o no la sección de jornada actual.
+   *
+   * @param {string|number} conductorId - ID del conductor a consultar
+   * @returns {Promise<Jornada|null>} La jornada activa mapeada al modelo, o null si no existe
+   */
   async getCurrentJornada(conductorId) {
     const validatedConductorId = JornadaValidator.validateConductorId(conductorId);
     const jornada = await this.repository.findCurrentByConductorId(
@@ -64,6 +110,18 @@ export class JornadaService {
     return jornada ? Jornada.fromDatabase(jornada) : null;
   }
 
+  /**
+   * Inicia el turno de una jornada, cambiando su estado de REGISTRADA o PENDIENTE
+   * a EN_PROCESO. La hora de inicio la fija el servidor en el momento de la llamada,
+   * sin aceptar valores del cliente.
+   *
+   * @param {Object} payload - Datos de inicio de turno
+   * @param {number} payload.jornada_id - ID de la jornada a iniciar
+   * @returns {Promise<Jornada>} La jornada actualizada con hora_inicio y estado EN_PROCESO
+   * @throws {Error} 404 JORNADA_NOT_FOUND si la jornada no existe
+   * @throws {Error} 400 JORNADA_ALREADY_STARTED si la jornada ya está EN_PROCESO
+   * @throws {Error} 400 JORNADA_INVALID_STATE si el estado actual no permite iniciar
+   */
   async startTurn(payload) {
     const { jornada_id: jornadaId } = JornadaValidator.validateStartTurn(payload);
     const jornada = await this.repository.findById(jornadaId);
@@ -101,6 +159,18 @@ export class JornadaService {
     return Jornada.fromDatabase(updated);
   }
 
+  /**
+   * Finaliza el turno de una jornada EN_PROCESO, cambiando su estado a COMPLETADA.
+   * El servidor fija la hora de fin y el repositorio calcula la duración total en segundos.
+   * Solo se pueden cerrar jornadas que estén exactamente en estado EN_PROCESO.
+   *
+   * @param {Object} payload - Datos de cierre de turno
+   * @param {number} payload.jornada_id - ID de la jornada a finalizar
+   * @param {string} [payload.observaciones] - Observaciones finales opcionales del turno
+   * @returns {Promise<Jornada>} La jornada finalizada con hora_fin y duración calculada
+   * @throws {Error} 404 JORNADA_NOT_FOUND si la jornada no existe
+   * @throws {Error} 400 JORNADA_NOT_IN_PROGRESS si la jornada no está EN_PROCESO
+   */
   async finishTurn(payload) {
     const {
       jornada_id: jornadaId,
@@ -125,10 +195,36 @@ export class JornadaService {
     return Jornada.fromDatabase(updated);
   }
 
+  /**
+   * Obtiene todas las jornadas aplicando los filtros indicados.
+   * Delega directamente en el repositorio sin transformar al modelo Jornada,
+   * ya que esta vista incluye campos calculados y de JOIN no presentes en el modelo base.
+   *
+   * @param {Object} [filtros={}] - Criterios de búsqueda
+   * @param {string} [filtros.q] - Texto libre (busca en placa y nombre del conductor)
+   * @param {string} [filtros.conductor_id] - ID exacto del conductor
+   * @param {string} [filtros.fecha_desde] - Fecha mínima de jornada (YYYY-MM-DD)
+   * @param {string} [filtros.fecha_hasta] - Fecha máxima de jornada (YYYY-MM-DD)
+   * @returns {Promise<Object[]>} Lista de jornadas con campos enriquecidos (conductor, camión, contrato, horario)
+   */
   async getAllJornadas(filtros = {}) {
     return this.repository.findAll(filtros);
   }
 
+  /**
+   * Genera el contenido de un archivo CSV con todas las jornadas que coincidan
+   * con los filtros aplicados. Los campos se escapan según RFC 4180.
+   *
+   * Columnas del CSV: ID Jornada, Fecha, Conductor, Placa del Camion, Contrato,
+   * Hora Inicio, Hora Fin, Duracion Total, KM Recorridos, Estado, Observaciones.
+   *
+   * @param {Object} [filtros={}] - Filtros de exportación (mismos parámetros que getAllJornadas)
+   * @param {string} [filtros.q] - Texto libre
+   * @param {string} [filtros.conductor_id] - ID del conductor
+   * @param {string} [filtros.fecha_desde] - Fecha inicio del rango (YYYY-MM-DD)
+   * @param {string} [filtros.fecha_hasta] - Fecha fin del rango (YYYY-MM-DD)
+   * @returns {Promise<string>} Contenido CSV listo para escribir en el body de la respuesta HTTP
+   */
   async generateCsv(filtros = {}) {
     const rows = await this.repository.exportAll(filtros);
 

@@ -1,5 +1,12 @@
 import db from "../../shared/config/database.mjs";
 
+/**
+ * Campos permitidos para ordenar la lista de contratos en findAll.
+ * Usar un mapa explícito previene inyección SQL en la cláusula ORDER BY,
+ * ya que el valor de order_by del cliente se traduce al campo calificado de SQL.
+ *
+ * @type {Object.<string, string>}
+ */
 const ALLOWED_ORDER_FIELDS = {
   fecha_fin: 'c.fecha_fin',
   fecha_inicio: 'c.fecha_inicio',
@@ -9,6 +16,16 @@ const ALLOWED_ORDER_FIELDS = {
   created_at: 'c.created_at',
 };
 
+/**
+ * Construye la cláusula WHERE y el arreglo de parámetros para filtrar contratos.
+ * Usa parámetros numerados ($1, $2, …) compatibles con node-postgres para prevenir inyección SQL.
+ * La búsqueda por texto `q` aplica ILIKE simultáneamente sobre código y nombre del cliente.
+ *
+ * @param {Object} [options={}] - Criterios de filtrado
+ * @param {string} [options.q] - Texto libre; busca en `c.codigo` e `c.cliente` con ILIKE
+ * @param {string} [options.estado] - Filtra exacto por `c.estado` (VIGENTE, VENCIDO, SUSPENDIDO, etc.)
+ * @returns {{ whereClause: string, params: Array }} Cláusula WHERE lista para interpolación y arreglo de valores
+ */
 function buildFilters({ q, estado } = {}) {
   const conditions = [];
   const params = [];
@@ -29,7 +46,19 @@ function buildFilters({ q, estado } = {}) {
   };
 }
 
+/**
+ * Repositorio de acceso a datos para la entidad Contrato.
+ * Las operaciones de escritura usan transacciones explícitas para garantizar atomicidad.
+ * Las operaciones de lectura usan la pool directamente (db.query) sin reservar cliente dedicado.
+ */
 export class ContratoRepository {
+  /**
+   * Obtiene todos los contratos actualmente vigentes según los criterios del sistema.
+   * Un contrato es vigente cuando: activo = TRUE, estado = VIGENTE,
+   * fecha_inicio <= CURRENT_DATE y (fecha_fin >= CURRENT_DATE OR fecha_fin IS NULL).
+   *
+   * @returns {Promise<Object[]>} Lista de contratos vigentes ordenados alfabéticamente por cliente
+   */
   async getAllVigentes() {
     const result = await db.query(
       `SELECT id, codigo, cliente, descripcion,
@@ -44,6 +73,36 @@ export class ContratoRepository {
     return result.rows;
   }
 
+  /**
+   * Crea un nuevo contrato con su ruta y tarifas asociadas en una transacción atómica.
+   * Si cualquier paso falla, ejecuta ROLLBACK automático antes de relanzar el error.
+   *
+   * El código de contrato se genera con generateCodigoContrato().
+   * El total_referencial se calcula como distancia_estimada_km × tarifa_por_km.
+   *
+   * Pasos de la transacción:
+   * 1. INSERT en contratos (estado = 'VIGENTE', activo = TRUE)
+   * 2. INSERT en contrato_rutas (origen, destino, distancia)
+   * 3. INSERT en contrato_tarifas (tarifas por km, hora, espera y total referencial)
+   * 4. SELECT completo del contrato con JOINs (getFullContratoByIdWithClient)
+   *
+   * @param {Object} data - Datos validados del contrato
+   * @param {string} data.cliente - Nombre del cliente
+   * @param {string} data.ruc - RUC del cliente
+   * @param {string} [data.descripcion] - Descripción opcional del contrato
+   * @param {string} data.tipo_servicio - Tipo de servicio
+   * @param {string} data.fecha_inicio - Fecha de inicio (YYYY-MM-DD)
+   * @param {string} [data.fecha_fin] - Fecha de fin (opcional)
+   * @param {string} [data.moneda='PEN'] - Moneda del contrato
+   * @param {string} data.origen - Origen del recorrido
+   * @param {string} data.destino - Destino del recorrido
+   * @param {number} data.distancia_estimada_km - Distancia en km
+   * @param {number} data.tarifa_por_km - Tarifa por km
+   * @param {number} [data.tarifa_por_hora=0] - Tarifa por hora
+   * @param {number} [data.tarifa_espera=0] - Tarifa de espera
+   * @returns {Promise<Object>} Contrato completo con ruta y tarifas tras el COMMIT
+   * @throws {Error} Si algún paso de la transacción falla; se ejecuta ROLLBACK antes de relanzar
+   */
   async createContrato(data) {
     const client = await db.getClient();
 
@@ -143,10 +202,18 @@ export class ContratoRepository {
     }
   }
 
-
+  /**
+   * Obtiene el contrato completo con su ruta y tarifas usando un cliente de transacción existente.
+   * Se llama internamente después del INSERT para retornar el objeto completo en la misma transacción,
+   * evitando una lectura sucia o una condición de carrera con otra conexión.
+   *
+   * @param {Object} client - Cliente de pg con una transacción activa (BEGIN ya ejecutado)
+   * @param {number|string} id - ID del contrato recién creado
+   * @returns {Promise<Object|undefined>} Fila completa con JOINs a contrato_rutas y contrato_tarifas
+   */
   async getFullContratoByIdWithClient(client, id) {
     const result = await client.query(
-      `SELECT 
+      `SELECT
           c.id,
           c.codigo,
           c.cliente,
@@ -178,17 +245,52 @@ export class ContratoRepository {
     return result.rows[0];
   }
 
+  /**
+   * Genera un código único de contrato basado en timestamp Unix y un número aleatorio de 3 dígitos.
+   * Formato: CONT-{timestamp_ms}-{0-999}
+   * La combinación de timestamp y aleatoriedad minimiza colisiones en creaciones concurrentes.
+   *
+   * @returns {string} Código de contrato generado (ej. "CONT-1715123456789-42")
+   */
   generateCodigoContrato() {
     return `CONT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   }
 
+  /**
+   * Calcula el total referencial del contrato como el producto de distancia × tarifa por km.
+   * Este valor se almacena tanto en contratos.tarifa como en contrato_tarifas.total_referencial
+   * para facilitar consultas y reportes sin necesidad de recalcular.
+   *
+   * @param {Object} data - Datos del contrato
+   * @param {number} data.distancia_estimada_km - Distancia en kilómetros
+   * @param {number} data.tarifa_por_km - Precio por kilómetro
+   * @returns {number} Total referencial redondeado a 2 decimales
+   */
   calculateTotalReferencial(data) {
     const distancia = Number(data.distancia_estimada_km || 0);
     const tarifaPorKm = Number(data.tarifa_por_km || 0);
 
     return Number((distancia * tarifaPorKm).toFixed(2));
   }
-  
+
+  /**
+   * Obtiene los indicadores agregados del módulo de contratos usando CTEs para modularidad.
+   *
+   * CTEs definidas:
+   * - dist_estado: cuenta contratos agrupados por estado, ordenados por cantidad DESC
+   * - dist_tipo: cuenta contratos agrupados por tipo_servicio (excluye NULLs), ordenados por cantidad DESC
+   *
+   * Métricas retornadas:
+   * - total_contratos: conteo total de contratos registrados
+   * - contratos_activos: contratos con estado = 'VIGENTE' y activo = TRUE
+   * - contratos_vencidos: contratos con estado = 'VENCIDO'
+   * - proximos_a_vencer: contratos VIGENTES con fecha_fin entre hoy y 30 días adelante
+   * - camiones_asignados: conteo de unidades únicas activas en contratos vigentes (vía contrato_unidades)
+   * - distribucion_por_estado: JSON array [{ estado, cantidad }] ordenado por cantidad DESC
+   * - distribucion_por_tipo_servicio: JSON array [{ tipo_servicio, cantidad }] ordenado por cantidad DESC
+   *
+   * @returns {Promise<Object>} Fila única con todas las métricas del módulo
+   */
   async getIndicadores() {
     const result = await db.query(`
       WITH
@@ -232,6 +334,26 @@ export class ContratoRepository {
     return result.rows[0];
   }
 
+  /**
+   * Obtiene contratos paginados con campos calculados de vencimiento.
+   * Ejecuta dos consultas: una para el conteo total (paginación) y otra para los datos.
+   * Aplica filtros, paginación segura (clampea limit a 1-100) y ordenamiento validado contra
+   * ALLOWED_ORDER_FIELDS para prevenir inyección SQL en ORDER BY.
+   *
+   * Campos calculados incluidos:
+   * - dias_para_vencer: diferencia en días entre fecha_fin y hoy (NULL si sin fecha_fin)
+   * - camiones_asignados: conteo de unidades activas asignadas al contrato
+   * - proximo_a_vencer: TRUE si fecha_fin está entre 0 y 30 días desde hoy
+   *
+   * @param {Object} [filtros={}] - Criterios de búsqueda
+   * @param {string} [filtros.q] - Texto libre (código o cliente)
+   * @param {string} [filtros.estado] - Estado exacto del contrato
+   * @param {Object} [pagination={}] - Parámetros de paginación
+   * @param {number} [pagination.page=1] - Página actual (mínimo 1)
+   * @param {number} [pagination.limit=10] - Registros por página (rango: 1-100)
+   * @param {string} [pagination.order_by='fecha_fin'] - Campo de ordenamiento (ver ALLOWED_ORDER_FIELDS)
+   * @returns {Promise<{ rows: Object[], total: number, page: number, limit: number }>}
+   */
   async findAll({ q, estado } = {}, { page = 1, limit = 10, order_by = 'fecha_fin' } = {}) {
     const { whereClause, params } = buildFilters({ q, estado });
 
@@ -281,6 +403,15 @@ export class ContratoRepository {
     return { rows: result.rows, total, page: pageNum, limit: limitNum };
   }
 
+  /**
+   * Obtiene el detalle completo de un contrato por su ID primario.
+   * Incluye un JSON array de unidades activas asignadas (id, placa, marca, modelo, estado)
+   * agregado mediante subquery con json_agg. Si no hay unidades, retorna '[]'::json.
+   * Calcula dias_para_vencer y el flag proximo_a_vencer al momento de la consulta.
+   *
+   * @param {string|number} contratoId - ID del contrato
+   * @returns {Promise<Object|null>} Contrato con unidades asignadas y campos calculados, o null si no existe
+   */
   async findById(contratoId) {
     const result = await db.query(`
       SELECT
