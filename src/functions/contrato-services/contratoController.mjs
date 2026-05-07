@@ -73,15 +73,22 @@ export const getAllContratosController = async (event) => {
   }
 };
 
+// 🔥 HU07 - Obtiene el detalle de un contrato seleccionado
+// Permite visualizar información como cliente, descripción,
+// fechas de vigencia y demás datos asociados al contrato.
 export const getContratoByIdController = async (event) => {
   try {
     const { id } = event.pathParameters || {};
 
+    // Validación del identificador del contrato
     if (!id) return errorResponse("El id del contrato es requerido.", 400);
 
     const contratoService = new ContratoService();
+
+    // Consulta del detalle completo del contrato
     const contrato = await contratoService.getContratoById(id);
 
+    // Respuesta en caso el contrato no exista
     if (!contrato) return errorResponse("Contrato no encontrado.", 404);
 
     return successResponse(contrato, SUCCESS_MESSAGES.CONTRATO_RETRIEVED);
@@ -90,14 +97,25 @@ export const getContratoByIdController = async (event) => {
   }
 };
 
-// 🔥 HU07 (SE MANTIENE)
+// 🔥 HU07 - Actualización de contratos
+// Permite editar información del contrato como tarifas,
+// fechas de vigencia, estado y demás campos configurables.
+// Además, se registra la IP desde donde se realizó el cambio
+// para mantener trazabilidad e historial de modificaciones.
 export const updateContratoController = async (event) => {
   try {
     const service = new ContratoService();
+
+    // Obtención del id del contrato desde la ruta
     const id = event.pathParameters.id;
+
+    // Conversión del body recibido en formato JSON
     const body = JSON.parse(event.body);
+
+    // Captura de IP del usuario que ejecuta la modificación
     const ip = event.requestContext.http.sourceIp;
 
+    // Ejecución de la lógica de actualización
     const data = await service.updateContrato(id, body, ip);
 
     return successResponse(data, "Contrato actualizado");
@@ -106,13 +124,20 @@ export const updateContratoController = async (event) => {
   }
 };
 
-// 🔥 HU07 (SE MANTIENE)
+// 🔥 HU07 - Asignación de múltiples unidades al contrato
+// Permite vincular camiones disponibles mostrando
+// información relevante como placa y modelo.
 export const assignUnidadesController = async (event) => {
   try {
     const service = new ContratoService();
+
+    // Obtención del id del contrato seleccionado
     const id = event.pathParameters.id;
+
+    // Lectura de unidades enviadas desde el frontend
     const body = JSON.parse(event.body);
 
+    // Asignación de múltiples unidades al contrato
     const data = await service.assignUnidades(id, body.unidades);
 
     return successResponse(data, "Unidades asignadas");
