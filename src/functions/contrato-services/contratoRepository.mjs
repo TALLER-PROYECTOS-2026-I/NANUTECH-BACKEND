@@ -8,12 +8,12 @@ import db from "../../shared/config/database.mjs";
  * @type {Object.<string, string>}
  */
 const ALLOWED_ORDER_FIELDS = {
-  fecha_fin: 'c.fecha_fin',
-  fecha_inicio: 'c.fecha_inicio',
-  cliente: 'c.cliente',
-  codigo: 'c.codigo',
-  estado: 'c.estado',
-  created_at: 'c.created_at',
+  fecha_fin: "c.fecha_fin",
+  fecha_inicio: "c.fecha_inicio",
+  cliente: "c.cliente",
+  codigo: "c.codigo",
+  estado: "c.estado",
+  created_at: "c.created_at",
 };
 
 /**
@@ -35,13 +35,14 @@ function buildFilters({ q, estado } = {}) {
     const idx = params.length;
     conditions.push(`(c.codigo ILIKE $${idx} OR c.cliente ILIKE $${idx})`);
   }
+
   if (estado) {
     params.push(estado);
     conditions.push(`c.estado = $${params.length}`);
   }
 
   return {
-    whereClause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+    whereClause: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
     params,
   };
 }
@@ -60,77 +61,59 @@ export class ContratoRepository {
    * @returns {Promise<Object[]>} Lista de contratos vigentes ordenados alfabéticamente por cliente
    */
   async getAllVigentes() {
-    const result = await db.query(
-      `SELECT id, codigo, cliente, descripcion,
-              fecha_inicio, fecha_fin, tarifa, moneda, estado, activo
-       FROM contratos
-       WHERE activo = TRUE
-         AND estado = 'VIGENTE'
-         AND fecha_inicio <= CURRENT_DATE
-         AND (fecha_fin IS NULL OR fecha_fin >= CURRENT_DATE)
-       ORDER BY cliente`,
-    );
+    const result = await db.query(`
+      SELECT id, codigo, cliente, descripcion,
+             fecha_inicio, fecha_fin, tarifa, moneda, estado, activo
+      FROM contratos
+      WHERE activo = TRUE
+        AND estado = 'VIGENTE'
+        AND fecha_inicio <= CURRENT_DATE
+        AND (fecha_fin IS NULL OR fecha_fin >= CURRENT_DATE)
+      ORDER BY cliente
+    `);
     return result.rows;
   }
 
+
+  // 🔥 =========================
+  // CREATE (DEVELOP)
+  // 🔥 =========================
+
   /**
-   * Crea un nuevo contrato con su ruta y tarifas asociadas en una transacción atómica.
-   * Si cualquier paso falla, ejecuta ROLLBACK automático antes de relanzar el error.
+   * Registra un contrato completo en PostgreSQL.
    *
-   * El código de contrato se genera con generateCodigoContrato().
-   * El total_referencial se calcula como distancia_estimada_km × tarifa_por_km.
+   * Flujo:
+   * 1. Inicia transacción.
+   * 2. Inserta contrato principal.
+   * 3. Inserta ruta del contrato.
+   * 4. Inserta reglas tarifarias.
+   * 5. Confirma transacción.
    *
-   * Pasos de la transacción:
-   * 1. INSERT en contratos (estado = 'VIGENTE', activo = TRUE)
-   * 2. INSERT en contrato_rutas (origen, destino, distancia)
-   * 3. INSERT en contrato_tarifas (tarifas por km, hora, espera y total referencial)
-   * 4. SELECT completo del contrato con JOINs (getFullContratoByIdWithClient)
-   *
-   * @param {Object} data - Datos validados del contrato
-   * @param {string} data.cliente - Nombre del cliente
-   * @param {string} data.ruc - RUC del cliente
-   * @param {string} [data.descripcion] - Descripción opcional del contrato
-   * @param {string} data.tipo_servicio - Tipo de servicio
-   * @param {string} data.fecha_inicio - Fecha de inicio (YYYY-MM-DD)
-   * @param {string} [data.fecha_fin] - Fecha de fin (opcional)
-   * @param {string} [data.moneda='PEN'] - Moneda del contrato
-   * @param {string} data.origen - Origen del recorrido
-   * @param {string} data.destino - Destino del recorrido
-   * @param {number} data.distancia_estimada_km - Distancia en km
-   * @param {number} data.tarifa_por_km - Tarifa por km
-   * @param {number} [data.tarifa_por_hora=0] - Tarifa por hora
-   * @param {number} [data.tarifa_espera=0] - Tarifa de espera
-   * @returns {Promise<Object>} Contrato completo con ruta y tarifas tras el COMMIT
-   * @throws {Error} Si algún paso de la transacción falla; se ejecuta ROLLBACK antes de relanzar
+   * Si ocurre un error:
+   * - Se ejecuta ROLLBACK.
    */
   async createContrato(data) {
+    // Obtiene un cliente de conexión para manejar la transacción
     const client = await db.getClient();
 
     try {
+      // Inicia la transacción
       await client.query("BEGIN");
 
+      // Genera código único y calcula la tarifa referencial
       const codigo = this.generateCodigoContrato();
       const totalReferencial = this.calculateTotalReferencial(data);
 
-      // 1. Insertar contrato principal
+      // Inserta la información principal del contrato
       const contratoResult = await client.query(
         `
-      INSERT INTO contratos (
-        codigo,
-        cliente,
-        ruc,
-        descripcion,
-        tipo_servicio,
-        fecha_inicio,
-        fecha_fin,
-        tarifa,
-        moneda,
-        estado,
-        activo
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'VIGENTE',TRUE)
-      RETURNING *
-      `,
+        INSERT INTO contratos (
+          codigo, cliente, ruc, descripcion, tipo_servicio,
+          fecha_inicio, fecha_fin, tarifa, moneda, estado, activo
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'VIGENTE',TRUE)
+        RETURNING *
+        `,
         [
           codigo,
           data.cliente.trim(),
@@ -141,135 +124,109 @@ export class ContratoRepository {
           data.fecha_fin || null,
           totalReferencial,
           data.moneda || "PEN",
-        ],
+        ]
       );
 
+      // Obtiene el contrato creado para usar su ID en las tablas relacionadas
       const contrato = contratoResult.rows[0];
 
-      // 2. Ruta
+      // Registra la ruta asociada al contrato
       await client.query(
         `
-      INSERT INTO contrato_rutas (
-        contrato_id,
-        origen,
-        destino,
-        distancia_estimada_km
-      )
-      VALUES ($1,$2,$3,$4)
-      `,
+        INSERT INTO contrato_rutas (contrato_id, origen, destino, distancia_estimada_km)
+        VALUES ($1,$2,$3,$4)
+        `,
         [
           contrato.id,
           data.origen.trim(),
           data.destino.trim(),
           Number(data.distancia_estimada_km).toFixed(2),
-        ],
+        ]
       );
 
-      // 3. Tarifas
+      // Registra las tarifas y el total referencial del contrato
       await client.query(
         `
-      INSERT INTO contrato_tarifas (
-        contrato_id,
-        tarifa_por_km,
-        tarifa_por_hora,
-        tarifa_espera,
-        total_referencial
-      )
-      VALUES ($1,$2,$3,$4,$5)
-      `,
+        INSERT INTO contrato_tarifas (
+          contrato_id, tarifa_por_km, tarifa_por_hora,
+          tarifa_espera, total_referencial
+        )
+        VALUES ($1,$2,$3,$4,$5)
+        `,
         [
           contrato.id,
           Number(data.tarifa_por_km).toFixed(2),
           Number(data.tarifa_por_hora || 0).toFixed(2),
           Number(data.tarifa_espera || 0).toFixed(2),
           totalReferencial,
-        ],
+        ]
       );
 
-      const fullResult = await this.getFullContratoByIdWithClient(
-        client,
-        contrato.id,
-      );
+      // Consulta el contrato completo con ruta y tarifas asociadas
+      const fullResult = await this.getFullContratoByIdWithClient(client, contrato.id);
 
+      // Confirma la transacción
       await client.query("COMMIT");
 
+      // Retorna el contrato completo registrado
       return fullResult;
     } catch (error) {
+      // Revierte la transacción si ocurre algún error
       await client.query("ROLLBACK");
       throw error;
     } finally {
+      // Libera la conexión del cliente
       client.release();
     }
   }
 
   /**
-   * Obtiene el contrato completo con su ruta y tarifas usando un cliente de transacción existente.
-   * Se llama internamente después del INSERT para retornar el objeto completo en la misma transacción,
-   * evitando una lectura sucia o una condición de carrera con otra conexión.
-   *
-   * @param {Object} client - Cliente de pg con una transacción activa (BEGIN ya ejecutado)
-   * @param {number|string} id - ID del contrato recién creado
-   * @returns {Promise<Object|undefined>} Fila completa con JOINs a contrato_rutas y contrato_tarifas
+   * Obtiene el detalle completo de un contrato,
+   * incluyendo datos generales, ruta y tarifas.
    */
   async getFullContratoByIdWithClient(client, id) {
     const result = await client.query(
-      `SELECT
-          c.id,
-          c.codigo,
-          c.cliente,
-          c.ruc,
-          c.descripcion,
-          c.tipo_servicio,
-          c.fecha_inicio,
-          c.fecha_fin,
-          c.tarifa,
-          c.moneda,
-          c.estado,
-          c.activo,
-          cr.origen,
-          cr.destino,
-          cr.distancia_estimada_km,
-          ct.tarifa_base,
-          ct.tarifa_por_km,
-          ct.tarifa_por_hora,
-          ct.tarifa_por_tonelada,
-          ct.tarifa_espera,
-          ct.total_referencial
-       FROM contratos c
-       JOIN contrato_rutas cr ON cr.contrato_id = c.id
-       JOIN contrato_tarifas ct ON ct.contrato_id = c.id
-       WHERE c.id = $1`,
-      [id],
+      `
+      SELECT 
+        c.*,
+        cr.origen, cr.destino, cr.distancia_estimada_km,
+        ct.tarifa_por_km, ct.tarifa_por_hora,
+        ct.tarifa_espera, ct.total_referencial
+      FROM contratos c
+      JOIN contrato_rutas cr ON cr.contrato_id = c.id
+      JOIN contrato_tarifas ct ON ct.contrato_id = c.id
+      WHERE c.id = $1
+      `,
+      [id]
     );
 
+    // Retorna el primer resultado encontrado del contrato
     return result.rows[0];
   }
 
   /**
-   * Genera un código único de contrato basado en timestamp Unix y un número aleatorio de 3 dígitos.
-   * Formato: CONT-{timestamp_ms}-{0-999}
-   * La combinación de timestamp y aleatoriedad minimiza colisiones en creaciones concurrentes.
-   *
-   * @returns {string} Código de contrato generado (ej. "CONT-1715123456789-42")
+   * Genera un código único para identificar el contrato.
    */
   generateCodigoContrato() {
+    // Genera un código alfanumérico único para el contrato.
     return `CONT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   }
 
   /**
-   * Calcula el total referencial del contrato como el producto de distancia × tarifa por km.
-   * Este valor se almacena tanto en contratos.tarifa como en contrato_tarifas.total_referencial
-   * para facilitar consultas y reportes sin necesidad de recalcular.
+   * Calcula el total referencial del contrato.
    *
-   * @param {Object} data - Datos del contrato
-   * @param {number} data.distancia_estimada_km - Distancia en kilómetros
-   * @param {number} data.tarifa_por_km - Precio por kilómetro
-   * @returns {number} Total referencial redondeado a 2 decimales
+   * Fórmula:
+   * Total referencial = Distancia estimada × Tarifa por KM
    */
   calculateTotalReferencial(data) {
+    // Convierte la distancia a número
     const distancia = Number(data.distancia_estimada_km || 0);
+
+    // Convierte la tarifa por KM a número
     const tarifaPorKm = Number(data.tarifa_por_km || 0);
 
+    // Calcula la tarifa total referencial.
+    // Tarifa Total = Distancia Estimada × Tarifa por KM
     return Number((distancia * tarifaPorKm).toFixed(2));
   }
 
@@ -334,7 +291,98 @@ export class ContratoRepository {
     return result.rows[0];
   }
 
-  /**
+
+  // 🔥 =========================
+  // HU07 (UPDATE + HISTORIAL)
+  // 🔥 =========================
+
+  // Obtiene la información base del contrato seleccionado
+  // para mostrar el detalle y validar cambios antes de actualizar.
+  async getById(id) {
+    const result = await db.query(`SELECT * FROM contratos c WHERE c.id = $1`, [id]);
+    return result.rows[0];
+  }
+
+  // Obtiene el esquema de tarifas asociado al contrato.
+  // Permite visualizar y editar cobros por hora, tonelada o tarifa base.
+  async getTarifasByContrato(id) {
+    try {
+      const result = await db.query(`SELECT * FROM contrato_tarifas WHERE contrato_id = $1`, [id]);
+      return result.rows[0];
+    } catch {
+      return null;
+    }
+  }
+
+  // Actualiza los datos principales del contrato.
+  // Incluye fechas, descripción, tipo de servicio y tarifa general.
+  async updateContrato(id, data) {
+    await db.query(
+      `
+      UPDATE contratos
+      SET fecha_inicio = $1,
+          fecha_fin = $2,
+          tipo_servicio = $3,
+          descripcion = $4,
+          tarifa = $5
+      WHERE id = $6
+      `,
+      [data.fecha_inicio, data.fecha_fin, data.tipo_servicio, data.descripcion, data.tarifa, id]
+    );
+  }
+
+  // Actualiza el esquema de tarifas del contrato.
+  // Permite modificar tarifas según tipo de cobro requerido.
+  async updateTarifas(id, tarifas) {
+    await db.query(
+      `
+      UPDATE contrato_tarifas
+      SET tarifa_base = $1,
+          tarifa_por_hora = $2,
+          tarifa_por_tonelada = $3
+      WHERE contrato_id = $4
+      `,
+      [tarifas.base, tarifas.hora, tarifas.tonelada, id]
+    );
+  }
+
+  // Registra automáticamente los cambios realizados en el contrato.
+  // Guarda campo modificado, valor anterior, valor nuevo e IP del usuario.
+  async insertHistorial(data) {
+    await db.query(
+      `
+      INSERT INTO contratos_historial
+      (contrato_id, accion, campo, valor_anterior, valor_nuevo, ip_address)
+      VALUES ($1,$2,$3,$4,$5,$6)
+      `,
+      [
+        data.contrato_id,
+        "UPDATE",
+        data.campo,
+        data.valor_anterior,
+        data.valor_nuevo,
+        data.ip_address,
+      ]
+    );
+  }
+
+  // Inserta una unidad/camión vinculada al contrato.
+  // Permite la asignación múltiple de unidades.
+  async insertUnidad(contrato_id, unidad_id) {
+    await db.query(
+      `INSERT INTO contrato_unidades (contrato_id, unidad_id)
+       VALUES ($1,$2)`,
+      [contrato_id, unidad_id]
+    );
+  }
+
+  // Elimina las unidades previamente asociadas al contrato
+  // antes de registrar una nueva asignación.
+  async deleteUnidades(contrato_id) {
+    await db.query(`DELETE FROM contrato_unidades WHERE contrato_id = $1`, [contrato_id]);
+  }
+
+    /**
    * Obtiene contratos paginados con campos calculados de vencimiento.
    * Ejecuta dos consultas: una para el conteo total (paginación) y otra para los datos.
    * Aplica filtros, paginación segura (clampea limit a 1-100) y ordenamiento validado contra
@@ -360,45 +408,35 @@ export class ContratoRepository {
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
     const offset = (pageNum - 1) * limitNum;
-    const orderField = ALLOWED_ORDER_FIELDS[order_by] || 'c.fecha_fin';
+    const orderField = ALLOWED_ORDER_FIELDS[order_by] || "c.fecha_fin";
 
     const countResult = await db.query(
       `SELECT COUNT(*)::INT AS total FROM contratos c ${whereClause}`,
       params
     );
+
     const total = parseInt(countResult.rows[0].total);
 
-    const dataParams = [...params, limitNum, offset];
-    const result = await db.query(`
+    const result = await db.query(
+      `
       SELECT
-        c.id,
-        c.codigo,
-        c.cliente,
-        c.ruc,
-        c.descripcion,
-        c.tipo_servicio,
-        c.fecha_inicio,
-        c.fecha_fin,
-        c.tarifa,
-        c.moneda,
-        c.estado,
-        c.activo,
+        c.*,
         CASE WHEN c.fecha_fin IS NOT NULL
           THEN (c.fecha_fin - CURRENT_DATE)::INT
         END AS dias_para_vencer,
-        (SELECT COUNT(*)::INT FROM contrato_unidades
-         WHERE contrato_id = c.id AND activo = TRUE) AS camiones_asignados,
+        (SELECT COUNT(*) FROM contrato_unidades WHERE contrato_id = c.id) AS camiones_asignados,
         CASE
           WHEN c.fecha_fin IS NOT NULL
             AND (c.fecha_fin - CURRENT_DATE) BETWEEN 0 AND 30
-            THEN TRUE
-          ELSE FALSE
+          THEN TRUE ELSE FALSE
         END AS proximo_a_vencer
       FROM contratos c
       ${whereClause}
-      ORDER BY ${orderField} ASC
+      ORDER BY ${orderField}
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
-    `, dataParams);
+      `,
+      [...params, limitNum, offset]
+    );
 
     return { rows: result.rows, total, page: pageNum, limit: limitNum };
   }
@@ -439,23 +477,22 @@ export class ContratoRepository {
           ELSE FALSE
         END AS proximo_a_vencer,
         COALESCE(
-          (SELECT json_agg(
+          json_agg(
             json_build_object(
-              'id', u.id,
-              'placa', u.placa,
-              'marca', u.marca,
-              'modelo', u.modelo,
-              'estado', u.estado
+              'unidad_id', u.id,
+              'placa', u.placa
             )
-          )
-          FROM contrato_unidades cu
-          JOIN unidades u ON u.id = cu.unidad_id
-          WHERE cu.contrato_id = c.id AND cu.activo = TRUE),
-          '[]'::json
+          ) FILTER (WHERE u.id IS NOT NULL),
+          '[]'
         ) AS unidades
       FROM contratos c
+      LEFT JOIN contrato_unidades cu ON cu.contrato_id = c.id
+      LEFT JOIN unidades u ON u.id = cu.unidad_id
       WHERE c.id = $1
-    `, [contratoId]);
+      GROUP BY c.id
+      `,
+      [id]
+    );
 
     return result.rows[0] || null;
   }

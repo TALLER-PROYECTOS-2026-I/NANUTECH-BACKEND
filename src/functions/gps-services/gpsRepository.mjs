@@ -1,6 +1,9 @@
 import db from "../../shared/config/database.mjs";
 
 export class GpsRepository {
+/**
+ * Busca unidades asociadas a una placa específica.
+ */
   async findUnidadByPlaca(placa) {
     const result = await db.query(
       `
@@ -15,6 +18,10 @@ export class GpsRepository {
 
     return result.rows[0] || null;
   }
+
+/**
+ * Registra metadata de importación GPS.
+ */
 
   async createImportacion({
     proveedor,
@@ -58,6 +65,10 @@ export class GpsRepository {
     return result.rows[0];
   }
 
+/**
+ * Almacena errores detectados durante importaciones.
+ */
+
   async saveImportacionError({
     importacionId,
     rowNumber,
@@ -89,6 +100,10 @@ export class GpsRepository {
     );
   }
 
+/**
+ * Verifica duplicados GPS antes de inserción.
+ */
+
   async existsRegistro({ proveedor, unidadId, fechaHora }) {
     const result = await db.query(
       `
@@ -105,6 +120,10 @@ export class GpsRepository {
 
     return result.rows[0].exists;
   }
+
+/**
+ * Inserta un registro GPS validado.
+ */
 
   async insertRegistro({ importacionId, unidadId, row }) {
     const result = await db.query(
@@ -144,6 +163,10 @@ export class GpsRepository {
 
     return result.rows[0];
   }
+
+/**
+ * Inserta múltiples registros GPS en lote.
+ */
 
   async importRows({
     proveedor,
@@ -272,6 +295,10 @@ export class GpsRepository {
       registros: insertados,
     };
   }
+
+/**
+ * Obtiene métricas agregadas GPS desde base de datos.
+ */
 
   async getSummary() {
     const result = await db.query(`

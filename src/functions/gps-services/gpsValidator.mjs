@@ -1,3 +1,7 @@
+/**
+ * Velocidad mínima considerada como movimiento.
+ */
+
 const PROVIDERS = {
   GPSCONTROL: {
     code: "GPSCONTROL",
@@ -53,9 +57,17 @@ const PROVIDERS = {
 export const MOVEMENT_THRESHOLD_KMH = 5;
 export const SPEED_LIMIT_KMH = Number(process.env.GPS_SPEED_LIMIT_KMH || 90);
 
+/**
+ * Obtiene configuración asociada al proveedor GPS.
+ */
+
 export function getProviderConfigs() {
   return Object.values(PROVIDERS);
 }
+
+/**
+ * Normaliza nombres de proveedores GPS.
+ */
 
 export function normalizeProvider(provider) {
   const value = String(provider || "")
@@ -83,6 +95,10 @@ export function getProviderConfig(provider) {
   const normalizedProvider = normalizeProvider(provider);
   return PROVIDERS[normalizedProvider];
 }
+
+/**
+ * Verifica que el archivo recibido sea CSV válido.
+ */
 
 export function assertCsvFilename(filename = "") {
   const value = String(filename || "").trim().toLowerCase();
@@ -276,6 +292,10 @@ function getTrackingStatus(velocidad) {
 
   return "DETENIDO";
 }
+
+/**
+ * Valida estructura y contenido del archivo CSV.
+ */
 
 export function validateCsvContent(csvContent, provider) {
   const normalizedProvider = normalizeProvider(provider);

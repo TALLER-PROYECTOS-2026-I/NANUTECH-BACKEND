@@ -1,28 +1,39 @@
+// Importa la función query para ejecutar consultas SQL.
 import { query } from "../../shared/config/database.mjs";
 
 // KPIs
+// Obtiene los indicadores principales del dashboard.
 export const getKPIs = async () => {
-  try {
-    const totalCamiones = await query(`SELECT COUNT(*) FROM unidades`);
 
+  try {
+
+    // Cuenta el total de camiones registrados.
+    const totalCamiones = await query(`
+      SELECT COUNT(*) FROM unidades
+    `);
+
+    // Cuenta contratos vigentes.
     const contratosActivos = await query(`
       SELECT COUNT(*) 
       FROM contratos 
       WHERE fecha_fin >= CURRENT_DATE
     `);
 
+    // Cuenta alertas activas.
     const alertasActivas = await query(`
       SELECT COUNT(*) 
       FROM alertas_jornada
       WHERE estado = 'ACTIVA'
     `);
 
+    // Suma ingresos de contratos activos.
     const ingresos = await query(`
       SELECT COALESCE(SUM(tarifa), 0) AS total
       FROM contratos 
       WHERE activo = true
     `);
 
+    // Retorna los KPIs formateados.
     return {
       totalCamiones: Number(totalCamiones.rows[0]?.count || 0),
       contratosActivos: Number(contratosActivos.rows[0]?.count || 0),
@@ -31,14 +42,22 @@ export const getKPIs = async () => {
     };
 
   } catch (error) {
+
+    // Muestra error en consola.
     console.error("Error en getKPIs:", error);
+
+    // Propaga el error.
     throw error;
   }
 };
 
 // ALERTAS
+// Obtiene alertas activas y contratos por expirar.
 export const getAlertas = async () => {
+
   try {
+
+    // Consulta alertas activas.
     const alertasActivas = await query(`
       SELECT 
         id,
@@ -51,6 +70,7 @@ export const getAlertas = async () => {
       LIMIT 10
     `);
 
+    // Consulta contratos próximos a vencer.
     const contratosPorExpirar = await query(`
       SELECT id, cliente, tarifa, fecha_fin
       FROM contratos
@@ -59,13 +79,18 @@ export const getAlertas = async () => {
       LIMIT 10
     `);
 
+    // Retorna datos transformados.
     return {
+
+      // Lista de alertas activas.
       alertasActivas: (alertasActivas.rows || []).map(a => ({
         id: a.id,
         tipo: a.tipo,
         estado: a.estado,
         severidad: a.severidad
       })),
+
+      // Lista de contratos por expirar.
       contratosPorExpirar: (contratosPorExpirar.rows || []).map(c => ({
         id: c.id,
         cliente: c.cliente,
@@ -75,15 +100,20 @@ export const getAlertas = async () => {
     };
 
   } catch (error) {
+
     console.error("Error en getAlertas:", error);
+
     throw error;
   }
 };
 
 // GRAFICAS
+// Obtiene información estadística para gráficas.
 export const getGraficas = async () => {
+
   try {
 
+    // Consulta eventos GPS agrupados por tipo.
     const gps = await query(`
       SELECT tipo_evento, COUNT(*) AS total
       FROM gps_eventos
@@ -91,6 +121,7 @@ export const getGraficas = async () => {
       ORDER BY total DESC
     `);
 
+    // Consulta estados de camiones.
     const camiones = await query(`
       SELECT estado, COUNT(*) AS total
       FROM unidades
@@ -98,11 +129,16 @@ export const getGraficas = async () => {
       ORDER BY total DESC
     `);
 
+    // Retorna información procesada.
     return {
+
+      // Datos gráficos GPS.
       gps: (gps.rows || []).map(r => ({
         tipo_evento: r.tipo_evento,
         total: Number(r.total)
       })),
+
+      // Datos gráficos de camiones.
       camiones: (camiones.rows || []).map(r => ({
         estado: r.estado,
         total: Number(r.total)
@@ -110,8 +146,10 @@ export const getGraficas = async () => {
     };
 
   } catch (error) {
+
     console.error("Error en getGraficas:", error);
 
+    // Si falla, retorna arrays vacíos.
     return {
       gps: [],
       camiones: [],
@@ -120,8 +158,12 @@ export const getGraficas = async () => {
 };
 
 // TOP CAMIONES
+// Obtiene los camiones con mayor kilometraje.
 export const getTopCamiones = async () => {
+
   try {
+
+    // Consulta kilómetros recorridos por unidad.
     const result = await query(`
       SELECT 
         u.id AS unidad,
@@ -133,20 +175,27 @@ export const getTopCamiones = async () => {
       LIMIT 6
     `);
 
+    // Retorna datos procesados.
     return (result.rows || []).map(r => ({
       unidad: r.unidad,
       km: Number(r.km)
     }));
 
   } catch (error) {
+
     console.error("Error en getTopCamiones:", error);
+
     throw error;
   }
 };
 
 // CONTRATOS ACTIVOS
+// Obtiene contratos activos.
 export const getContratos = async () => {
+
   try {
+
+    // Consulta contratos vigentes.
     const result = await query(`
       SELECT id, cliente, tarifa, fecha_fin
       FROM contratos
@@ -155,6 +204,7 @@ export const getContratos = async () => {
       ORDER BY fecha_fin ASC
     `);
 
+    // Retorna contratos procesados.
     return (result.rows || []).map(r => ({
       id: r.id,
       cliente: r.cliente,
@@ -163,7 +213,9 @@ export const getContratos = async () => {
     }));
 
   } catch (error) {
+
     console.error("Error en getContratos:", error);
+
     throw error;
   }
 };

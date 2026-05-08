@@ -1,3 +1,14 @@
+/**
+ * Entidad de dominio Camion.
+ * 
+ * Representa la estructura principal
+ * de unidades de transporte del sistema.
+ */
+
+
+/**
+ * Inicializa una entidad Camion.
+ */
 export class Camion {
   constructor({
     id,
@@ -45,6 +56,10 @@ export class Camion {
     this.activo = activo;
   }
 
+/**
+ * Convierte la entidad a formato serializable.
+ */
+
   toJSON() {
     return {
       id: this.id,
@@ -70,6 +85,11 @@ export class Camion {
       activo: Boolean(this.activo),
     };
   }
+
+  /**
+ * Construye una entidad Camion desde
+ * un registro obtenido de base de datos.
+ */
 
   static fromDatabase(row) {
     if (!row) return null;

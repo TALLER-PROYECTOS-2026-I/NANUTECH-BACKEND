@@ -17,6 +17,10 @@ function resolveError(error, defaultCode = "GPS_ERROR") {
   });
 }
 
+/**
+ * Obtiene proveedores GPS soportados por el sistema.
+ */
+
 export const getProvidersController = async () => {
   try {
     const service = new GpsService();
@@ -31,6 +35,10 @@ export const getProvidersController = async () => {
     return resolveError(error);
   }
 };
+
+/**
+ * Genera una plantilla CSV para importación GPS.
+ */
 
 export const getTemplateController = async (event) => {
   try {
@@ -52,6 +60,10 @@ export const getTemplateController = async (event) => {
   }
 };
 
+/**
+ * Valida un archivo CSV previo a la importación.
+ */
+
 export const validateCsvController = async (event) => {
   try {
     const service = new GpsService();
@@ -69,6 +81,10 @@ export const validateCsvController = async (event) => {
     return resolveError(error, "GPS_CSV_VALIDATION_ERROR");
   }
 };
+
+/**
+ * Procesa la importación masiva de registros GPS.
+ */
 
 export const importCsvController = async (event) => {
   try {
@@ -89,6 +105,10 @@ export const importCsvController = async (event) => {
   }
 };
 
+/**
+ * Obtiene métricas resumidas de actividad GPS.
+ */
+
 export const getSummaryController = async () => {
   try {
     const service = new GpsService();
@@ -103,6 +123,10 @@ export const getSummaryController = async () => {
     return resolveError(error);
   }
 };
+
+/**
+ * Lista registros GPS almacenados.
+ */
 
 export const listRegistrosController = async (event) => {
   try {

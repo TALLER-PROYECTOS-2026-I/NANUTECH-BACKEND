@@ -4,11 +4,26 @@ import { SUCCESS_MESSAGES } from "../../shared/constants/successMessages.mjs";
 import { getCurrentSession } from "../auth-services/authService.mjs";
 
 /**
- * Parsea el body de la solicitud Lambda como JSON.
+ * =========================================================
+ * Módulo: Contrato Controller
+ * HU: HU14 - Registro de Nuevo Contrato y Reglas de Tarifa
+ * Rol permitido: GERENTE
  *
- * @param {string|null} body - Cuerpo crudo de la solicitud HTTP
- * @returns {Object} Objeto parseado o vacío si no hay body
- * @throws {Error} Con statusCode 400 si el body no es JSON válido
+ * Responsabilidades:
+ * - Obtener contratos vigentes
+ * - Registrar nuevos contratos
+ * - Validar autorización por rol
+ * - Parsear request body
+ *
+ * Endpoints:
+ * GET /contratos/vigentes
+ * POST /contratos
+ * =========================================================
+ */
+
+/**
+ * Convierte el body recibido por Lambda en un objeto JSON.
+ * Si el body viene mal formado, retorna un error controlado 400.
  */
 const parseJsonBody = (body) => {
   if (!body) return {};
@@ -49,62 +64,51 @@ export const getAllVigentesController = async (event) => {
     const contratos = await contratoService.getAllVigentes();
     return successResponse(contratos, SUCCESS_MESSAGES.CONTRATOS_RETRIEVED);
   } catch (error) {
-    console.error("Error en getAllVigentesController:", error);
-    return errorResponse(error.message, error.statusCode || 500);
+    return errorResponse(error.message, 500);
   }
 };
 
+// ✅ SE MANTIENE (develop - HU14)
 /**
- * Registra un nuevo contrato junto con su ruta y reglas de tarifa en una transacción atómica.
- * Requiere autenticación Bearer válida y rol "gerente".
+ * Endpoint:
+ * POST /contratos
  *
- * La operación crea tres registros relacionados:
- * 1. Contrato principal en la tabla contratos (estado VIGENTE, activo TRUE)
- * 2. Ruta asociada en contrato_rutas
- * 3. Tarifas asociadas en contrato_tarifas
- *
- * @param {Object} event - Evento de AWS Lambda
- * @param {Object} event.headers - Headers HTTP de la solicitud
- * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
- * @param {string} event.body - JSON con los datos del contrato
- * @param {string} event.body.cliente - Nombre del cliente (no puede estar vacío)
- * @param {string} event.body.ruc - RUC del cliente (exactamente 11 dígitos numéricos)
- * @param {string} event.body.tipo_servicio - Tipo de servicio (POR_VIAJE | POR_HORA | POR_TONELADA | POR_KM | MENSUAL)
- * @param {string} event.body.fecha_inicio - Fecha de inicio del contrato (YYYY-MM-DD)
- * @param {string} [event.body.fecha_fin] - Fecha de fin del contrato (opcional; si se provee, >= fecha_inicio)
- * @param {string} event.body.origen - Punto de partida del recorrido
- * @param {string} event.body.destino - Punto de llegada del recorrido
- * @param {number} event.body.distancia_estimada_km - Distancia estimada en km (debe ser > 0)
- * @param {number} event.body.tarifa_por_km - Tarifa por kilómetro (debe ser > 0)
- * @param {number} event.body.tarifa_por_hora - Tarifa por hora (debe ser >= 0)
- * @param {number} event.body.tarifa_espera - Tarifa por tiempo de espera (debe ser >= 0)
- * @returns {Promise<Object>} Respuesta HTTP 200 con el contrato registrado y todas sus relaciones
- * @throws {Error} 401 si el token es inválido o está ausente
- * @throws {Error} 403 FORBIDDEN_ROLE si el rol autenticado no es "gerente"
- * @throws {Error} 400 si algún campo de validación de negocio falla
+ * Responsabilidad:
+ * - Validar que el usuario autenticado tenga rol GERENTE.
+ * - Procesar el body recibido desde frontend o Postman.
+ * - Delegar la lógica de negocio al ContratoService.
+ * - Retornar una respuesta controlada al cliente.
  */
 export const createContratoController = async (event) => {
   try {
+    // Obtiene el token enviado en el header Authorization.
     const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+
+    // Valida el token y obtiene la sesión actual del usuario.
     const session = await getCurrentSession(authorizationHeader);
 
-    // Validación de seguridad:
-    // Solo Gerente de Operaciones puede registrar contratos
+    // Regla de seguridad: solo el Gerente de Operaciones puede registrar contratos.
     if (session.role !== "gerente") {
       return errorResponse("Solo el Gerente de Operaciones puede registrar contratos", 403, {
         code: "FORBIDDEN_ROLE",
       });
     }
 
+    // Convierte el body del request de string JSON a objeto JavaScript.
     const body = parseJsonBody(event.body);
 
+    // Instancia el servicio donde se aplican las reglas de negocio de la HU14.
     const contratoService = new ContratoService();
+
+    // Registra el contrato usando la capa Service.
     const contrato = await contratoService.createContrato(body);
 
+    // Retorna respuesta exitosa al cliente.
     return successResponse(contrato, "Contrato registrado correctamente");
   } catch (error) {
     console.error("Error en createContratoController:", error);
 
+    // Retorna errores controlados de validación, autorización o procesamiento.
     return errorResponse(error.message || "Error al registrar contrato", error.statusCode || 400, {
       code: error.code || "CONTRATO_CREATE_ERROR",
     });
@@ -163,46 +167,87 @@ export const getAllContratosController = async (event) => {
 
     const { q, estado, page, limit, order_by } = event.queryStringParameters || {};
     const contratoService = new ContratoService();
+
     const result = await contratoService.getAllContratos({ q, estado }, { page, limit, order_by });
+
     return successResponse(result, SUCCESS_MESSAGES.CONTRATOS_RETRIEVED);
   } catch (error) {
-    console.error("Error en getAllContratosController:", error);
-    return errorResponse(error.message, error.statusCode || 500);
+    return errorResponse(error.message, 500);
   }
 };
 
-/**
- * Obtiene el detalle completo de un contrato por su ID.
- * Incluye unidades activas asignadas, campos de vencimiento calculados y estado proximo_a_vencer.
- * Requiere autenticación Bearer válida.
- *
- * @param {Object} event - Evento de AWS Lambda
- * @param {Object} event.headers - Headers HTTP de la solicitud
- * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
- * @param {Object} event.pathParameters - Parámetros de ruta
- * @param {string} event.pathParameters.id - ID del contrato a consultar
- * @returns {Promise<Object>} Respuesta HTTP 200 con el contrato completo, o 404 si no existe
- * @throws {Error} 401 si el token es inválido o está ausente
- * @throws {Error} 400 si no se provee el parámetro id en la ruta
- * @throws {Error} 404 si el contrato con el ID indicado no existe
- */
+// 🔥 HU07 - Obtiene el detalle de un contrato seleccionado
+// Permite visualizar información como cliente, descripción,
+// fechas de vigencia y demás datos asociados al contrato.
 export const getContratoByIdController = async (event) => {
   try {
     const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
     await getCurrentSession(authorizationHeader);
 
     const { id } = event.pathParameters || {};
-    if (!id) {
-      return errorResponse("El id del contrato es requerido.", 400);
-    }
+
+    // Validación del identificador del contrato
+    if (!id) return errorResponse("El id del contrato es requerido.", 400);
+
     const contratoService = new ContratoService();
+
+    // Consulta del detalle completo del contrato
     const contrato = await contratoService.getContratoById(id);
-    if (!contrato) {
-      return errorResponse("Contrato no encontrado.", 404);
-    }
+
+    // Respuesta en caso el contrato no exista
+    if (!contrato) return errorResponse("Contrato no encontrado.", 404);
+
     return successResponse(contrato, SUCCESS_MESSAGES.CONTRATO_RETRIEVED);
   } catch (error) {
-    console.error("Error en getContratoByIdController:", error);
-    return errorResponse(error.message, error.statusCode || 500);
+    return errorResponse(error.message, 500);
+  }
+};
+
+// 🔥 HU07 - Actualización de contratos
+// Permite editar información del contrato como tarifas,
+// fechas de vigencia, estado y demás campos configurables.
+// Además, se registra la IP desde donde se realizó el cambio
+// para mantener trazabilidad e historial de modificaciones.
+export const updateContratoController = async (event) => {
+  try {
+    const service = new ContratoService();
+
+    // Obtención del id del contrato desde la ruta
+    const id = event.pathParameters.id;
+
+    // Conversión del body recibido en formato JSON
+    const body = JSON.parse(event.body);
+
+    // Captura de IP del usuario que ejecuta la modificación
+    const ip = event.requestContext.http.sourceIp;
+
+    // Ejecución de la lógica de actualización
+    const data = await service.updateContrato(id, body, ip);
+
+    return successResponse(data, "Contrato actualizado");
+  } catch (error) {
+    return errorResponse(error.message, 500);
+  }
+};
+
+// 🔥 HU07 - Asignación de múltiples unidades al contrato
+// Permite vincular camiones disponibles mostrando
+// información relevante como placa y modelo.
+export const assignUnidadesController = async (event) => {
+  try {
+    const service = new ContratoService();
+
+    // Obtención del id del contrato seleccionado
+    const id = event.pathParameters.id;
+
+    // Lectura de unidades enviadas desde el frontend
+    const body = JSON.parse(event.body);
+
+    // Asignación de múltiples unidades al contrato
+    const data = await service.assignUnidades(id, body.unidades);
+
+    return successResponse(data, "Unidades asignadas");
+  } catch (error) {
+    return errorResponse(error.message, 500);
   }
 };
