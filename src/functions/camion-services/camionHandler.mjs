@@ -6,6 +6,13 @@ import {
   exportCamionesCsvController,
 } from "./camionController.mjs";
 
+/**
+ * Mapeo principal de rutas HTTP del módulo de camiones.
+ * 
+ * Cada endpoint se asocia a un controller específico
+ * encargado de ejecutar la lógica correspondiente.
+ */
+
 const routes = {
   "GET /camiones": getAllCamionesController,
   "GET /camiones/{id}": getCamionByIdController,
@@ -13,6 +20,15 @@ const routes = {
   "GET /camiones/panel": getPanelCamionesController,
   "GET /camiones/exportar/csv": exportCamionesCsvController,
 };
+
+/**
+ * Punto de entrada principal del módulo de camiones.
+ * 
+ * Este handler identifica la ruta HTTP solicitada
+ * y delega el procesamiento al controller correspondiente.
+ * 
+ * También centraliza el manejo de errores HTTP.
+ */
 
 export const handler = async (event) => {
   try {
