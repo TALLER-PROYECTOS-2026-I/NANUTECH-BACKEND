@@ -11,6 +11,15 @@ function createJornadaError(message, statusCode = 400, code = "JORNADA_ERROR") {
   return error;
 }
 
+const escapeCsv = (value) => {
+  if (value === null || value === undefined) return '';
+  const str = String(value);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+};
+
 export class JornadaService {
   constructor() {
     this.repository = new JornadaRepository();
@@ -115,7 +124,30 @@ export class JornadaService {
     const updated = await this.repository.finishTurn(jornadaId, observaciones);
     return Jornada.fromDatabase(updated);
   }
-  async getAllJornadas() {
-  return this.repository.findAll();
-}
+
+  async getAllJornadas(filtros = {}) {
+    return this.repository.findAll(filtros);
+  }
+
+  async generateCsv(filtros = {}) {
+    const rows = await this.repository.exportAll(filtros);
+
+    const header = 'ID Jornada,Fecha,Conductor,Placa del Camion,Contrato,Hora Inicio,Hora Fin,Duracion Total,KM Recorridos,Estado,Observaciones';
+
+    const csvRows = rows.map((row) => [
+      escapeCsv(row.id),
+      escapeCsv(row.fecha),
+      escapeCsv(row.conductor),
+      escapeCsv(row.placa),
+      escapeCsv(row.contrato),
+      escapeCsv(row.hora_inicio),
+      escapeCsv(row.hora_fin),
+      escapeCsv(row.duracion_total),
+      escapeCsv(row.km_recorridos),
+      escapeCsv(row.estado),
+      escapeCsv(row.observaciones),
+    ].join(','));
+
+    return [header, ...csvRows].join('\n');
+  }
 }

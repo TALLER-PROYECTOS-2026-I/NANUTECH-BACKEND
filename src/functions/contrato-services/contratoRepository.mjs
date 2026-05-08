@@ -39,11 +39,199 @@ export class ContratoRepository {
          AND estado = 'VIGENTE'
          AND fecha_inicio <= CURRENT_DATE
          AND (fecha_fin IS NULL OR fecha_fin >= CURRENT_DATE)
-       ORDER BY cliente`
+       ORDER BY cliente`,
     );
     return result.rows;
   }
 
+
+  /**
+   * Registra un contrato completo en PostgreSQL.
+   *
+   * Flujo:
+   * 1. Inicia transacción.
+   * 2. Inserta contrato principal.
+   * 3. Inserta ruta del contrato.
+   * 4. Inserta reglas tarifarias.
+   * 5. Confirma transacción.
+   *
+   * Si ocurre un error:
+   * - Se ejecuta ROLLBACK.
+   */
+  async createContrato(data) {
+    // Obtiene un cliente de conexión para manejar la transacción
+    const client = await db.getClient();
+
+    try {
+      // Inicia la transacción
+      await client.query("BEGIN");
+
+      // Genera código único y calcula la tarifa referencial
+      const codigo = this.generateCodigoContrato();
+      const totalReferencial = this.calculateTotalReferencial(data);
+
+      // Inserta la información principal del contrato
+      const contratoResult = await client.query(
+        `
+      INSERT INTO contratos (
+        codigo,
+        cliente,
+        ruc,
+        descripcion,
+        tipo_servicio,
+        fecha_inicio,
+        fecha_fin,
+        tarifa,
+        moneda,
+        estado,
+        activo
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'VIGENTE',TRUE)
+      RETURNING *
+      `,
+        [
+          codigo,
+          data.cliente.trim(),
+          data.ruc,
+          data.descripcion || null,
+          data.tipo_servicio,
+          data.fecha_inicio,
+          data.fecha_fin || null,
+          totalReferencial,
+          data.moneda || "PEN",
+        ],
+      );
+
+      // Obtiene el contrato creado para usar su ID en las tablas relacionadas
+      const contrato = contratoResult.rows[0];
+
+      // Registra la ruta asociada al contrato
+      await client.query(
+        `
+      INSERT INTO contrato_rutas (
+        contrato_id,
+        origen,
+        destino,
+        distancia_estimada_km
+      )
+      VALUES ($1,$2,$3,$4)
+      `,
+        [
+          contrato.id,
+          data.origen.trim(),
+          data.destino.trim(),
+          Number(data.distancia_estimada_km).toFixed(2),
+        ],
+      );
+
+      // Registra las tarifas y el total referencial del contrato
+      await client.query(
+        `
+      INSERT INTO contrato_tarifas (
+        contrato_id,
+        tarifa_por_km,
+        tarifa_por_hora,
+        tarifa_espera,
+        total_referencial
+      )
+      VALUES ($1,$2,$3,$4,$5)
+      `,
+        [
+          contrato.id,
+          Number(data.tarifa_por_km).toFixed(2),
+          Number(data.tarifa_por_hora || 0).toFixed(2),
+          Number(data.tarifa_espera || 0).toFixed(2),
+          totalReferencial,
+        ],
+      );
+
+      // Consulta el contrato completo con ruta y tarifas asociadas
+      const fullResult = await this.getFullContratoByIdWithClient(
+        client,
+        contrato.id,
+      );
+
+      // Confirma la transacción
+      await client.query("COMMIT");
+
+      // Retorna el contrato completo registrado
+      return fullResult;
+    } catch (error) {
+      // Revierte la transacción si ocurre algún error
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      // Libera la conexión del cliente
+      client.release();
+    }
+  }
+
+
+    /**
+   * Obtiene el detalle completo de un contrato,
+   * incluyendo datos generales, ruta y tarifas.
+   */
+  async getFullContratoByIdWithClient(client, id) {
+    const result = await client.query(
+      `SELECT 
+          c.id,
+          c.codigo,
+          c.cliente,
+          c.ruc,
+          c.descripcion,
+          c.tipo_servicio,
+          c.fecha_inicio,
+          c.fecha_fin,
+          c.tarifa,
+          c.moneda,
+          c.estado,
+          c.activo,
+          cr.origen,
+          cr.destino,
+          cr.distancia_estimada_km,
+          ct.tarifa_base,
+          ct.tarifa_por_km,
+          ct.tarifa_por_hora,
+          ct.tarifa_por_tonelada,
+          ct.tarifa_espera,
+          ct.total_referencial
+       FROM contratos c
+       JOIN contrato_rutas cr ON cr.contrato_id = c.id
+       JOIN contrato_tarifas ct ON ct.contrato_id = c.id
+       WHERE c.id = $1`,
+      [id],
+    );
+
+    // Retorna el primer resultado encontrado del contrato
+    return result.rows[0];
+  }
+
+  /**
+   * Genera un código único para identificar el contrato.
+   */
+  generateCodigoContrato() {
+    // Genera un código alfanumérico único para el contrato.
+    return `CONT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  }
+
+  /**
+   * Calcula el total referencial del contrato.
+   *
+   * Fórmula:
+   * Total referencial = Distancia estimada × Tarifa por KM
+   */
+  calculateTotalReferencial(data) {
+    // Convierte la distancia a número
+    const distancia = Number(data.distancia_estimada_km || 0);
+
+    // Convierte la tarifa por KM a número
+    const tarifaPorKm = Number(data.tarifa_por_km || 0);
+
+    // Calcula la tarifa total referencial.
+    // Tarifa Total = Distancia Estimada × Tarifa por KM
+    return Number((distancia * tarifaPorKm).toFixed(2));
+  }
+  
   async getIndicadores() {
     const result = await db.query(`
       WITH
@@ -117,13 +305,13 @@ export class ContratoRepository {
         c.estado,
         c.activo,
         CASE WHEN c.fecha_fin IS NOT NULL
-          THEN EXTRACT(DAY FROM (c.fecha_fin - CURRENT_DATE))::INT
+          THEN (c.fecha_fin - CURRENT_DATE)::INT
         END AS dias_para_vencer,
         (SELECT COUNT(*)::INT FROM contrato_unidades
          WHERE contrato_id = c.id AND activo = TRUE) AS camiones_asignados,
         CASE
           WHEN c.fecha_fin IS NOT NULL
-            AND EXTRACT(DAY FROM (c.fecha_fin - CURRENT_DATE)) BETWEEN 0 AND 30
+            AND (c.fecha_fin - CURRENT_DATE) BETWEEN 0 AND 30
             THEN TRUE
           ELSE FALSE
         END AS proximo_a_vencer
@@ -154,11 +342,11 @@ export class ContratoRepository {
         c.created_at,
         c.updated_at,
         CASE WHEN c.fecha_fin IS NOT NULL
-          THEN EXTRACT(DAY FROM (c.fecha_fin - CURRENT_DATE))::INT
+          THEN (c.fecha_fin - CURRENT_DATE)::INT
         END AS dias_para_vencer,
         CASE
           WHEN c.fecha_fin IS NOT NULL
-            AND EXTRACT(DAY FROM (c.fecha_fin - CURRENT_DATE)) BETWEEN 0 AND 30
+            AND (c.fecha_fin - CURRENT_DATE) BETWEEN 0 AND 30
             THEN TRUE
           ELSE FALSE
         END AS proximo_a_vencer,

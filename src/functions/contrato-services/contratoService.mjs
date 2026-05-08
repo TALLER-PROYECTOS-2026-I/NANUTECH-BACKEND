@@ -1,34 +1,32 @@
 import { ContratoRepository } from "./contratoRepository.mjs";
 import { Contrato } from "./contratoModel.mjs";
+import { ContratoValidator } from "../../shared/utils/validators/contratoValidator.mjs";
 
 export class ContratoService {
+  constructor() {
+    this.contratoRepository = new ContratoRepository();
+  }
   async getAllVigentes() {
-    const contratoRepository = new ContratoRepository();
-    const rows = await contratoRepository.getAllVigentes();
+    const rows = await this.contratoRepository.getAllVigentes();
     return Contrato.fromDatabaseList(rows);
   }
 
-  async getIndicadores() {
-    const contratoRepository = new ContratoRepository();
-    return contratoRepository.getIndicadores();
-  }
+  /**
+   * Registra un nuevo contrato.
+   *
+   * Flujo:
+   * 1. Valida reglas de negocio.
+   * 2. Envía información al Repository.
+   * 3. Retorna contrato transformado.
+   */
+  async createContrato(data) {
+    // Aplica validaciones de negocio
+    ContratoValidator.validateContrato(data);
 
-  async getAllContratos(filtros = {}, pagination = {}) {
-    const contratoRepository = new ContratoRepository();
-    const { rows, total, page, limit } = await contratoRepository.findAll(filtros, pagination);
-    return {
-      data: rows,
-      meta: {
-        total,
-        page,
-        limit,
-        total_pages: Math.ceil(total / limit),
-      },
-    };
-  }
+    // Registra contrato en base de datos
+    const row = await this.contratoRepository.createContrato(data);
 
-  async getContratoById(id) {
-    const contratoRepository = new ContratoRepository();
-    return contratoRepository.findById(id);
+    // Transforma respuesta usando el modelo Contrato
+    return Contrato.fromDatabase(row);
   }
 }
