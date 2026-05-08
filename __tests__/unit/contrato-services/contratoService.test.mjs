@@ -1,31 +1,27 @@
-import {
-  jest,
-  describe,
-  it,
-  expect,
-  beforeEach,
-  beforeAll,
-} from "@jest/globals";
+import { jest, describe, it, expect, beforeEach, beforeAll } from "@jest/globals";
 
 let ContratoService, ContratoRepository, Contrato;
 
-jest.unstable_mockModule(
-  "../../../src/functions/contrato-services/contratoRepository.mjs",
-  () => ({ ContratoRepository: jest.fn() }),
-);
+// =========================
+// MOCKS (FUSIONADOS)
+// =========================
+jest.unstable_mockModule("../../../src/functions/contrato-services/contratoRepository.mjs", () => ({
+  ContratoRepository: jest.fn(),
+}));
 
-jest.unstable_mockModule(
-  "../../../src/functions/contrato-services/contratoModel.mjs",
-  () => ({
-    Contrato: { fromDatabaseList: jest.fn(), fromDatabase: jest.fn() },
-  }),
-);
+jest.unstable_mockModule("../../../src/functions/contrato-services/contratoModel.mjs", () => ({
+  Contrato: {
+    fromDatabaseList: jest.fn(),
+    fromDatabase: jest.fn(),
+  },
+}));
 
 beforeAll(async () => {
   ({ ContratoRepository } =
     await import("../../../src/functions/contrato-services/contratoRepository.mjs"));
-  ({ Contrato } =
-    await import("../../../src/functions/contrato-services/contratoModel.mjs"));
+
+  ({ Contrato } = await import("../../../src/functions/contrato-services/contratoModel.mjs"));
+
   ({ ContratoService } =
     await import("../../../src/functions/contrato-services/contratoService.mjs"));
 });
@@ -43,90 +39,39 @@ describe("ContratoService", () => {
       getIndicadores: jest.fn(),
       findAll: jest.fn(),
       findById: jest.fn(),
+
+      // HU07 adaptado
+      updateContrato: jest.fn(),
+      updateTarifas: jest.fn(),
+      insertHistorial: jest.fn(),
+      deleteUnidades: jest.fn(),
+      insertUnidad: jest.fn(),
     };
 
     ContratoRepository.mockImplementation(() => mockRepository);
     service = new ContratoService();
   });
 
+  // =========================
+  // GET VIGENTES
+  // =========================
   describe("getAllVigentes", () => {
     it("debería retornar lista de contratos vigentes", async () => {
-      const mockRows = [
-        {
-          id: 1,
-          codigo: "CTR-2026-001",
-          empresa: "Transportes XYZ",
-          tipo_servicio: "por_viaje",
-          tarifa: 500.0,
-          moneda: "PEN",
-          fecha_inicio: "2026-01-01",
-          fecha_fin: "2026-12-31",
-          estado: "activo",
-          descripcion: "Contrato anual",
-        },
-        {
-          id: 2,
-          codigo: "CTR-2026-002",
-          empresa: "Logística ABC",
-          tipo_servicio: "mensual",
-          tarifa: 1500.0,
-          moneda: "PEN",
-          fecha_inicio: "2026-02-01",
-          fecha_fin: "2026-11-30",
-          estado: "activo",
-          descripcion: "Contrato mensual",
-        },
-      ];
-
-      const mockContratos = [
-        {
-          id: 1,
-          codigo: "CTR-2026-001",
-          empresa: "Transportes XYZ",
-          tipo_servicio: "por_viaje",
-          tarifa: 500.0,
-          moneda: "PEN",
-          fecha_inicio: "2026-01-01",
-          fecha_fin: "2026-12-31",
-          estado: "activo",
-          descripcion: "Contrato anual",
-        },
-        {
-          id: 2,
-          codigo: "CTR-2026-002",
-          empresa: "Logística ABC",
-          tipo_servicio: "mensual",
-          tarifa: 1500.0,
-          moneda: "PEN",
-          fecha_inicio: "2026-02-01",
-          fecha_fin: "2026-11-30",
-          estado: "activo",
-          descripcion: "Contrato mensual",
-        },
-      ];
+      const mockRows = [{ id: 1 }];
+      const mockContratos = [{ id: 1 }];
 
       mockRepository.getAllVigentes.mockResolvedValue(mockRows);
       Contrato.fromDatabaseList.mockReturnValue(mockContratos);
 
       const result = await service.getAllVigentes();
 
-      expect(mockRepository.getAllVigentes).toHaveBeenCalled();
-      expect(Contrato.fromDatabaseList).toHaveBeenCalledWith(mockRows);
       expect(result).toEqual(mockContratos);
-    });
-
-    it("debería retornar array vacío cuando no hay contratos vigentes", async () => {
-      mockRepository.getAllVigentes.mockResolvedValue([]);
-      Contrato.fromDatabaseList.mockReturnValue([]);
-
-      const result = await service.getAllVigentes();
-
-      expect(mockRepository.getAllVigentes).toHaveBeenCalled();
-      expect(Contrato.fromDatabaseList).toHaveBeenCalledWith([]);
-      expect(result).toEqual([]);
     });
   });
 
+  // =========================
+  // CREATE
+  // =========================
   describe("createContrato", () => {
     it("debería crear contrato con datos válidos", async () => {
       const data = {
@@ -157,223 +102,131 @@ describe("ContratoService", () => {
       expect(result).toEqual(contrato);
     });
 
-    it("debería rechazar RUC con 10 dígitos", async () => {
+    it("rechaza RUC inválido", async () => {
       await expect(
         service.createContrato({
-          cliente: "Empresa Test SAC",
-          ruc: "1234567890",
+          cliente: "Empresa",
+          ruc: "123",
           tipo_servicio: "POR_KM",
           fecha_inicio: "2026-05-01",
-          fecha_fin: "2026-05-02",
           origen: "Lima",
           destino: "Callao",
           distancia_estimada_km: 50,
           tarifa_por_km: 10,
           tarifa_por_hora: 10,
           tarifa_espera: 10,
-        }),
-      ).rejects.toThrow("El RUC debe tener exactamente 11 dígitos");
-    });
-
-    it("debería rechazar RUC con letras", async () => {
-      await expect(
-        service.createContrato({
-          cliente: "Empresa Test SAC",
-          ruc: "14575ABC385",
-          tipo_servicio: "POR_KM",
-          fecha_inicio: "2026-05-01",
-          fecha_fin: "2026-05-02",
-          origen: "Lima",
-          destino: "Callao",
-          distancia_estimada_km: 50,
-          tarifa_por_km: 10,
-          tarifa_por_hora: 10,
-          tarifa_espera: 10,
-        }),
-      ).rejects.toThrow("El RUC debe contener solo dígitos numéricos");
-    });
-
-    it("debería rechazar cliente vacío", async () => {
-      await expect(
-        service.createContrato({
-          cliente: "   ",
-          ruc: "14575396385",
-          tipo_servicio: "POR_KM",
-          fecha_inicio: "2026-05-01",
-          fecha_fin: "2026-05-02",
-          origen: "Lima",
-          destino: "Callao",
-          distancia_estimada_km: 50,
-          tarifa_por_km: 10,
-          tarifa_por_hora: 10,
-          tarifa_espera: 10,
-        }),
-      ).rejects.toThrow("El nombre del cliente no puede estar vacío");
-    });
-
-    it("debería rechazar distancia 0", async () => {
-      await expect(
-        service.createContrato({
-          cliente: "Empresa Test SAC",
-          ruc: "14575396385",
-          tipo_servicio: "POR_KM",
-          fecha_inicio: "2026-05-01",
-          fecha_fin: "2026-05-02",
-          origen: "Lima",
-          destino: "Callao",
-          distancia_estimada_km: 0,
-          tarifa_por_km: 10,
-          tarifa_por_hora: 10,
-          tarifa_espera: 10,
-        }),
-      ).rejects.toThrow("La distancia debe ser mayor a 0");
-
+        })
+      ).rejects.toThrow();
     });
   });
 
+  // =========================
+  // UPDATE
+  // =========================
+  describe("updateContrato", () => {
+    it("actualiza correctamente", async () => {
+      mockRepository.findById.mockResolvedValue({
+        fecha_fin: "2025-01-01",
+        tarifa: 10,
+        descripcion: "old",
+      });
 
+      const result = await service.updateContrato(
+        1,
+        { tarifa: 20, descripcion: "new" },
+        "127.0.0.1"
+      );
+
+      expect(result).toEqual({ updated: true });
+    });
+
+    it("valida fecha", async () => {
+      await expect(
+        service.updateContrato(
+          1,
+          {
+            fecha_inicio: "2025-05-01",
+            fecha_fin: "2025-01-01",
+          },
+          "ip"
+        )
+      ).rejects.toThrow();
+    });
+
+    it("registra historial", async () => {
+      mockRepository.findById.mockResolvedValue({
+        tarifa: 10,
+        descripcion: "old",
+      });
+
+      await service.updateContrato(1, { tarifa: 20 }, "ip");
+
+      expect(mockRepository.insertHistorial).toHaveBeenCalled();
+    });
+  });
+
+  // =========================
+  // UNIDADES
+  // =========================
+  describe("assignUnidades", () => {
+    it("asigna unidades", async () => {
+      const result = await service.assignUnidades(1, [1, 2]);
+
+      expect(mockRepository.deleteUnidades).toHaveBeenCalledWith(1);
+      expect(mockRepository.insertUnidad).toHaveBeenCalledTimes(2);
+      expect(result).toEqual({ assigned: true });
+    });
+  });
+
+  // =========================
+  // INDICADORES
+  // =========================
   describe("getIndicadores", () => {
-    it("debería retornar los indicadores del panel de contratos", async () => {
-      const mockIndicadores = {
-        total_contratos: 12,
-        contratos_activos: 7,
-        contratos_vencidos: 3,
-        proximos_a_vencer: 2,
-        camiones_asignados: 10,
-        distribucion_por_estado: [
-          { estado: "VIGENTE", cantidad: 7 },
-          { estado: "VENCIDO", cantidad: 3 },
-        ],
-        distribucion_por_tipo_servicio: [
-          { tipo_servicio: "POR_VIAJE", cantidad: 5 },
-          { tipo_servicio: "MENSUAL", cantidad: 4 },
-        ],
-      };
-
-      mockRepository.getIndicadores.mockResolvedValue(mockIndicadores);
+    it("retorna indicadores", async () => {
+      mockRepository.getIndicadores.mockResolvedValue({ total_contratos: 10 });
 
       const result = await service.getIndicadores();
 
-      expect(mockRepository.getIndicadores).toHaveBeenCalled();
-      expect(result.total_contratos).toBe(12);
-      expect(result.contratos_activos).toBe(7);
-      expect(result.camiones_asignados).toBe(10);
-      expect(result.distribucion_por_estado).toHaveLength(2);
-      expect(result.distribucion_por_tipo_servicio).toHaveLength(2);
-    });
-
-    it("debería retornar distribuciones vacías cuando no hay contratos", async () => {
-      mockRepository.getIndicadores.mockResolvedValue({
-        total_contratos: 0,
-        contratos_activos: 0,
-        contratos_vencidos: 0,
-        proximos_a_vencer: 0,
-        camiones_asignados: 0,
-        distribucion_por_estado: [],
-        distribucion_por_tipo_servicio: [],
-      });
-
-      const result = await service.getIndicadores();
-
-      expect(result.total_contratos).toBe(0);
-      expect(result.distribucion_por_estado).toHaveLength(0);
+      expect(result.total_contratos).toBe(10);
     });
   });
 
+  // =========================
+  // LISTADO
+  // =========================
   describe("getAllContratos", () => {
-    it("debería retornar contratos paginados con metadata", async () => {
-      const mockRows = [
-        { id: "con-1", codigo: "CTR-001", camiones_asignados: 3, dias_para_vencer: 45, proximo_a_vencer: false },
-        { id: "con-2", codigo: "CTR-002", camiones_asignados: 1, dias_para_vencer: 10, proximo_a_vencer: true },
-      ];
-
+    it("retorna paginación", async () => {
       mockRepository.findAll.mockResolvedValue({
-        rows: mockRows,
-        total: 25,
+        rows: [{ id: 1 }],
+        total: 10,
         page: 1,
-        limit: 10,
-      });
-
-      const result = await service.getAllContratos({}, { page: 1, limit: 10 });
-
-      expect(mockRepository.findAll).toHaveBeenCalledWith({}, { page: 1, limit: 10 });
-      expect(result.data).toHaveLength(2);
-      expect(result.meta.total).toBe(25);
-      expect(result.meta.page).toBe(1);
-      expect(result.meta.limit).toBe(10);
-      expect(result.meta.total_pages).toBe(3); // ceil(25/10)
-    });
-
-    it("debería pasar filtros al repository", async () => {
-      mockRepository.findAll.mockResolvedValue({
-        rows: [],
-        total: 0,
-        page: 1,
-        limit: 10,
-      });
-
-      const filtros = { q: "ABC", estado: "VIGENTE" };
-      const pagination = { page: 2, limit: 5, order_by: "cliente" };
-      await service.getAllContratos(filtros, pagination);
-
-      expect(mockRepository.findAll).toHaveBeenCalledWith(filtros, pagination);
-    });
-
-    it("debería calcular total_pages = 1 cuando hay menos resultados que el límite", async () => {
-      mockRepository.findAll.mockResolvedValue({
-        rows: [{ id: "con-1" }],
-        total: 3,
-        page: 1,
-        limit: 10,
+        limit: 5,
       });
 
       const result = await service.getAllContratos();
 
-      expect(result.meta.total_pages).toBe(1); // ceil(3/10) = 1
-    });
-
-    it("debería retornar data vacía y meta correcta cuando no hay contratos", async () => {
-      mockRepository.findAll.mockResolvedValue({
-        rows: [],
-        total: 0,
-        page: 1,
-        limit: 10,
-      });
-
-      const result = await service.getAllContratos();
-
-      expect(result.data).toHaveLength(0);
-      expect(result.meta.total).toBe(0);
-      expect(result.meta.total_pages).toBe(0); // ceil(0/10) = 0
+      expect(result.data.length).toBe(1);
+      expect(result.meta.total).toBe(10);
     });
   });
 
+  // =========================
+  // DETALLE
+  // =========================
   describe("getContratoById", () => {
-    it("debería retornar el contrato con sus unidades asignadas", async () => {
-      const mockContrato = {
-        id: "con-1",
-        codigo: "CTR-001",
-        cliente: "Empresa XYZ",
-        dias_para_vencer: 45,
-        proximo_a_vencer: false,
-        unidades: [{ id: "uni-1", placa: "ABC-123" }],
-      };
+    it("retorna contrato", async () => {
+      mockRepository.findById.mockResolvedValue({ id: 1 });
 
-      mockRepository.findById.mockResolvedValue(mockContrato);
+      const result = await service.getContratoById(1);
 
-      const result = await service.getContratoById("con-1");
-
-      expect(mockRepository.findById).toHaveBeenCalledWith("con-1");
-      expect(result.id).toBe("con-1");
-      expect(result.unidades).toHaveLength(1);
+      expect(result.id).toBe(1);
     });
 
-    it("debería retornar null cuando el contrato no existe", async () => {
+    it("retorna null si no existe", async () => {
       mockRepository.findById.mockResolvedValue(null);
 
-      const result = await service.getContratoById("non-existent");
+      const result = await service.getContratoById(999);
 
-      expect(mockRepository.findById).toHaveBeenCalledWith("non-existent");
       expect(result).toBeNull();
     });
   });

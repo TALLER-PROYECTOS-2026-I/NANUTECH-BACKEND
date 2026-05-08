@@ -21,7 +21,6 @@ import { getCurrentSession } from "../auth-services/authService.mjs";
  * =========================================================
  */
 
-
 /**
  * Convierte el body recibido por Lambda en un objeto JSON.
  * Si el body viene mal formado, retorna un error controlado 400.
@@ -39,30 +38,17 @@ const parseJsonBody = (body) => {
   }
 };
 
-/**
- * Obtiene todos los contratos vigentes activos.
- *
- * Reglas:
- * - activo = TRUE
- * - estado = VIGENTE
- * - fecha_inicio <= hoy
- * - fecha_fin >= hoy o NULL
- *
- * Response:
- * 200 OK
- * 500 Internal Server Error
- */
 export const getAllVigentesController = async (event) => {
   try {
     const contratoService = new ContratoService();
     const contratos = await contratoService.getAllVigentes();
     return successResponse(contratos, SUCCESS_MESSAGES.CONTRATOS_RETRIEVED);
   } catch (error) {
-    console.error("Error en getAllVigentesController:", error);
     return errorResponse(error.message, 500);
   }
 };
 
+// ✅ SE MANTIENE (develop - HU14)
 /**
  * Endpoint:
  * POST /contratos
@@ -93,7 +79,7 @@ export const createContratoController = async (event) => {
 
     // Instancia el servicio donde se aplican las reglas de negocio de la HU14.
     const contratoService = new ContratoService();
-    
+
     // Registra el contrato usando la capa Service.
     const contrato = await contratoService.createContrato(body);
 
@@ -109,13 +95,12 @@ export const createContratoController = async (event) => {
   }
 };
 
-export const getIndicadoresController = async (_event) => {
+export const getIndicadoresController = async () => {
   try {
     const contratoService = new ContratoService();
     const indicadores = await contratoService.getIndicadores();
     return successResponse(indicadores, "Indicadores de contratos obtenidos exitosamente.");
   } catch (error) {
-    console.error("Error en getIndicadoresController:", error);
     return errorResponse(error.message, 500);
   }
 };
@@ -124,10 +109,11 @@ export const getAllContratosController = async (event) => {
   try {
     const { q, estado, page, limit, order_by } = event.queryStringParameters || {};
     const contratoService = new ContratoService();
+
     const result = await contratoService.getAllContratos({ q, estado }, { page, limit, order_by });
+
     return successResponse(result, SUCCESS_MESSAGES.CONTRATOS_RETRIEVED);
   } catch (error) {
-    console.error("Error en getAllContratosController:", error);
     return errorResponse(error.message, 500);
   }
 };
@@ -135,17 +121,47 @@ export const getAllContratosController = async (event) => {
 export const getContratoByIdController = async (event) => {
   try {
     const { id } = event.pathParameters || {};
-    if (!id) {
-      return errorResponse("El id del contrato es requerido.", 400);
-    }
+
+    if (!id) return errorResponse("El id del contrato es requerido.", 400);
+
     const contratoService = new ContratoService();
     const contrato = await contratoService.getContratoById(id);
-    if (!contrato) {
-      return errorResponse("Contrato no encontrado.", 404);
-    }
+
+    if (!contrato) return errorResponse("Contrato no encontrado.", 404);
+
     return successResponse(contrato, SUCCESS_MESSAGES.CONTRATO_RETRIEVED);
   } catch (error) {
-    console.error("Error en getContratoByIdController:", error);
+    return errorResponse(error.message, 500);
+  }
+};
+
+// 🔥 HU07 (SE MANTIENE)
+export const updateContratoController = async (event) => {
+  try {
+    const service = new ContratoService();
+    const id = event.pathParameters.id;
+    const body = JSON.parse(event.body);
+    const ip = event.requestContext.http.sourceIp;
+
+    const data = await service.updateContrato(id, body, ip);
+
+    return successResponse(data, "Contrato actualizado");
+  } catch (error) {
+    return errorResponse(error.message, 500);
+  }
+};
+
+// 🔥 HU07 (SE MANTIENE)
+export const assignUnidadesController = async (event) => {
+  try {
+    const service = new ContratoService();
+    const id = event.pathParameters.id;
+    const body = JSON.parse(event.body);
+
+    const data = await service.assignUnidades(id, body.unidades);
+
+    return successResponse(data, "Unidades asignadas");
+  } catch (error) {
     return errorResponse(error.message, 500);
   }
 };
