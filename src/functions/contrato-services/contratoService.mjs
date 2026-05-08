@@ -185,7 +185,7 @@ export class ContratoService {
   }
 
   // =========================
-  // ASIGNAR UNIDADES
+  // ASIGNAR UNIDADES //
   // =========================
   async assignUnidades(id, unidades) {
     await this.contratoRepository.deleteUnidades(id);
