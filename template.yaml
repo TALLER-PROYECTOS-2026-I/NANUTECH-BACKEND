@@ -377,6 +377,12 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /contratos
             Method: GET
+        CreateContrato:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /contratos
+            Method: POST
       Tags:
         Environment: !Ref StageName
         Servicio: contrato
