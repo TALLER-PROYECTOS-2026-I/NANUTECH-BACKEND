@@ -1,18 +1,23 @@
 import { jest } from "@jest/globals";
 
-jest.unstable_mockModule(
-  "../../../src/functions/jornada-services/jornadaService.mjs",
-  () => ({
-    JornadaService: jest.fn().mockImplementation(() => ({
-      createJornada: jest.fn(),
-      getAllJornadas: jest.fn(),
-      getCurrentJornada: jest.fn(),
-      startTurn: jest.fn(),
-      finishTurn: jest.fn(),
-      generateCsv: jest.fn(),
-    })),
+jest.unstable_mockModule("../../../src/functions/auth-services/authService.mjs", () => ({
+  getCurrentSession: jest.fn().mockResolvedValue({
+    user: { id: "user-1", correo: "admin@nanutech.com" },
+    role: "gerente",
+    session: { id: "session-1" },
   }),
-);
+}));
+
+jest.unstable_mockModule("../../../src/functions/jornada-services/jornadaService.mjs", () => ({
+  JornadaService: jest.fn().mockImplementation(() => ({
+    createJornada: jest.fn(),
+    getAllJornadas: jest.fn(),
+    getCurrentJornada: jest.fn(),
+    startTurn: jest.fn(),
+    finishTurn: jest.fn(),
+    generateCsv: jest.fn(),
+  })),
+}));
 
 const {
   createJornadaController,
@@ -22,9 +27,17 @@ const {
   startTurnController,
   finishTurnController,
 } = await import("../../../src/functions/jornada-services/jornadaController.mjs");
-const { JornadaService } = await import(
-  "../../../src/functions/jornada-services/jornadaService.mjs"
-);
+const { JornadaService } =
+  await import("../../../src/functions/jornada-services/jornadaService.mjs");
+const { getCurrentSession } = await import("../../../src/functions/auth-services/authService.mjs");
+
+const withAuth = (event = {}) => ({
+  ...event,
+  headers: {
+    Authorization: "Bearer fake-token-test",
+    ...(event.headers || {}),
+  },
+});
 
 describe("JornadaController", () => {
   beforeEach(() => {
@@ -36,16 +49,19 @@ describe("JornadaController", () => {
       createJornada: jest.fn().mockResolvedValue({ id: "jor-1" }),
     }));
 
-    const result = await createJornadaController({
-      body: JSON.stringify({
-        conductor_id: "cond-1",
-        unidad_id: "uni-1",
-        contrato_id: "con-1",
-        creado_por: "admin-1",
-      }),
-    });
+    const result = await createJornadaController(
+      withAuth({
+        body: JSON.stringify({
+          conductor_id: "cond-1",
+          unidad_id: "uni-1",
+          contrato_id: "con-1",
+          creado_por: "admin-1",
+        }),
+      })
+    );
 
     expect(result.statusCode).toBe(200);
+    expect(getCurrentSession).toHaveBeenCalledWith("Bearer fake-token-test");
   });
 
   test("obtiene la jornada actual exitosamente", async () => {
@@ -53,9 +69,11 @@ describe("JornadaController", () => {
       getCurrentJornada: jest.fn().mockResolvedValue({ id: "jor-1" }),
     }));
 
-    const result = await getCurrentJornadaController({
-      pathParameters: { conductorId: "cond-1" },
-    });
+    const result = await getCurrentJornadaController(
+      withAuth({
+        pathParameters: { conductorId: "cond-1" },
+      })
+    );
 
     expect(result.statusCode).toBe(200);
   });
@@ -68,9 +86,11 @@ describe("JornadaController", () => {
       }),
     }));
 
-    const result = await startTurnController({
-      body: JSON.stringify({ jornada_id: "jor-1" }),
-    });
+    const result = await startTurnController(
+      withAuth({
+        body: JSON.stringify({ jornada_id: "jor-1" }),
+      })
+    );
 
     expect(result.statusCode).toBe(200);
   });
@@ -84,12 +104,14 @@ describe("JornadaController", () => {
       }),
     }));
 
-    const result = await finishTurnController({
-      body: JSON.stringify({
-        jornada_id: "jor-1",
-        observaciones: "Todo correcto",
-      }),
-    });
+    const result = await finishTurnController(
+      withAuth({
+        body: JSON.stringify({
+          jornada_id: "jor-1",
+          observaciones: "Todo correcto",
+        }),
+      })
+    );
 
     expect(result.statusCode).toBe(200);
   });
@@ -103,21 +125,30 @@ describe("JornadaController", () => {
       }),
     }));
 
-    const result = await startTurnController({
-      body: JSON.stringify({ jornada_id: "jor-1" }),
-    });
+    const result = await startTurnController(
+      withAuth({
+        body: JSON.stringify({ jornada_id: "jor-1" }),
+      })
+    );
 
     expect(result.statusCode).toBe(400);
   });
 
   test("obtiene todas las jornadas sin filtros", async () => {
     JornadaService.mockImplementation(() => ({
-      getAllJornadas: jest.fn().mockResolvedValue([
-        { id: "jor-1", estado: "COMPLETADA", duracion_total: "08:00", tiene_observaciones: false },
-      ]),
+      getAllJornadas: jest
+        .fn()
+        .mockResolvedValue([
+          {
+            id: "jor-1",
+            estado: "COMPLETADA",
+            duracion_total: "08:00",
+            tiene_observaciones: false,
+          },
+        ]),
     }));
 
-    const result = await getAllJornadasController({ queryStringParameters: null });
+    const result = await getAllJornadasController(withAuth({ queryStringParameters: null }));
 
     expect(result.statusCode).toBe(200);
     const body = JSON.parse(result.body);
@@ -129,44 +160,48 @@ describe("JornadaController", () => {
     const mockGetAll = jest.fn().mockResolvedValue([]);
     JornadaService.mockImplementation(() => ({ getAllJornadas: mockGetAll }));
 
-    await getAllJornadasController({
-      queryStringParameters: { q: "ABC" },
-    });
-
-    expect(mockGetAll).toHaveBeenCalledWith(
-      expect.objectContaining({ q: "ABC" }),
+    await getAllJornadasController(
+      withAuth({
+        queryStringParameters: { q: "ABC" },
+      })
     );
+
+    expect(mockGetAll).toHaveBeenCalledWith(expect.objectContaining({ q: "ABC" }));
   });
 
   test("obtiene jornadas filtradas por conductor y rango de fechas", async () => {
     const mockGetAll = jest.fn().mockResolvedValue([]);
     JornadaService.mockImplementation(() => ({ getAllJornadas: mockGetAll }));
 
-    await getAllJornadasController({
-      queryStringParameters: {
-        conductor_id: "cond-1",
-        fecha_desde: "2026-01-01",
-        fecha_hasta: "2026-04-30",
-      },
-    });
+    await getAllJornadasController(
+      withAuth({
+        queryStringParameters: {
+          conductor_id: "cond-1",
+          fecha_desde: "2026-01-01",
+          fecha_hasta: "2026-04-30",
+        },
+      })
+    );
 
     expect(mockGetAll).toHaveBeenCalledWith(
       expect.objectContaining({
         conductor_id: "cond-1",
         fecha_desde: "2026-01-01",
         fecha_hasta: "2026-04-30",
-      }),
+      })
     );
   });
 
   test("exporta jornadas como CSV sin filtros", async () => {
     JornadaService.mockImplementation(() => ({
-      generateCsv: jest.fn().mockResolvedValue(
-        "ID Jornada,Fecha,Conductor,Placa del Camion,Contrato,Hora Inicio,Hora Fin,Duracion Total,KM Recorridos,Estado,Observaciones\njor-1,2026-04-08,Juan Perez,ABC-123,CON-001,,,,150,COMPLETADA,",
-      ),
+      generateCsv: jest
+        .fn()
+        .mockResolvedValue(
+          "ID Jornada,Fecha,Conductor,Placa del Camion,Contrato,Hora Inicio,Hora Fin,Duracion Total,KM Recorridos,Estado,Observaciones\njor-1,2026-04-08,Juan Perez,ABC-123,CON-001,,,,150,COMPLETADA,"
+        ),
     }));
 
-    const result = await exportCsvController({ queryStringParameters: null });
+    const result = await exportCsvController(withAuth({ queryStringParameters: null }));
 
     expect(result.statusCode).toBe(200);
     expect(result.headers["Content-Type"]).toBe("text/csv");
@@ -178,15 +213,17 @@ describe("JornadaController", () => {
     const mockGenerateCsv = jest.fn().mockResolvedValue("ID Jornada,...\n");
     JornadaService.mockImplementation(() => ({ generateCsv: mockGenerateCsv }));
 
-    await exportCsvController({
-      queryStringParameters: { fecha_desde: "2026-04-01", fecha_hasta: "2026-04-30" },
-    });
+    await exportCsvController(
+      withAuth({
+        queryStringParameters: { fecha_desde: "2026-04-01", fecha_hasta: "2026-04-30" },
+      })
+    );
 
     expect(mockGenerateCsv).toHaveBeenCalledWith(
       expect.objectContaining({
         fecha_desde: "2026-04-01",
         fecha_hasta: "2026-04-30",
-      }),
+      })
     );
   });
 
@@ -199,7 +236,7 @@ describe("JornadaController", () => {
       }),
     }));
 
-    const result = await exportCsvController({ queryStringParameters: null });
+    const result = await exportCsvController(withAuth({ queryStringParameters: null }));
 
     expect(result.statusCode).toBe(500);
   });
