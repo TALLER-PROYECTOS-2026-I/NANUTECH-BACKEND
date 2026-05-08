@@ -1,3 +1,8 @@
+/**
+ * Repositorio encargado de acceso a datos
+ * del módulo de camiones.
+ */
+
 import db from "../../shared/config/database.mjs";
 
 function normalizeEstadoFilter(estado) {
@@ -163,6 +168,11 @@ function getGpsJoin(hasGpsRegistros) {
 }
 
 export class CamionRepository {
+
+  /**
+ * Consulta todos los camiones registrados.
+ */ 
+
   async getAll(filters = {}) {
     try {
       const columns = await getExistingColumns("unidades");
@@ -192,6 +202,10 @@ export class CamionRepository {
       throw new Error(`Error al obtener camiones: ${error.message}`);
     }
   }
+
+/**
+ * Busca un camión específico por UUID.
+ */
 
   async getById(id) {
     try {
@@ -247,6 +261,10 @@ export class CamionRepository {
     }
   }
 
+/**
+ * Verifica existencia de placa duplicada.
+ */
+
   async getByPlaca(placa) {
     try {
       const result = await db.query(
@@ -265,6 +283,10 @@ export class CamionRepository {
       throw new Error(`Error al obtener camión por placa: ${error.message}`);
     }
   }
+
+/**
+ * Verifica existencia de VIN duplicado.
+ */
 
   async getByVin(vin) {
     try {
@@ -290,6 +312,10 @@ export class CamionRepository {
       throw new Error(`Error al obtener camión por VIN: ${error.message}`);
     }
   }
+
+/**
+ * Inserta un nuevo camión en base de datos.
+ */
 
   async create(data) {
     try {
@@ -390,6 +416,13 @@ export class CamionRepository {
     }
   }
 
+/**
+ * Obtiene información consolidada de monitoreo.
+ * 
+ * Incluye métricas GPS calculadas mediante
+ * agregaciones SQL y LEFT JOIN.
+ */
+
   async getPanel(filters = {}) {
     try {
       const columns = await getExistingColumns("unidades");
@@ -455,6 +488,9 @@ export class CamionRepository {
     }
   }
 
+/**
+ * Obtiene información estructurada para exportación CSV.
+ */
   async exportCsv(filters = {}) {
     const panel = await this.getPanel(filters);
     const camiones = panel.camiones || [];

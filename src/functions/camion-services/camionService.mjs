@@ -32,15 +32,32 @@ function normalizeEstado(estado) {
   return value;
 }
 
+/**
+ * Inicializa dependencias del módulo de camiones.
+ */
+
 export class CamionService {
   constructor() {
     this.repository = new CamionRepository();
   }
 
+/**
+ * Obtiene todos los camiones registrados.
+ * 
+ * Convierte la información de base de datos
+ * a entidades de dominio.
+ */
+
   async getAllCamiones(filters = {}) {
     const camiones = await this.repository.getAll(filters);
     return Camion.fromDatabaseList(camiones);
   }
+
+/**
+ * Busca un camión específico mediante UUID.
+ * 
+ * Verifica existencia antes de retornar datos.
+ */
 
   async getCamionById(id) {
     if (!id) {
@@ -55,6 +72,20 @@ export class CamionService {
 
     return Camion.fromDatabase(camion);
   }
+
+/**
+ * Registra una nueva unidad de transporte.
+ * 
+ * Reglas aplicadas:
+ * - placa única
+ * - VIN único
+ * - capacidad válida
+ * - año permitido
+ * - combustible permitido
+ * 
+ * Estado inicial:
+ * DISPONIBLE
+ */
 
   async createCamion(camionData = {}) {
     const validatedData = this.validateCreateCamion(camionData);
@@ -86,9 +117,30 @@ export class CamionService {
     };
   }
 
+/**
+ * Construye el panel consolidado de monitoreo.
+ * 
+ * Calcula:
+ * - resumen operativo
+ * - métricas GPS
+ * - horas movimiento/detenido
+ * - porcentajes de actividad
+ * 
+ * Soporta filtros:
+ * - placa
+ * - estado
+ */
+
   async getPanel(filters = {}) {
     return this.repository.getPanel(filters);
   }
+
+/**
+ * Genera un archivo CSV con información operativa
+ * de los camiones registrados.
+ * 
+ * Utilizado para exportaciones y reportes externos.
+ */
 
   async exportCsv(filters = {}) {
     return this.repository.exportCsv(filters);

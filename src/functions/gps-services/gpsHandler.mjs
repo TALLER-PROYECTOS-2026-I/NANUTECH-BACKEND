@@ -1,3 +1,10 @@
+/**
+ * Punto de entrada principal del módulo GPS.
+ * 
+ * Redirecciona solicitudes HTTP hacia
+ * los controllers correspondientes.
+ */
+
 import {
   getProvidersController,
   getTemplateController,
