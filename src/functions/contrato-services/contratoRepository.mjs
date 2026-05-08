@@ -239,11 +239,16 @@ export class ContratoRepository {
   // 🔥 =========================
   // HU07 (UPDATE + HISTORIAL)
   // 🔥 =========================
+
+  // Obtiene la información base del contrato seleccionado
+  // para mostrar el detalle y validar cambios antes de actualizar.
   async getById(id) {
     const result = await db.query(`SELECT * FROM contratos c WHERE c.id = $1`, [id]);
     return result.rows[0];
   }
 
+  // Obtiene el esquema de tarifas asociado al contrato.
+  // Permite visualizar y editar cobros por hora, tonelada o tarifa base.
   async getTarifasByContrato(id) {
     try {
       const result = await db.query(`SELECT * FROM contrato_tarifas WHERE contrato_id = $1`, [id]);
@@ -253,6 +258,8 @@ export class ContratoRepository {
     }
   }
 
+  // Actualiza los datos principales del contrato.
+  // Incluye fechas, descripción, tipo de servicio y tarifa general.
   async updateContrato(id, data) {
     await db.query(
       `
@@ -268,6 +275,8 @@ export class ContratoRepository {
     );
   }
 
+  // Actualiza el esquema de tarifas del contrato.
+  // Permite modificar tarifas según tipo de cobro requerido.
   async updateTarifas(id, tarifas) {
     await db.query(
       `
@@ -281,6 +290,8 @@ export class ContratoRepository {
     );
   }
 
+  // Registra automáticamente los cambios realizados en el contrato.
+  // Guarda campo modificado, valor anterior, valor nuevo e IP del usuario.
   async insertHistorial(data) {
     await db.query(
       `
@@ -299,6 +310,8 @@ export class ContratoRepository {
     );
   }
 
+  // Inserta una unidad/camión vinculada al contrato.
+  // Permite la asignación múltiple de unidades.
   async insertUnidad(contrato_id, unidad_id) {
     await db.query(
       `INSERT INTO contrato_unidades (contrato_id, unidad_id)
@@ -307,6 +320,8 @@ export class ContratoRepository {
     );
   }
 
+  // Elimina las unidades previamente asociadas al contrato
+  // antes de registrar una nueva asignación.
   async deleteUnidades(contrato_id) {
     await db.query(`DELETE FROM contrato_unidades WHERE contrato_id = $1`, [contrato_id]);
   }
@@ -314,6 +329,9 @@ export class ContratoRepository {
   // 🔥 =========================
   // LIST + DETALLE
   // 🔥 =========================
+
+  // Obtiene el listado de contratos con filtros,
+  // contador de camiones asignados y alerta de vencimiento.
   async findAll({ q, estado } = {}, { page = 1, limit = 10, order_by = "fecha_fin" } = {}) {
     const { whereClause, params } = buildFilters({ q, estado });
 

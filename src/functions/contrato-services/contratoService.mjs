@@ -121,6 +121,9 @@ export class ContratoService {
   // =========================
   // DETALLE
   // =========================
+
+  // Obtiene el detalle completo del contrato seleccionado,
+  // incluyendo las unidades vinculadas a la operación.
   async getContratoById(id) {
     return this.contratoRepository.findById(id);
   }
@@ -128,23 +131,36 @@ export class ContratoService {
   // =========================
   // UPDATE + HISTORIAL
   // =========================
+
+  // Actualiza la información editable del contrato
+  // y registra automáticamente los cambios realizados.
   async updateContrato(id, data, ip) {
     const actual = (await this.contratoRepository.findById(id)) || {};
 
-    // validaciones
+    // =========================
+    // VALIDACIONES DE NEGOCIO - HU07
+    // =========================
+
+    // Valida que la fecha fin no sea menor a la fecha inicio.
     if (data.fecha_fin && data.fecha_inicio && data.fecha_fin < data.fecha_inicio) {
       throw new Error("Fecha fin no puede ser menor a inicio");
     }
 
+    // Valida que la tarifa tenga un valor válido.
     if (data.tarifa !== undefined && Number(data.tarifa) <= 0) {
       throw new Error("La tarifa no puede ser 0");
     }
 
+    // Valida que la descripción no esté vacía.
     if (data.descripcion !== undefined && data.descripcion.trim() === "") {
       throw new Error("La descripción no puede estar vacía");
     }
 
-    // historial
+    // =========================
+    // REGISTRO DE HISTORIAL
+    // =========================
+
+    // Registra cambios realizados en la fecha de finalización.
     if (data.fecha_fin && data.fecha_fin !== actual.fecha_fin) {
       await this.contratoRepository.insertHistorial({
         contrato_id: id,
@@ -155,6 +171,7 @@ export class ContratoService {
       });
     }
 
+    // Registra modificaciones realizadas sobre la tarifa.
     if (data.tarifa !== undefined && Number(data.tarifa) !== Number(actual.tarifa)) {
       await this.contratoRepository.insertHistorial({
         contrato_id: id,
@@ -165,6 +182,7 @@ export class ContratoService {
       });
     }
 
+    // Registra cambios realizados en la descripción del contrato.
     if (data.descripcion !== undefined && data.descripcion !== actual.descripcion) {
       await this.contratoRepository.insertHistorial({
         contrato_id: id,
@@ -175,8 +193,10 @@ export class ContratoService {
       });
     }
 
+    // Actualización principal del contrato.
     await this.contratoRepository.updateContrato(id, data);
 
+    // Actualización del esquema de tarifas del contrato.
     if (data.tarifas) {
       await this.contratoRepository.updateTarifas(id, data.tarifas);
     }
@@ -187,9 +207,13 @@ export class ContratoService {
   // =========================
   // ASIGNAR UNIDADES //
   // =========================
+
+  // Permite asignar múltiples camiones/unidades al contrato.
   async assignUnidades(id, unidades) {
+    // Elimina las asignaciones anteriores antes de registrar nuevas.
     await this.contratoRepository.deleteUnidades(id);
 
+    // Inserta cada unidad seleccionada en el contrato.
     for (const unidad of unidades) {
       await this.contratoRepository.insertUnidad(id, unidad);
     }

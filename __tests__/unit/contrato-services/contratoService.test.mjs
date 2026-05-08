@@ -121,9 +121,12 @@ describe("ContratoService", () => {
   });
 
   // =========================
-  // UPDATE
+  // HU07 - UPDATE + HISTORIAL
   // =========================
   describe("updateContrato", () => {
+    // ✅ QA TEST:
+    // Verifica que el servicio permita actualizar datos
+    // del contrato correctamente según la HU07.
     it("actualiza correctamente", async () => {
       mockRepository.findById.mockResolvedValue({
         fecha_fin: "2025-01-01",
@@ -140,6 +143,9 @@ describe("ContratoService", () => {
       expect(result).toEqual({ updated: true });
     });
 
+    // ✅ QA TEST:
+    // Valida la regla de negocio de la HU07:
+    // la fecha fin no puede ser menor a la fecha inicio.
     it("valida fecha", async () => {
       await expect(
         service.updateContrato(
@@ -153,6 +159,9 @@ describe("ContratoService", () => {
       ).rejects.toThrow();
     });
 
+    // ✅ QA TEST:
+    // Verifica que los cambios realizados en el contrato
+    // se registren automáticamente en el historial.
     it("registra historial", async () => {
       mockRepository.findById.mockResolvedValue({
         tarifa: 10,
@@ -166,9 +175,12 @@ describe("ContratoService", () => {
   });
 
   // =========================
-  // UNIDADES
+  // HU07 - ASIGNACIÓN DE UNIDADES
   // =========================
   describe("assignUnidades", () => {
+    // ✅ QA TEST:
+    // Verifica la asignación múltiple de unidades
+    // vinculadas a un contrato según la HU07.
     it("asigna unidades", async () => {
       const result = await service.assignUnidades(1, [1, 2]);
 
@@ -179,9 +191,12 @@ describe("ContratoService", () => {
   });
 
   // =========================
-  // INDICADORES
+  // HU07 - INDICADORES
   // =========================
   describe("getIndicadores", () => {
+    // ✅ QA TEST:
+    // Verifica la obtención correcta de indicadores
+    // utilizados en la gestión de contratos.
     it("retorna indicadores", async () => {
       mockRepository.getIndicadores.mockResolvedValue({ total_contratos: 10 });
 
@@ -192,9 +207,12 @@ describe("ContratoService", () => {
   });
 
   // =========================
-  // LISTADO
+  // HU07 - LISTADO DE CONTRATOS
   // =========================
   describe("getAllContratos", () => {
+    // ✅ QA TEST:
+    // Verifica la paginación y listado de contratos
+    // para mantener el contexto del contrato seleccionado.
     it("retorna paginación", async () => {
       mockRepository.findAll.mockResolvedValue({
         rows: [{ id: 1 }],
@@ -211,9 +229,12 @@ describe("ContratoService", () => {
   });
 
   // =========================
-  // DETALLE
+  // HU07 - DETALLE DE CONTRATO
   // =========================
   describe("getContratoById", () => {
+    // ✅ QA TEST:
+    // Verifica la visualización del detalle completo
+    // del contrato seleccionado.
     it("retorna contrato", async () => {
       mockRepository.findById.mockResolvedValue({ id: 1 });
 
@@ -222,6 +243,9 @@ describe("ContratoService", () => {
       expect(result.id).toBe(1);
     });
 
+    // ✅ QA TEST:
+    // Verifica el comportamiento cuando el contrato
+    // solicitado no existe en la base de datos.
     it("retorna null si no existe", async () => {
       mockRepository.findById.mockResolvedValue(null);
 
