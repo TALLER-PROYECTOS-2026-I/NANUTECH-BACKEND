@@ -16,7 +16,7 @@ const getFechaCondition = (tiempo, colName = "j.fecha_jornada") => {
 export class DashboardGerencialRepository {
   // AC1: Resumen General
   async getResumen(tiempo) {
-    const timeCond = getFechaCondition(tiempo, "fecha_jornada");
+    const timeCond = getFechaCondition(tiempo, "j.fecha_jornada");
 
     const jornadasStats = await query(`
       SELECT 
@@ -25,7 +25,7 @@ export class DashboardGerencialRepository {
         COALESCE(SUM(km_recorridos), 0) as total_km,
         COALESCE(SUM(EXTRACT(EPOCH FROM (hora_fin - hora_inicio))/3600), 0) as total_horas
       FROM jornadas j
-      WHERE 1=1 ${getFechaCondition(tiempo, "j.fecha_jornada")}
+      WHERE 1=1 ${timeCond}
     `);
 
     const flota = await query(`SELECT COUNT(*) as total FROM unidades WHERE activo = true`);
