@@ -229,6 +229,12 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /jornadas/finalizar
             Method: POST
+        ExportJornadas:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/exportar
+            Method: GET
       Tags:
         Environment: !Ref StageName
         Servicio: jornada
