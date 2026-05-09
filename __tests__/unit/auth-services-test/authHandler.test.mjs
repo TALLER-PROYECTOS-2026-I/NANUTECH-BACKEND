@@ -49,6 +49,25 @@ describe("AuthHandler", () => {
     expect(body.data.session.accessToken).toBeTruthy();
   });
 
+  it("responde login local del gerente con ruta gerencial", async () => {
+    const response = await authHandler({
+      httpMethod: "POST",
+      resource: "/auth/login",
+      body: JSON.stringify({
+        email: "gerente@test.com",
+        password: "123456",
+      }),
+      headers: {},
+    });
+    const body = JSON.parse(response.body);
+
+    expect(response.statusCode).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.user.role).toBe("gerente");
+    expect(body.data.role).toBe("gerente");
+    expect(body.data.nextRoute).toBe("/dashboard/gerencial");
+  });
+
   it("valida token en /auth/me y devuelve el perfil usable por el cliente", async () => {
     const loginResponse = await authHandler({
       httpMethod: "POST",

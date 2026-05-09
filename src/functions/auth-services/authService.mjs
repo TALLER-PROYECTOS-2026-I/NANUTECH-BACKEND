@@ -29,6 +29,7 @@ const createAuthError = (message, statusCode = 400, code = "AUTH_ERROR") => {
 const buildNextRoute = (role) => {
   if (role === "admin") return "/dashboard/admin";
   if (role === "chofer") return "/dashboard/chofer";
+  if (role === "gerente") return "/dashboard/gerencial";
   return "/dashboard";
 };
 

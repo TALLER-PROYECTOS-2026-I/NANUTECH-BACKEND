@@ -17,6 +17,14 @@ const initialUsers = [
     locked: false,
     resetCode: null,
   },
+  {
+    email: "gerente@test.com",
+    password: "123456",
+    role: "gerente",
+    attempts: 0,
+    locked: false,
+    resetCode: null,
+  },
 ];
 
 let users = initialUsers.map((user) => ({ ...user }));
