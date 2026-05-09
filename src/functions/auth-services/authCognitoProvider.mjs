@@ -61,6 +61,7 @@ const getRoleFromClaims = (claims = {}, attributes = []) => {
 const buildNextRoute = (role) => {
   if (role === "admin") return "/dashboard/admin";
   if (role === "chofer") return "/dashboard/chofer";
+  if (role === "gerente") return "/dashboard/gerencial";
   return "/dashboard";
 };
 

@@ -1,11 +1,12 @@
 import { jest } from "@jest/globals";
 
 const mockQuery = jest.fn();
+const mockGetClient = jest.fn();
 
 jest.unstable_mockModule("../../../src/shared/config/database.mjs", () => ({
-  default: { query: mockQuery },
+  default: { query: mockQuery, getClient: mockGetClient },
   query: mockQuery,
-  getClient: jest.fn(),
+  getClient: mockGetClient,
 }));
 
 const { ContratoRepository } = await import(
@@ -18,6 +19,7 @@ describe("ContratoRepository", () => {
   beforeEach(() => {
     repository = new ContratoRepository();
     mockQuery.mockReset();
+    mockGetClient.mockReset();
   });
 
   test("getAllVigentes retorna contratos vigentes filtrando por estado y fecha", async () => {
@@ -174,5 +176,174 @@ describe("ContratoRepository", () => {
     const result = await repository.findById("non-existent-id");
 
     expect(result).toBeNull();
+  });
+
+  test("calculateTotalReferencial multiplica distancia por tarifa por km", () => {
+    const result = repository.calculateTotalReferencial({
+      distancia_estimada_km: 180,
+      tarifa_por_km: 5.5,
+    });
+
+    expect(result).toBe(990);
+  });
+
+  test("generateCodigoContrato genera codigo con prefijo CONT", () => {
+    const result = repository.generateCodigoContrato();
+
+    expect(result).toMatch(/^CONT-\d+-\d+$/);
+  });
+
+  test("createContrato registra contrato completo dentro de una transaccion", async () => {
+    const client = {
+      query: jest.fn(),
+      release: jest.fn(),
+    };
+    mockGetClient.mockResolvedValue(client);
+    jest.spyOn(repository, "generateCodigoContrato").mockReturnValue("CONT-TEST");
+
+    client.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: "con-1", codigo: "CONT-TEST" }] })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ id: "con-1", cliente: "Empresa ABC" }] })
+      .mockResolvedValueOnce({}); // COMMIT
+
+    const result = await repository.createContrato({
+      cliente: " Empresa ABC ",
+      ruc: "12345678901",
+      descripcion: "Contrato mensual",
+      tipo_servicio: "POR_KM",
+      fecha_inicio: "2026-05-01",
+      fecha_fin: "2026-08-01",
+      moneda: "PEN",
+      origen: "Arequipa",
+      destino: "Matarani",
+      distancia_estimada_km: 180,
+      tarifa_por_km: 5,
+      tarifa_por_hora: 0,
+      tarifa_espera: 20,
+    });
+
+    expect(result).toEqual({ id: "con-1", cliente: "Empresa ABC" });
+    expect(client.query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(client.query.mock.calls[1][1]).toContain("CONT-TEST");
+    expect(client.query.mock.calls[1][1]).toContain("Empresa ABC");
+    expect(client.query.mock.calls[2][1]).toEqual(["con-1", "Arequipa", "Matarani", "180.00"]);
+    expect(client.query.mock.calls[3][1]).toEqual(["con-1", "5.00", "0.00", "20.00", 900]);
+    expect(client.query).toHaveBeenNthCalledWith(6, "COMMIT");
+    expect(client.release).toHaveBeenCalled();
+  });
+
+  test("createContrato ejecuta rollback y libera cliente si falla", async () => {
+    const client = {
+      query: jest.fn(),
+      release: jest.fn(),
+    };
+    mockGetClient.mockResolvedValue(client);
+
+    client.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockRejectedValueOnce(new Error("insert failed"))
+      .mockResolvedValueOnce({}); // ROLLBACK
+
+    await expect(
+      repository.createContrato({
+        cliente: "Empresa ABC",
+        ruc: "12345678901",
+        tipo_servicio: "POR_KM",
+        fecha_inicio: "2026-05-01",
+        origen: "Arequipa",
+        destino: "Matarani",
+        distancia_estimada_km: 180,
+        tarifa_por_km: 5,
+      })
+    ).rejects.toThrow("insert failed");
+
+    expect(client.query).toHaveBeenLastCalledWith("ROLLBACK");
+    expect(client.release).toHaveBeenCalled();
+  });
+
+  test("getFullContratoByIdWithClient retorna el primer contrato encontrado", async () => {
+    const client = {
+      query: jest.fn().mockResolvedValue({ rows: [{ id: "con-1" }] }),
+    };
+
+    const result = await repository.getFullContratoByIdWithClient(client, "con-1");
+
+    expect(result).toEqual({ id: "con-1" });
+    expect(client.query.mock.calls[0][1]).toEqual(["con-1"]);
+  });
+
+  test("getById consulta contrato por id", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "con-1" }] });
+
+    const result = await repository.getById("con-1");
+
+    expect(result).toEqual({ id: "con-1" });
+    expect(mockQuery.mock.calls[0][1]).toEqual(["con-1"]);
+  });
+
+  test("getTarifasByContrato retorna tarifa o null si falla", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ contrato_id: "con-1", tarifa_base: "100" }] });
+
+    await expect(repository.getTarifasByContrato("con-1")).resolves.toEqual({
+      contrato_id: "con-1",
+      tarifa_base: "100",
+    });
+
+    mockQuery.mockRejectedValueOnce(new Error("tabla no existe"));
+
+    await expect(repository.getTarifasByContrato("con-1")).resolves.toBeNull();
+  });
+
+  test("updateContrato, updateTarifas e historial ejecutan queries con parametros esperados", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.updateContrato("con-1", {
+      fecha_inicio: "2026-05-01",
+      fecha_fin: "2026-08-01",
+      tipo_servicio: "POR_TONELADA",
+      descripcion: "Actualizado",
+      tarifa: 3000,
+    });
+
+    expect(mockQuery.mock.calls[0][1]).toEqual([
+      "2026-05-01",
+      "2026-08-01",
+      "POR_TONELADA",
+      "Actualizado",
+      3000,
+      "con-1",
+    ]);
+
+    await repository.updateTarifas("con-1", { base: 100, hora: 50, tonelada: 80 });
+    expect(mockQuery.mock.calls[1][1]).toEqual([100, 50, 80, "con-1"]);
+
+    await repository.insertHistorial({
+      contrato_id: "con-1",
+      campo: "estado",
+      valor_anterior: "VIGENTE",
+      valor_nuevo: "INACTIVO",
+      ip_address: "127.0.0.1",
+    });
+    expect(mockQuery.mock.calls[2][1]).toEqual([
+      "con-1",
+      "UPDATE",
+      "estado",
+      "VIGENTE",
+      "INACTIVO",
+      "127.0.0.1",
+    ]);
+  });
+
+  test("insertUnidad y deleteUnidades modifican la relacion contrato-unidades", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.insertUnidad("con-1", "uni-1");
+    await repository.deleteUnidades("con-1");
+
+    expect(mockQuery.mock.calls[0][1]).toEqual(["con-1", "uni-1"]);
+    expect(mockQuery.mock.calls[1][1]).toEqual(["con-1"]);
   });
 });

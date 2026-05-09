@@ -3,11 +3,11 @@
 -- =========================================================
 INSERT INTO usuarios (id, cognito_sub, correo, nombres, apellidos, rol, telefono, dni)
 VALUES
-('11111111-1111-1111-1111-111111111111', '7438d4b8-0021-7065-dda7-7bbdfa75c929', 'admin@nanutech.com',    'Jimena', 'Rodriguez', 'ADMIN',   '999111222', '70000001'),
-('22222222-2222-2222-2222-222222222222', 'c4f84478-a051-707b-d0ee-ad4d95480a7c', 'chofer1@nanutech.com',  'Carlos', 'Mendoza',   'CHOFER',  '999222333', '70000002'),
+('11111111-1111-1111-1111-111111111111', '74f8c4f8-a041-70ca-4e30-e78b87d1cfdb', 'admin@nanutech.com',    'Jimena', 'Rodriguez', 'ADMIN',   '999111222', '70000001'),
+('22222222-2222-2222-2222-222222222222', 'c4f84478-a051-707b-d0ee-ad4d95480a7c', 'chofer@nanutech.com',   'Carlos', 'Mendoza',   'CHOFER',  '999222333', '70000002'),
 ('33333333-3333-3333-3333-333333333333', 'cognito-sub-chofer-002',               'chofer2@nanutech.com',  'Luis',   'Ramirez',   'CHOFER',  '999333444', '70000003'),
 ('44444444-4444-4444-4444-444444444444', 'cognito-sub-chofer-003',               'chofer3@nanutech.com',  'Jorge',  'Silva',     'CHOFER',  '999444555', '70000004'),
-('55555555-5555-5555-5555-555555555555', NULL,                                   'gerencia@nanutech.com', 'Laura',  'Vasquez',   'GERENTE', '999777888', '70000005');
+('55555555-5555-5555-5555-555555555555', '744844e8-d051-70fb-a746-c22ccc07352a', 'gerente@nanutech.com',  'Laura',  'Vasquez',   'GERENTE', '999777888', '70000005');
 
 -- =========================================================
 -- CONDUCTORES
@@ -349,13 +349,13 @@ INSERT INTO auditoria_accesos (usuario_id, correo, rol, accion, resultado, ip_ad
 VALUES
 ('11111111-1111-1111-1111-111111111111', 'admin@nanutech.com',   'ADMIN',   'LOGIN',             'EXITOSO', '127.0.0.1', 'Mozilla/5.0', 'Chrome Desktop', 'Inicio de sesión correcto'),
 ('33333333-3333-3333-3333-333333333333', 'chofer2@nanutech.com', 'CHOFER',  'INICIAR_JORNADA',   'EXITOSO', '127.0.0.1', 'Mozilla/5.0', 'Android',        'Jornada iniciada desde panel chofer'),
-('55555555-5555-5555-5555-555555555555', 'gerencia@nanutech.com','GERENTE', 'CONSULTA_DASHBOARD','EXITOSO', '127.0.0.1', 'Mozilla/5.0', 'Chrome Desktop', 'Consulta dashboard gerencial');
+('55555555-5555-5555-5555-555555555555', 'gerente@nanutech.com','GERENTE', 'CONSULTA_DASHBOARD','EXITOSO', '127.0.0.1', 'Mozilla/5.0', 'Chrome Desktop', 'Consulta dashboard gerencial');
 
 INSERT INTO login_intentos (email, intentos_fallidos, ultimo_intento, bloqueado_hasta)
 VALUES ('invalido@nanutech.com', 2, NOW() - INTERVAL '2 hours', NULL);
 
 INSERT INTO password_reset_tokens (usuario_id, email, token, expira_at, usado)
-VALUES ('22222222-2222-2222-2222-222222222222', 'chofer1@nanutech.com', 'RESET-TOKEN-001', NOW() + INTERVAL '1 day', FALSE);
+VALUES ('22222222-2222-2222-2222-222222222222', 'chofer@nanutech.com', 'RESET-TOKEN-001', NOW() + INTERVAL '1 day', FALSE);
 
 INSERT INTO sesiones_usuario (usuario_id, access_token_jti, refresh_token_jti, expira_at, ultimo_evento_at, estado)
 VALUES
