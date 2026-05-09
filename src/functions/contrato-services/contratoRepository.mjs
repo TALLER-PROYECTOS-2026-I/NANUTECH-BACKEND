@@ -491,7 +491,7 @@ export class ContratoRepository {
       WHERE c.id = $1
       GROUP BY c.id
       `,
-      [id]
+      [contratoId]
     );
 
     return result.rows[0] || null;
