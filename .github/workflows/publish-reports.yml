@@ -22,7 +22,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    
+
     steps:
       - uses: actions/checkout@v4
 
@@ -47,11 +47,11 @@ jobs:
           RUN_ID: ${{ steps.run.outputs.run_id }}
         run: |
           mkdir -p raw
-          
+
           ARTIFACT_ID=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts?per_page=100" \
             | jq -r '.artifacts[] | select(.name=="coverage-report") | .id' | head -1)
-          
+
           if [ -n "$ARTIFACT_ID" ] && [ "$ARTIFACT_ID" != "null" ]; then
             curl -sL -H "Authorization: Bearer $GH_TOKEN" \
               "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$ARTIFACT_ID/zip" -o coverage-report.zip
@@ -67,40 +67,144 @@ jobs:
       - name: Generate HTML report from coverage data
         run: |
           mkdir -p docs/reports/latest/coverage
-          
+
           cat > generate_html.py << 'PYEOF'
           import json
           import os
           import sys
           from datetime import datetime
           from collections import defaultdict
-          
-          # Buscar el archivo coverage-summary.json
+
+          # ── 1. Buscar coverage-summary.json ──────────────────────────────────────────
           json_path = None
           for root, dirs, files in os.walk("raw/coverage-report"):
               if "coverage-summary.json" in files:
                   json_path = os.path.join(root, "coverage-summary.json")
                   break
-          
+
           if not json_path:
-              print("No coverage-summary.json found")
-              html = '''<!DOCTYPE html>
-              <html>
-              <head><meta charset="UTF-8"><title>Coverage Report</title></head>
+              print("⚠️  No se encontró coverage-summary.json")
+              html = """<!DOCTYPE html>
+              <html><head><meta charset="UTF-8"><title>Coverage Report</title></head>
               <body style="background:#0a0e27;color:#e2e8f0;font-family:system-ui;padding:40px">
-              <h1>📊 Coverage Report</h1>
-              <p>No coverage data available. Run tests first.</p>
-              </body>
-              </html>'''
+              <h1>📊 Coverage Report</h1><p>No hay datos de cobertura disponibles.</p>
+              </body></html>"""
               with open("docs/reports/latest/coverage/index.html", "w") as f:
                   f.write(html)
               sys.exit(0)
-          
-          # Cargar datos
+
+          print(f"✅ JSON encontrado: {json_path}")
+
           with open(json_path) as f:
               data = json.load(f)
-          
-          # CSS completo
+
+          # ── 2. Helpers ────────────────────────────────────────────────────────────────
+          def safe_pct(covered, total):
+              """Calcula porcentaje exactamente como istanbul:
+                 - 0/0  → 100  (sin código que cubrir = perfecto)
+                 - n/0  → 0    (no debería ocurrir)
+                 - c/t  → c/t*100
+              """
+              if total == 0:
+                  return 100.0 if covered == 0 else 0.0
+              return round(covered / total * 100, 2)
+
+          def get_color(pct):
+              return "#22c55e" if pct >= 70 else "#eab308" if pct >= 50 else "#ef4444"
+
+          def get_fill_class(pct):
+              return "good" if pct >= 70 else "medium" if pct >= 50 else "bad"
+
+          def extract_module(file_path):
+              """
+              Extrae el nombre de módulo desde rutas como:
+                /home/runner/work/nanutech-backend/nanutech-backend/src/functions/auth-services/authService.mjs
+                src/functions/camion-services/camionController.mjs
+                src/shared/config/database.mjs
+                src/shared/utils/response/response.mjs
+                src/shared/constants/errorMessages.mjs
+
+              Devuelve tuplas (grupo, modulo):
+                ("functions", "auth-services")
+                ("shared",    "config")
+                ("shared",    "utils")        ← utils/response y utils/validators se unen aquí
+                ("shared",    "constants")
+              """
+              p = file_path.replace("\\", "/")
+
+              # Buscar ancla "src/" en la ruta
+              if "/src/" in p:
+                  after_src = p.split("/src/")[-1]   # e.g. "functions/auth-services/authService.mjs"
+              elif p.startswith("src/"):
+                  after_src = p[4:]
+              else:
+                  after_src = p                        # fallback
+
+              parts = after_src.split("/")
+              # parts[0] = "functions" | "shared"
+              # parts[1] = "auth-services" | "config" | "utils" | "constants" ...
+              if len(parts) >= 2:
+                  grupo   = parts[0]   # functions / shared
+                  modulo  = parts[1]   # auth-services / config / utils / constants
+                  return grupo, modulo
+              return "otros", parts[0] if parts else "otros"
+
+          # ── 3. Métricas globales (directamente desde clave "total") ───────────────────
+          total_key = data.get("total", {})
+          lines_pct  = total_key.get("lines",      {}).get("pct", 0)
+          stmt_pct   = total_key.get("statements", {}).get("pct", 0)
+          branch_pct = total_key.get("branches",   {}).get("pct", 0)
+          func_pct   = total_key.get("functions",  {}).get("pct", 0)
+
+          print(f"📊 Totales: líneas={lines_pct}% stmts={stmt_pct}% branches={branch_pct}% funcs={func_pct}%")
+
+          # ── 4. Agrupar archivos por módulo acumulando covered/total ───────────────────
+          # Usamos acumulación de covered+total para calcular % del módulo igual que istanbul
+          module_acc = defaultdict(lambda: {
+              "s_cov": 0, "s_tot": 0,
+              "b_cov": 0, "b_tot": 0,
+              "f_cov": 0, "f_tot": 0,
+              "l_cov": 0, "l_tot": 0,
+              "grupo": "",
+              "files": []
+          })
+
+          for file_path, vals in data.items():
+              if file_path == "total":
+                  continue
+
+              grupo, modulo = extract_module(file_path)
+              file_name = file_path.split("/")[-1]
+
+              s_cov = vals.get("statements", {}).get("covered", 0)
+              s_tot = vals.get("statements", {}).get("total",   0)
+              b_cov = vals.get("branches",   {}).get("covered", 0)
+              b_tot = vals.get("branches",   {}).get("total",   0)
+              f_cov = vals.get("functions",  {}).get("covered", 0)
+              f_tot = vals.get("functions",  {}).get("total",   0)
+              l_cov = vals.get("lines",      {}).get("covered", 0)
+              l_tot = vals.get("lines",      {}).get("total",   0)
+
+              acc = module_acc[modulo]
+              acc["s_cov"] += s_cov;  acc["s_tot"] += s_tot
+              acc["b_cov"] += b_cov;  acc["b_tot"] += b_tot
+              acc["f_cov"] += f_cov;  acc["f_tot"] += f_tot
+              acc["l_cov"] += l_cov;  acc["l_tot"] += l_tot
+              acc["grupo"]  = grupo
+
+              acc["files"].append({
+                  "name":           file_name,
+                  "stmt":           safe_pct(s_cov, s_tot),
+                  "branch":         safe_pct(b_cov, b_tot),
+                  "func":           safe_pct(f_cov, f_tot),
+                  "line":           safe_pct(l_cov, l_tot),
+                  "stmt_covered":   s_cov, "stmt_total":   s_tot,
+                  "branch_covered": b_cov, "branch_total": b_tot,
+                  "func_covered":   f_cov, "func_total":   f_tot,
+                  "line_covered":   l_cov, "line_total":   l_tot,
+              })
+
+          # ── 5. CSS compartido ─────────────────────────────────────────────────────────
           css = """
           *{margin:0;padding:0;box-sizing:border-box}
           body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0e27;color:#e2e8f0;padding:24px}
@@ -114,6 +218,7 @@ jobs:
           table{width:100%;border-collapse:collapse;background:#1e293b;border-radius:16px;overflow:hidden}
           th,td{padding:16px 20px;text-align:left;border-bottom:1px solid #334155}
           th{background:#0f172a;color:#94a3b8;font-size:13px;font-weight:600;text-transform:uppercase}
+          tr:last-child td{border-bottom:none}
           tr:hover{background:#243044}
           .progress-bar{background:#334155;border-radius:12px;height:10px;width:140px;overflow:hidden}
           .progress-fill{height:100%;border-radius:12px}
@@ -122,196 +227,182 @@ jobs:
           .bad{background:#ef4444}
           a{color:#60a5fa;text-decoration:none}
           a:hover{text-decoration:underline}
-          .module-link{display:inline-block;background:#1e293b;padding:8px 16px;border-radius:12px;margin:4px}
-          .module-link:hover{background:#334155}
           .footer{margin-top:40px;padding:20px;text-align:center;color:#475569;border-top:1px solid #334155}
-          .legend{display:flex;gap:24px;justify-content:center;margin:20px 0;padding:16px;background:#1e293b;border-radius:16px}
-          .legend-color{width:20px;height:20px;border-radius:6px;display:inline-block;margin-right:8px}
+          .legend{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin:20px 0;padding:16px;background:#1e293b;border-radius:16px}
+          .legend-color{width:20px;height:20px;border-radius:6px;display:inline-block;margin-right:8px;vertical-align:middle}
           .table-container{overflow-x:auto}
+          .back-link{display:inline-block;margin-bottom:20px;color:#60a5fa}
+          .tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:8px;margin-left:8px;vertical-align:middle;font-weight:600}
+          .tag-functions{background:#1e3a8a;color:#93c5fd}
+          .tag-shared{background:#14532d;color:#86efac}
           """
-          
-          def get_color(pct):
-              return "#22c55e" if pct >= 70 else "#eab308" if pct >= 50 else "#ef4444"
-          
-          def get_fill_class(pct):
-              return "good" if pct >= 70 else "medium" if pct >= 50 else "bad"
-          
-          # Métricas totales
-          total = data.get("total", {})
-          lines_pct = total.get("lines", {}).get("pct", 0)
-          stmt_pct = total.get("statements", {}).get("pct", 0)
-          branch_pct = total.get("branches", {}).get("pct", 0)
-          func_pct = total.get("functions", {}).get("pct", 0)
-          
-          # Organizar archivos por módulo
-          modules = defaultdict(list)
-          for file_path, vals in data.items():
-              if file_path == "total":
-                  continue
-              
-              # Extraer nombre del módulo y del archivo
-              if "src/functions/" in file_path:
-                  parts = file_path.split("src/functions/")[1].split("/")
-                  module = parts[0]
-              elif "src/shared/" in file_path:
-                  parts = file_path.split("src/shared/")[1].split("/")
-                  module = parts[0]
-              else:
-                  module = "otros"
-              
-              file_name = file_path.split("/")[-1]
-              
-              modules[module].append({
-                  "name": file_name,
-                  "stmt": vals.get("statements", {}).get("pct", 0),
-                  "branch": vals.get("branches", {}).get("pct", 0),
-                  "func": vals.get("functions", {}).get("pct", 0),
-                  "line": vals.get("lines", {}).get("pct", 0),
-                  "stmt_covered": vals.get("statements", {}).get("covered", 0),
-                  "stmt_total": vals.get("statements", {}).get("total", 0),
-                  "branch_covered": vals.get("branches", {}).get("covered", 0),
-                  "branch_total": vals.get("branches", {}).get("total", 0),
-                  "func_covered": vals.get("functions", {}).get("covered", 0),
-                  "func_total": vals.get("functions", {}).get("total", 0),
-                  "line_covered": vals.get("lines", {}).get("covered", 0),
-                  "line_total": vals.get("lines", {}).get("total", 0)
-              })
-          
-          # Generar tabla de módulos (página principal)
-          table_rows = ""
-          for module_name in sorted(modules.keys()):
-              files = modules[module_name]
-              total_files = len(files)
-              
-              # Calcular promedios del módulo
-              avg_stmt = sum(f["stmt"] for f in files) / total_files
-              avg_branch = sum(f["branch"] for f in files) / total_files
-              avg_func = sum(f["func"] for f in files) / total_files
-              avg_line = sum(f["line"] for f in files) / total_files
-              
-              table_rows += f"""
-              <tr>
-                  <td style="font-weight:700"><a href="module_{module_name}.html">{module_name}</a><br><span style="font-size:11px;color:#64748b">{total_files} archivos</span></td>
-                  <td style="color:{get_color(avg_stmt)};font-weight:bold">{avg_stmt:.1f}%</td>
-                  <td style="color:{get_color(avg_branch)};font-weight:bold">{avg_branch:.1f}%</td>
-                  <td style="color:{get_color(avg_func)};font-weight:bold">{avg_func:.1f}%</td>
-                  <td style="color:{get_color(avg_line)};font-weight:bold">{avg_line:.1f}%</td>
-                  <td><div class="progress-bar"><div class="progress-fill {get_fill_class(avg_line)}" style="width:{avg_line:.1f}%"></div></div></td>
-              </tr>"""
-              
-              # Generar página de detalle para cada módulo
+
+          # ── 6. Generar páginas de detalle por módulo ──────────────────────────────────
+          for modulo_name in sorted(module_acc.keys()):
+              acc   = module_acc[modulo_name]
+              files = acc["files"]
+
               files_rows = ""
               for f in sorted(files, key=lambda x: x["name"]):
                   files_rows += f"""
                   <tr>
                       <td style="font-weight:500">{f['name']}</td>
-                      <td style="color:{get_color(f['stmt'])};font-weight:bold">{f['stmt']:.1f}%<br><span style="font-size:11px;color:#64748b">{f['stmt_covered']}/{f['stmt_total']}</span></td>
-                      <td style="color:{get_color(f['branch'])};font-weight:bold">{f['branch']:.1f}%<br><span style="font-size:11px;color:#64748b">{f['branch_covered']}/{f['branch_total']}</span></td>
-                      <td style="color:{get_color(f['func'])};font-weight:bold">{f['func']:.1f}%<br><span style="font-size:11px;color:#64748b">{f['func_covered']}/{f['func_total']}</span></td>
-                      <td style="color:{get_color(f['line'])};font-weight:bold">{f['line']:.1f}%<br><span style="font-size:11px;color:#64748b">{f['line_covered']}/{f['line_total']}</span></td>
-                      <td><div class="progress-bar"><div class="progress-fill {get_fill_class(f['line'])}" style="width:{f['line']:.1f}%"></div></div></td>
+                      <td style="color:{get_color(f['stmt'])};font-weight:bold">{f['stmt']:.2f}%<br>
+                          <span style="font-size:11px;color:#64748b">{f['stmt_covered']}/{f['stmt_total']}</span></td>
+                      <td style="color:{get_color(f['branch'])};font-weight:bold">{f['branch']:.2f}%<br>
+                          <span style="font-size:11px;color:#64748b">{f['branch_covered']}/{f['branch_total']}</span></td>
+                      <td style="color:{get_color(f['func'])};font-weight:bold">{f['func']:.2f}%<br>
+                          <span style="font-size:11px;color:#64748b">{f['func_covered']}/{f['func_total']}</span></td>
+                      <td style="color:{get_color(f['line'])};font-weight:bold">{f['line']:.2f}%<br>
+                          <span style="font-size:11px;color:#64748b">{f['line_covered']}/{f['line_total']}</span></td>
+                      <td><div class="progress-bar">
+                          <div class="progress-fill {get_fill_class(f['line'])}" style="width:{min(f['line'],100):.2f}%"></div>
+                      </div></td>
                   </tr>"""
-              
+
               module_html = f"""<!DOCTYPE html>
               <html>
-              <head><meta charset="UTF-8"><title>{module_name} - Cobertura</title>
-              <style>{css}</style>
-              </head>
+              <head><meta charset="UTF-8"><title>{modulo_name} - Cobertura</title>
+              <style>{css}</style></head>
               <body>
               <div class="container">
-                  <a href="index.html" style="display:inline-block;margin-bottom:20px">← Volver al Dashboard</a>
-                  <h1>📁 {module_name}</h1>
-                  <div class="sub">Detalle de cobertura por archivo</div>
-                  
+                  <a class="back-link" href="index.html">← Volver al Dashboard</a>
+                  <h1>📁 {modulo_name}</h1>
+                  <div class="sub">Detalle de cobertura por archivo · {len(files)} archivo(s)</div>
+
                   <div class="legend">
-                      <div><span class="legend-color" style="background:#22c55e"></span> ≥ 70% (Excelente)</div>
-                      <div><span class="legend-color" style="background:#eab308"></span> 50% - 69% (Aceptable)</div>
-                      <div><span class="legend-color" style="background:#ef4444"></span> &lt; 50% (Necesita mejora)</div>
+                      <div><span class="legend-color" style="background:#22c55e"></span>≥ 70% — Excelente</div>
+                      <div><span class="legend-color" style="background:#eab308"></span>50%–69% — Aceptable</div>
+                      <div><span class="legend-color" style="background:#ef4444"></span>&lt; 50% — Necesita mejora</div>
                   </div>
-                  
+
                   <div class="table-container">
                   <table>
                       <thead>
                           <tr>
                               <th>Archivo</th>
-                              <th>Sentencias<br><span style="font-size:10px">Cubiertas/Total</span></th>
-                              <th>Ramas<br><span style="font-size:10px">Cubiertas/Total</span></th>
-                              <th>Funciones<br><span style="font-size:10px">Cubiertas/Total</span></th>
-                              <th>Líneas<br><span style="font-size:10px">Cubiertas/Total</span></th>
+                              <th>Sentencias<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                              <th>Ramas<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                              <th>Funciones<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                              <th>Líneas<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
                               <th>Barra</th>
                           </tr>
                       </thead>
-                      <tbody>
-                          {files_rows}
-                      </tbody>
+                      <tbody>{files_rows}</tbody>
                   </table>
                   </div>
-                  
+
                   <div class="footer">Generado automáticamente por CI/CD Pipeline</div>
               </div>
-              </body>
-              </html>"""
-              
-              with open(f"docs/reports/latest/coverage/module_{module_name}.html", "w") as f:
-                  f.write(module_html)
-          
-          # Página principal
+              </body></html>"""
+
+              out_path = f"docs/reports/latest/coverage/module_{modulo_name}.html"
+              with open(out_path, "w") as fh:
+                  fh.write(module_html)
+              print(f"  ✅ Módulo generado: {modulo_name}")
+
+          # ── 7. Página principal con tabla de módulos ──────────────────────────────────
+          table_rows = ""
+          for modulo_name in sorted(module_acc.keys()):
+              acc   = module_acc[modulo_name]
+              grupo = acc["grupo"]
+
+              # Porcentajes del módulo: acumulado covered/total (igual que istanbul)
+              avg_stmt   = safe_pct(acc["s_cov"], acc["s_tot"])
+              avg_branch = safe_pct(acc["b_cov"], acc["b_tot"])
+              avg_func   = safe_pct(acc["f_cov"], acc["f_tot"])
+              avg_line   = safe_pct(acc["l_cov"], acc["l_tot"])
+              n_files    = len(acc["files"])
+
+              tag_label = "functions" if grupo == "functions" else "shared"
+              tag_class = "tag-functions" if grupo == "functions" else "tag-shared"
+
+              table_rows += f"""
+              <tr>
+                  <td style="font-weight:700">
+                      <a href="module_{modulo_name}.html">{modulo_name}</a>
+                      <span class="tag {tag_class}">{tag_label}</span><br>
+                      <span style="font-size:11px;color:#64748b">{n_files} archivo(s)</span>
+                  </td>
+                  <td style="color:{get_color(avg_stmt)};font-weight:bold">{avg_stmt:.2f}%<br>
+                      <span style="font-size:11px;color:#64748b">{acc['s_cov']}/{acc['s_tot']}</span></td>
+                  <td style="color:{get_color(avg_branch)};font-weight:bold">{avg_branch:.2f}%<br>
+                      <span style="font-size:11px;color:#64748b">{acc['b_cov']}/{acc['b_tot']}</span></td>
+                  <td style="color:{get_color(avg_func)};font-weight:bold">{avg_func:.2f}%<br>
+                      <span style="font-size:11px;color:#64748b">{acc['f_cov']}/{acc['f_tot']}</span></td>
+                  <td style="color:{get_color(avg_line)};font-weight:bold">{avg_line:.2f}%<br>
+                      <span style="font-size:11px;color:#64748b">{acc['l_cov']}/{acc['l_tot']}</span></td>
+                  <td><div class="progress-bar">
+                      <div class="progress-fill {get_fill_class(avg_line)}" style="width:{min(avg_line,100):.2f}%"></div>
+                  </div></td>
+              </tr>"""
+
           main_html = f"""<!DOCTYPE html>
           <html>
           <head><meta charset="UTF-8"><title>NANUTECH - Reporte de Cobertura</title>
-          <style>{css}</style>
-          </head>
+          <style>{css}</style></head>
           <body>
           <div class="container">
-              <h1>📊 NANUTECH - Reporte de Cobertura</h1>
-              <div class="sub">Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</div>
-              
+              <h1>📊 NANUTECH — Reporte de Cobertura</h1>
+              <div class="sub">Generado: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}</div>
+
               <div class="legend">
-                  <div><span class="legend-color" style="background:#22c55e"></span> ≥ 70% (Excelente)</div>
-                  <div><span class="legend-color" style="background:#eab308"></span> 50% - 69% (Aceptable)</div>
-                  <div><span class="legend-color" style="background:#ef4444"></span> &lt; 50% (Necesita mejora)</div>
+                  <div><span class="legend-color" style="background:#22c55e"></span>≥ 70% — Excelente</div>
+                  <div><span class="legend-color" style="background:#eab308"></span>50%–69% — Aceptable</div>
+                  <div><span class="legend-color" style="background:#ef4444"></span>&lt; 50% — Necesita mejora</div>
               </div>
-              
+
               <div class="stats">
-                  <div class="stat-card"><div class="stat-number" style="color:{get_color(lines_pct)}">{lines_pct:.2f}%</div><div class="stat-label">📝 Líneas</div></div>
-                  <div class="stat-card"><div class="stat-number" style="color:{get_color(stmt_pct)}">{stmt_pct:.2f}%</div><div class="stat-label">📌 Sentencias</div></div>
-                  <div class="stat-card"><div class="stat-number" style="color:{get_color(branch_pct)}">{branch_pct:.2f}%</div><div class="stat-label">🔀 Ramas</div></div>
-                  <div class="stat-card"><div class="stat-number" style="color:{get_color(func_pct)}">{func_pct:.2f}%</div><div class="stat-label">⚙️ Funciones</div></div>
+                  <div class="stat-card">
+                      <div class="stat-number" style="color:{get_color(lines_pct)}">{lines_pct:.2f}%</div>
+                      <div class="stat-label">📝 Líneas</div>
+                  </div>
+                  <div class="stat-card">
+                      <div class="stat-number" style="color:{get_color(stmt_pct)}">{stmt_pct:.2f}%</div>
+                      <div class="stat-label">📌 Sentencias</div>
+                  </div>
+                  <div class="stat-card">
+                      <div class="stat-number" style="color:{get_color(branch_pct)}">{branch_pct:.2f}%</div>
+                      <div class="stat-label">🔀 Ramas</div>
+                  </div>
+                  <div class="stat-card">
+                      <div class="stat-number" style="color:{get_color(func_pct)}">{func_pct:.2f}%</div>
+                      <div class="stat-label">⚙️ Funciones</div>
+                  </div>
               </div>
-              
+
               <h2 style="margin:30px 0 20px">📦 Módulos</h2>
               <div class="table-container">
               <table>
                   <thead>
                       <tr>
                           <th>Módulo</th>
-                          <th>Sentencias</th>
-                          <th>Ramas</th>
-                          <th>Funciones</th>
-                          <th>Líneas</th>
+                          <th>Sentencias<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                          <th>Ramas<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                          <th>Funciones<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                          <th>Líneas<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
                           <th>Barra</th>
                       </tr>
                   </thead>
                   <tbody>
-                      {table_rows if table_rows else '<tr><td colspan="6">No hay datos disponibles</td></tr>'}
+                      {table_rows if table_rows else '<tr><td colspan="6" style="text-align:center;color:#64748b">No hay datos disponibles</td></tr>'}
                   </tbody>
               </table>
               </div>
-              
+
               <div class="footer">
-                  <p>💡 Haz clic en cualquier módulo para ver el detalle de todos sus archivos</p>
-                  <p>Reporte generado automáticamente por CI/CD Pipeline</p>
+                  <p>💡 Haz clic en cualquier módulo para ver el detalle de sus archivos</p>
+                  <p style="margin-top:8px">Reporte generado automáticamente por CI/CD Pipeline</p>
               </div>
           </div>
-          </body>
-          </html>"""
-          
-          with open("docs/reports/latest/coverage/index.html", "w") as f:
-              f.write(main_html)
-          
-          print("✅ HTML generado correctamente")
+          </body></html>"""
+
+          with open("docs/reports/latest/coverage/index.html", "w") as fh:
+              fh.write(main_html)
+
+          print("✅ index.html principal generado")
           PYEOF
-          
+
           python3 generate_html.py
 
       - name: Generate main dashboard
@@ -319,9 +410,9 @@ jobs:
           SPRINT=$(date '+%Y-%m')
           DATETIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
           RUN_ID=${{ steps.run.outputs.run_id }}
-          
+
           mkdir -p docs/reports/latest
-          
+
           cat > docs/reports/latest/index.html << EOF
           <!DOCTYPE html>
           <html lang="es">
@@ -335,10 +426,10 @@ jobs:
                   .container{max-width:1000px;margin:0 auto}
                   .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:24px;padding:40px;margin-bottom:30px}
                   .header h1{font-size:42px;margin-bottom:10px}
-                  .card{background:#1e293b;border-radius:20px;padding:40px;text-align:center;cursor:pointer;transition:transform 0.2s;text-decoration:none;display:block}
+                  .card{background:#1e293b;border-radius:20px;padding:40px;text-align:center;cursor:pointer;transition:transform 0.2s;text-decoration:none;display:block;color:#e2e8f0}
                   .card:hover{transform:translateY(-4px);background:#243044}
                   .icon{font-size:64px;margin-bottom:16px}
-                  .title{font-size:24px;font-weight:700;margin-bottom:8px;color:#e2e8f0}
+                  .title{font-size:24px;font-weight:700;margin-bottom:8px}
                   .desc{font-size:14px;color:#94a3b8;margin-bottom:16px}
                   .badge{display:inline-block;background:#22c55e20;color:#22c55e;padding:8px 20px;border-radius:30px;font-weight:600}
                   .footer{margin-top:40px;padding:20px;text-align:center;color:#475569;border-top:1px solid #334155}
@@ -348,32 +439,30 @@ jobs:
           <div class="container">
               <div class="header">
                   <h1>🚛 NANUTECH</h1>
-                  <p>Dashboard de Calidad de Software · Sprint $SPRINT · $DATETIME</p>
-                  <p style="font-size:12px;color:#64748b">Run ID: $RUN_ID</p>
+                  <p>Dashboard de Calidad · Sprint $SPRINT · $DATETIME</p>
+                  <p style="font-size:12px;color:#64748b;margin-top:4px">Run ID: $RUN_ID</p>
               </div>
-              
+
               <a href="coverage/index.html" class="card">
                   <div class="icon">📈</div>
                   <div class="title">Cobertura de Código</div>
-                  <div class="desc">Reporte interactivo de cobertura. Haz clic en cada módulo para ver el detalle de todos sus archivos.</div>
+                  <div class="desc">Reporte interactivo de cobertura. Haz clic en cada módulo para ver el detalle de sus archivos.</div>
                   <span class="badge">Ver reporte →</span>
               </a>
-              
-              <div class="footer">
-                  Reportes generados automáticamente por CI/CD Pipeline
-              </div>
+
+              <div class="footer">Reportes generados automáticamente por CI/CD Pipeline</div>
           </div>
           </body>
           </html>
           EOF
-          
+
           cat > docs/index.html << EOF
           <!DOCTYPE html>
           <html><head><meta http-equiv="refresh" content="0; url=reports/latest/index.html"></head>
           <body>Redirigiendo...</body>
           </html>
           EOF
-          
+
           echo "✅ Dashboard generado"
 
       - name: Deploy to GitHub Pages
@@ -393,13 +482,6 @@ jobs:
           echo "=========================================="
           echo "✅ Reporte publicado!"
           echo "=========================================="
-          echo ""
           echo "📊 Dashboard: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
           echo "📈 Cobertura: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/coverage/"
-          echo ""
-          echo "💡 Características del reporte:"
-          echo "   • Columnas en español: Sentencias, Ramas, Funciones, Líneas"
-          echo "   • Barras de progreso con colores: 🟢 Verde ≥70%, 🟡 Amarillo 50-69%, 🔴 Rojo <50%"
-          echo "   • Haz clic en cualquier módulo para ver todos sus archivos"
-          echo "   • Cada archivo muestra solo su nombre (sin ruta completa)"
           echo ""
