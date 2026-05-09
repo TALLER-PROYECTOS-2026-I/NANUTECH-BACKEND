@@ -1,5 +1,12 @@
 import { getClient } from "../../shared/config/database.mjs";
 
+/**
+ * Columnas base seleccionadas en consultas simples sobre la tabla jornadas.
+ * No incluye JOINs con otras tablas; para vistas enriquecidas con datos de
+ * conductor, unidad y contrato, usar findAll o exportAll.
+ *
+ * @type {string}
+ */
 const BASE_SELECT = `
   SELECT
     id,
@@ -20,6 +27,18 @@ const BASE_SELECT = `
   FROM jornadas
 `;
 
+/**
+ * Fragmento SQL que calcula la duración de una jornada en formato HH:MM.
+ * Lógica por caso:
+ * - Si hora_fin está definida: calcula la diferencia en segundos y la formatea con LPAD.
+ * - Si el estado es EN_PROCESO: retorna 'En curso' (jornada todavía activa).
+ * - Si el estado es REGISTRADA: retorna 'Sin iniciar' (aún no arrancó).
+ * - En cualquier otro caso: retorna '-'.
+ *
+ * Requiere que la tabla jornadas esté aliasada como `j` en la consulta principal.
+ *
+ * @type {string}
+ */
 const DURATION_SQL = `
   CASE
     WHEN j.hora_fin IS NOT NULL
@@ -31,6 +50,18 @@ const DURATION_SQL = `
   END
 `;
 
+/**
+ * Construye la cláusula WHERE y el arreglo de parámetros para filtrar jornadas.
+ * Usa parámetros numerados ($1, $2, …) compatibles con node-postgres para evitar inyección SQL.
+ * La búsqueda por texto `q` aplica ILIKE simultáneamente sobre placa y nombre completo del conductor.
+ *
+ * @param {Object} [options={}] - Criterios de filtrado
+ * @param {string} [options.q] - Texto libre; busca en `un.placa` y en `u.nombres || ' ' || u.apellidos`
+ * @param {string|number} [options.conductor_id] - Filtra exacto por `j.conductor_id`
+ * @param {string} [options.fecha_desde] - Límite inferior de `j.fecha_jornada` (YYYY-MM-DD, inclusive)
+ * @param {string} [options.fecha_hasta] - Límite superior de `j.fecha_jornada` (YYYY-MM-DD, inclusive)
+ * @returns {{ whereClause: string, params: Array }} Cláusula WHERE lista para interpolación y arreglo de valores
+ */
 function buildFilters({ q, conductor_id, fecha_desde, fecha_hasta } = {}) {
   const conditions = [];
   const params = [];
@@ -59,7 +90,28 @@ function buildFilters({ q, conductor_id, fecha_desde, fecha_hasta } = {}) {
   };
 }
 
+/**
+ * Repositorio de acceso a datos para la entidad Jornada.
+ * Obtiene clientes de la pool y los libera en el bloque finally de cada operación.
+ */
 export class JornadaRepository {
+  /**
+   * Inserta una nueva jornada en la base de datos.
+   * Si no se provee fecha_jornada, PostgreSQL usa CURRENT_DATE mediante COALESCE.
+   *
+   * @param {Object} jornadaData - Datos validados de la jornada
+   * @param {number} jornadaData.conductor_id - ID del conductor
+   * @param {number} jornadaData.unidad_id - ID de la unidad
+   * @param {number} jornadaData.contrato_id - ID del contrato
+   * @param {number} jornadaData.creado_por - ID del usuario que registra la jornada
+   * @param {string|null} [jornadaData.fecha_jornada] - Fecha de la jornada (null → CURRENT_DATE)
+   * @param {string} [jornadaData.origen] - Origen del recorrido
+   * @param {string} [jornadaData.destino] - Destino del recorrido
+   * @param {number} [jornadaData.km_recorridos] - Kilómetros estimados del recorrido
+   * @param {string} [jornadaData.observaciones] - Observaciones iniciales
+   * @param {string} jornadaData.estado - Estado inicial de la jornada (ej. REGISTRADA)
+   * @returns {Promise<Object|null>} Fila insertada con todos sus campos, o null si falló
+   */
   async create(jornadaData) {
     const client = await getClient();
 
@@ -116,6 +168,12 @@ export class JornadaRepository {
     }
   }
 
+  /**
+   * Busca una jornada por su ID primario usando BASE_SELECT.
+   *
+   * @param {number|string} jornadaId - ID de la jornada
+   * @returns {Promise<Object|null>} Fila de la jornada o null si no existe
+   */
   async findById(jornadaId) {
     const client = await getClient();
 
@@ -128,6 +186,14 @@ export class JornadaRepository {
     }
   }
 
+  /**
+   * Busca la jornada activa más reciente de un conductor.
+   * Solo considera estados activos: REGISTRADA, PENDIENTE o EN_PROCESO.
+   * Ordena por created_at DESC para obtener la más reciente si hubiera varias activas.
+   *
+   * @param {number|string} conductorId - ID del conductor
+   * @returns {Promise<Object|null>} Fila de la jornada o null si no hay ninguna activa
+   */
   async findCurrentByConductorId(conductorId) {
     const client = await getClient();
 
@@ -146,6 +212,13 @@ export class JornadaRepository {
     }
   }
 
+  /**
+   * Verifica si una unidad ya tiene una jornada en estado activo.
+   * Impide asignar la misma unidad a dos jornadas simultáneas.
+   *
+   * @param {number|string} unidadId - ID de la unidad/camión
+   * @returns {Promise<boolean>} true si la unidad ya está ocupada en otra jornada activa
+   */
   async checkUnidadActiva(unidadId) {
     const client = await getClient();
 
@@ -164,6 +237,13 @@ export class JornadaRepository {
     }
   }
 
+  /**
+   * Verifica si un conductor ya tiene una jornada en estado activo.
+   * Impide que un conductor sea asignado a dos jornadas en paralelo.
+   *
+   * @param {number|string} conductorId - ID del conductor
+   * @returns {Promise<boolean>} true si el conductor ya está ocupado en otra jornada activa
+   */
   async checkConductorActivo(conductorId) {
     const client = await getClient();
 
@@ -182,6 +262,13 @@ export class JornadaRepository {
     }
   }
 
+  /**
+   * Marca una jornada como EN_PROCESO fijando hora_inicio con NOW().
+   * El campo updated_at también se actualiza en la misma sentencia.
+   *
+   * @param {number|string} jornadaId - ID de la jornada a iniciar
+   * @returns {Promise<Object|null>} Fila actualizada con hora_inicio, o null si el ID no existe
+   */
   async startTurn(jornadaId) {
     const client = await getClient();
 
@@ -217,6 +304,15 @@ export class JornadaRepository {
     }
   }
 
+  /**
+   * Marca una jornada como COMPLETADA fijando hora_fin con NOW() y calculando la duración.
+   * Las observaciones solo se actualizan si se provee un valor; COALESCE conserva las anteriores.
+   * Retorna duracion_total_segundos como la diferencia entre hora_fin y hora_inicio en segundos.
+   *
+   * @param {number|string} jornadaId - ID de la jornada a finalizar
+   * @param {string|null} [observaciones] - Observaciones finales (opcional; null conserva las existentes)
+   * @returns {Promise<Object|null>} Fila actualizada con hora_fin y duracion_total_segundos, o null
+   */
   async finishTurn(jornadaId, observaciones) {
     const client = await getClient();
 
@@ -254,6 +350,25 @@ export class JornadaRepository {
     }
   }
 
+  /**
+   * Obtiene todas las jornadas con información enriquecida mediante JOINs a usuarios,
+   * unidades y contratos. Aplica filtros opcionales y ordena por created_at DESC.
+   *
+   * Campos calculados incluidos:
+   * - conductor: nombre completo del conductor
+   * - camion: placa + marca + modelo de la unidad
+   * - contrato: código del contrato
+   * - horario: rango legible hora_inicio–hora_fin (o 'Sin iniciar' / 'En curso')
+   * - duracion_total: tiempo transcurrido en HH:MM o estado textual (DURATION_SQL)
+   * - tiene_observaciones: flag booleano para mostrar indicador en la UI
+   *
+   * @param {Object} [filtros={}] - Criterios de búsqueda
+   * @param {string} [filtros.q] - Búsqueda libre en placa y nombre del conductor
+   * @param {string} [filtros.conductor_id] - ID exacto del conductor
+   * @param {string} [filtros.fecha_desde] - Fecha mínima de jornada (YYYY-MM-DD)
+   * @param {string} [filtros.fecha_hasta] - Fecha máxima de jornada (YYYY-MM-DD)
+   * @returns {Promise<Object[]>} Lista de filas con todos los campos enriquecidos y calculados
+   */
   async findAll(filtros = {}) {
     const client = await getClient();
     try {
@@ -290,6 +405,15 @@ export class JornadaRepository {
     }
   }
 
+  /**
+   * Obtiene todas las jornadas en formato optimizado para exportación CSV.
+   * Las fechas y horas se formatean como cadenas legibles (YYYY-MM-DD HH24:MI:SS).
+   * La duración se calcula con DURATION_SQL igual que en findAll.
+   * Aplica los mismos filtros que findAll.
+   *
+   * @param {Object} [filtros={}] - Criterios de filtrado (mismos parámetros que findAll)
+   * @returns {Promise<Object[]>} Lista de filas con campos formateados para escritura CSV directa
+   */
   async exportAll(filtros = {}) {
     const client = await getClient();
     try {

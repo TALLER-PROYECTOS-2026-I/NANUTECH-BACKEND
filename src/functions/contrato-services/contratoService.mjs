@@ -2,6 +2,10 @@ import { ContratoRepository } from "./contratoRepository.mjs";
 import { Contrato } from "./contratoModel.mjs";
 import { ContratoValidator } from "../../shared/utils/validators/contratoValidator.mjs";
 
+/**
+ * Servicio de dominio para la gestión de contratos de transporte.
+ * Centraliza la validación de reglas de negocio y coordina el acceso al repositorio.
+ */
 export class ContratoService {
   constructor() {
     this.contratoRepository = new ContratoRepository();
@@ -37,73 +41,33 @@ export class ContratoService {
     return Contrato.fromDatabase(row);
   }
 
-  validateContrato(data) {
-    if (!data.cliente || data.cliente.trim() === "") {
-      throw new Error("El nombre del cliente no puede estar vacío");
-    }
-
-    const ruc = String(data.ruc || "").trim();
-
-    if (!ruc) throw new Error("El RUC es obligatorio");
-    if (ruc.length !== 11) throw new Error("El RUC debe tener exactamente 11 dígitos");
-    if (!/^\d{11}$/.test(ruc)) throw new Error("El RUC debe contener solo dígitos numéricos");
-    if (ruc === "00000000000") throw new Error("El RUC ingresado no es válido");
-
-    if (!data.tipo_servicio) throw new Error("Tipo de Servicio es obligatorio");
-
-    const tiposPermitidos = ["POR_VIAJE", "POR_HORA", "POR_TONELADA", "POR_KM", "MENSUAL"];
-    if (!tiposPermitidos.includes(data.tipo_servicio)) {
-      throw new Error("El tipo de servicio no es válido");
-    }
-
-    if (!data.fecha_inicio) throw new Error("La fecha de inicio es obligatoria");
-    if (data.fecha_fin && data.fecha_fin < data.fecha_inicio) {
-      throw new Error("La fecha fin no puede ser menor que la fecha inicio");
-    }
-
-    if (!data.origen || data.origen.trim() === "") {
-      throw new Error("El punto de partida es obligatorio");
-    }
-
-    if (!data.destino || data.destino.trim() === "") {
-      throw new Error("El punto de llegada es obligatorio");
-    }
-
-    if (data.distancia_estimada_km === undefined || Number(data.distancia_estimada_km) <= 0) {
-      throw new Error("La distancia debe ser mayor a 0");
-    }
-
-    if (data.tarifa_por_km === undefined || Number(data.tarifa_por_km) <= 0) {
-      throw new Error("La tarifa debe ser un valor positivo");
-    }
-
-    if (data.tarifa_por_hora === undefined) {
-      throw new Error("La tarifa por hora es obligatoria");
-    }
-
-    if (Number(data.tarifa_por_hora) < 0) {
-      throw new Error("La tarifa por hora debe ser mayor o igual a 0");
-    }
-
-    if (data.tarifa_espera === undefined) {
-      throw new Error("La tarifa por espera es obligatoria");
-    }
-
-    if (Number(data.tarifa_espera) < 0) {
-      throw new Error("La tarifa por espera debe ser mayor o igual a 0");
-    }
-  }
-
   // =========================
   // INDICADORES
   // =========================
+  /**
+   * Obtiene los indicadores agregados del módulo de contratos mediante CTEs en SQL.
+   * Incluye totales por estado, por tipo de servicio, camiones asignados activos
+   * y contratos con fecha_fin dentro de los próximos 30 días.
+   *
+   * @returns {Promise<Object>} Objeto con todas las métricas agregadas del módulo
+   */
   async getIndicadores() {
     return this.contratoRepository.getIndicadores();
   }
 
-  // =========================
-  // LISTADO bueno
-  // =========================
+  /**
+   * Obtiene contratos paginados con filtros opcionales.
+   * Normaliza los parámetros de paginación y retorna metadatos junto con los datos.
+   *
+   * @param {Object} [filtros={}] - Filtros de búsqueda
+   * @param {string} [filtros.q] - Texto libre (busca en código y cliente)
+   * @param {string} [filtros.estado] - Estado exacto del contrato (VIGENTE, VENCIDO, etc.)
+   * @param {Object} [pagination={}] - Parámetros de paginación y ordenamiento
+   * @param {string|number} [pagination.page=1] - Número de página actual
+   * @param {string|number} [pagination.limit=10] - Registros por página (máx: 100)
+   * @param {string} [pagination.order_by='fecha_fin'] - Campo para ordenar (ver ALLOWED_ORDER_FIELDS en repositorio)
+   * @returns {Promise<{ data: Object[], meta: { total: number, page: number, limit: number, total_pages: number } }>}
+   */
   async getAllContratos(filtros = {}, pagination = {}) {
     const { rows, total, page, limit } = await this.contratoRepository.findAll(filtros, pagination);
 

@@ -38,8 +38,28 @@ const parseJsonBody = (body) => {
   }
 };
 
+/**
+ * Obtiene todos los contratos actualmente vigentes.
+ * Requiere autenticación Bearer válida.
+ *
+ * Criterios de vigencia aplicados en el repositorio:
+ * - activo = TRUE
+ * - estado = VIGENTE
+ * - fecha_inicio <= hoy
+ * - fecha_fin >= hoy o NULL (sin fecha de expiración)
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @returns {Promise<Object>} Respuesta HTTP 200 con lista de contratos vigentes
+ * @throws {Error} 401 si el token es inválido o está ausente
+ * @throws {Error} 500 si ocurre un error interno al consultar la base de datos
+ */
 export const getAllVigentesController = async (event) => {
   try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    await getCurrentSession(authorizationHeader);
+
     const contratoService = new ContratoService();
     const contratos = await contratoService.getAllVigentes();
     return successResponse(contratos, SUCCESS_MESSAGES.CONTRATOS_RETRIEVED);
@@ -95,18 +115,56 @@ export const createContratoController = async (event) => {
   }
 };
 
-export const getIndicadoresController = async () => {
+/**
+ * Obtiene los indicadores agregados del módulo de contratos.
+ * Incluye totales, distribución por estado, distribución por tipo de servicio,
+ * contratos próximos a vencer (próximos 30 días) y camiones asignados.
+ * Requiere autenticación Bearer válida.
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @returns {Promise<Object>} Respuesta HTTP 200 con objeto de métricas agregadas
+ * @throws {Error} 401 si el token es inválido o está ausente
+ * @throws {Error} 500 si ocurre un error interno al consultar la base de datos
+ */
+export const getIndicadoresController = async (event) => {
   try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    await getCurrentSession(authorizationHeader);
+
     const contratoService = new ContratoService();
     const indicadores = await contratoService.getIndicadores();
     return successResponse(indicadores, "Indicadores de contratos obtenidos exitosamente.");
   } catch (error) {
-    return errorResponse(error.message, 500);
+    console.error("Error en getIndicadoresController:", error);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
 
+/**
+ * Obtiene todos los contratos con filtros opcionales y paginación.
+ * Incluye campos calculados de vencimiento: dias_para_vencer, proximo_a_vencer y camiones_asignados.
+ * Requiere autenticación Bearer válida.
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @param {Object} [event.queryStringParameters] - Parámetros de consulta opcionales
+ * @param {string} [event.queryStringParameters.q] - Texto libre para buscar por código o cliente
+ * @param {string} [event.queryStringParameters.estado] - Filtrar por estado (VIGENTE, VENCIDO, etc.)
+ * @param {string|number} [event.queryStringParameters.page] - Número de página (default: 1)
+ * @param {string|number} [event.queryStringParameters.limit] - Registros por página (default: 10, máx: 100)
+ * @param {string} [event.queryStringParameters.order_by] - Campo de ordenamiento (fecha_fin | fecha_inicio | cliente | codigo | estado | created_at)
+ * @returns {Promise<Object>} Respuesta HTTP 200 con { data: contratos[], meta: { total, page, limit, total_pages } }
+ * @throws {Error} 401 si el token es inválido o está ausente
+ * @throws {Error} 500 si ocurre un error interno
+ */
 export const getAllContratosController = async (event) => {
   try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    await getCurrentSession(authorizationHeader);
+
     const { q, estado, page, limit, order_by } = event.queryStringParameters || {};
     const contratoService = new ContratoService();
 
@@ -123,6 +181,9 @@ export const getAllContratosController = async (event) => {
 // fechas de vigencia y demás datos asociados al contrato.
 export const getContratoByIdController = async (event) => {
   try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    await getCurrentSession(authorizationHeader);
+
     const { id } = event.pathParameters || {};
 
     // Validación del identificador del contrato
