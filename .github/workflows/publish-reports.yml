@@ -100,8 +100,14 @@ jobs:
 
           # ── 2. Helpers ────────────────────────────────────────────────────────────────
           def safe_pct(covered, total):
-              """Calcula porcentaje exactamente como istanbul: covered/total*100."""
-              return round(covered / total * 100, 2) if total > 0 else 0.0
+              """Calcula porcentaje exactamente como istanbul:
+                 - 0/0  → 100  (sin código que cubrir = perfecto)
+                 - n/0  → 0    (no debería ocurrir)
+                 - c/t  → c/t*100
+              """
+              if total == 0:
+                  return 100.0 if covered == 0 else 0.0
+              return round(covered / total * 100, 2)
 
           def get_color(pct):
               return "#22c55e" if pct >= 70 else "#eab308" if pct >= 50 else "#ef4444"
