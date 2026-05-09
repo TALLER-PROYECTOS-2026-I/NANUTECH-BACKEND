@@ -14,6 +14,7 @@ h1{font-size:32px;margin-bottom:8px}
 table{width:100%;border-collapse:collapse;background:#1e293b;border-radius:16px;overflow:hidden}
 th,td{padding:16px 20px;text-align:left;border-bottom:1px solid #334155}
 th{background:#0f172a;color:#94a3b8;font-size:13px;font-weight:600;text-transform:uppercase}
+tr:last-child td{border-bottom:none}
 tr:hover{background:#243044}
 .progress-bar{background:#334155;border-radius:12px;height:10px;width:140px;overflow:hidden}
 .progress-fill{height:100%;border-radius:12px}
@@ -22,151 +23,283 @@ tr:hover{background:#243044}
 .bad{background:#ef4444}
 a{color:#60a5fa;text-decoration:none}
 a:hover{text-decoration:underline}
-.module-link{display:inline-block;background:#1e293b;padding:8px 16px;border-radius:12px;margin:4px}
-.module-link:hover{background:#334155}
 .footer{margin-top:40px;padding:20px;text-align:center;color:#475569;border-top:1px solid #334155}
-.legend{display:flex;gap:24px;justify-content:center;margin:20px 0;padding:16px;background:#1e293b;border-radius:16px}
-.legend-color{width:20px;height:20px;border-radius:6px;display:inline-block;margin-right:8px}
+.legend{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin:20px 0;padding:16px;background:#1e293b;border-radius:16px}
+.legend-color{width:20px;height:20px;border-radius:6px;display:inline-block;margin-right:8px;vertical-align:middle}
 .table-container{overflow-x:auto}
-</style>
-</head>
+.back-link{display:inline-block;margin-bottom:20px;color:#60a5fa}
+.tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:8px;margin-left:8px;vertical-align:middle;font-weight:600}
+.tag-functions{background:#1e3a8a;color:#93c5fd}
+.tag-shared{background:#14532d;color:#86efac}
+</style></head>
 <body>
 <div class="container">
-    <h1>📊 NANUTECH - Reporte de Cobertura</h1>
-    <div class="sub">Generado: 2026-05-09 00:39:55 UTC</div>
-    
+    <h1>📊 NANUTECH — Reporte de Cobertura</h1>
+    <div class="sub">Generado: 2026-05-09 15:46:11 UTC</div>
+
     <div class="legend">
-        <div><span class="legend-color" style="background:#22c55e"></span> ≥ 70% (Excelente)</div>
-        <div><span class="legend-color" style="background:#eab308"></span> 50% - 69% (Aceptable)</div>
-        <div><span class="legend-color" style="background:#ef4444"></span> &lt; 50% (Necesita mejora)</div>
+        <div><span class="legend-color" style="background:#22c55e"></span>≥ 70% — Excelente</div>
+        <div><span class="legend-color" style="background:#eab308"></span>50%–69% — Aceptable</div>
+        <div><span class="legend-color" style="background:#ef4444"></span>&lt; 50% — Necesita mejora</div>
     </div>
-    
+
     <div class="stats">
-        <div class="stat-card"><div class="stat-number" style="color:#eab308">67.16%</div><div class="stat-label">📝 Líneas</div></div>
-        <div class="stat-card"><div class="stat-number" style="color:#eab308">66.83%</div><div class="stat-label">📌 Sentencias</div></div>
-        <div class="stat-card"><div class="stat-number" style="color:#eab308">58.52%</div><div class="stat-label">🔀 Ramas</div></div>
-        <div class="stat-card"><div class="stat-number" style="color:#22c55e">74.60%</div><div class="stat-label">⚙️ Funciones</div></div>
+        <div class="stat-card">
+            <div class="stat-number" style="color:#eab308">67.16%</div>
+            <div class="stat-label">📝 Líneas</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" style="color:#eab308">66.83%</div>
+            <div class="stat-label">📌 Sentencias</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" style="color:#eab308">58.52%</div>
+            <div class="stat-label">🔀 Ramas</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" style="color:#22c55e">74.60%</div>
+            <div class="stat-label">⚙️ Funciones</div>
+        </div>
     </div>
-    
+
     <h2 style="margin:30px 0 20px">📦 Módulos</h2>
     <div class="table-container">
     <table>
         <thead>
             <tr>
                 <th>Módulo</th>
-                <th>Sentencias</th>
-                <th>Ramas</th>
-                <th>Funciones</th>
-                <th>Líneas</th>
+                <th>Sentencias<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                <th>Ramas<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                <th>Funciones<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                <th>Líneas<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
                 <th>Barra</th>
             </tr>
         </thead>
         <tbody>
             
     <tr>
-        <td style="font-weight:700"><a href="module_auth-services.html">auth-services</a><br><span style="font-size:11px;color:#64748b">10 archivos</span></td>
-        <td style="color:#22c55e;font-weight:bold">77.8%</td>
-        <td style="color:#22c55e;font-weight:bold">71.1%</td>
-        <td style="color:#22c55e;font-weight:bold">96.1%</td>
-        <td style="color:#22c55e;font-weight:bold">78.3%</td>
-        <td><div class="progress-bar"><div class="progress-fill good" style="width:78.3%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_auth-services.html">auth-services</a>
+            <span class="tag tag-functions">functions</span><br>
+            <span style="font-size:11px;color:#64748b">10 archivo(s)</span>
+        </td>
+        <td style="color:#22c55e;font-weight:bold">81.84%<br>
+            <span style="font-size:11px;color:#64748b">347/424</span></td>
+        <td style="color:#eab308;font-weight:bold">59.52%<br>
+            <span style="font-size:11px;color:#64748b">150/252</span></td>
+        <td style="color:#22c55e;font-weight:bold">95.06%<br>
+            <span style="font-size:11px;color:#64748b">77/81</span></td>
+        <td style="color:#22c55e;font-weight:bold">81.89%<br>
+            <span style="font-size:11px;color:#64748b">321/392</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill good" style="width:81.89%"></div>
+        </div></td>
     </tr>
     <tr>
-        <td style="font-weight:700"><a href="module_camion-services.html">camion-services</a><br><span style="font-size:11px;color:#64748b">6 archivos</span></td>
-        <td style="color:#22c55e;font-weight:bold">78.9%</td>
-        <td style="color:#22c55e;font-weight:bold">70.9%</td>
-        <td style="color:#22c55e;font-weight:bold">83.3%</td>
-        <td style="color:#22c55e;font-weight:bold">78.7%</td>
-        <td><div class="progress-bar"><div class="progress-fill good" style="width:78.7%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_camion-services.html">camion-services</a>
+            <span class="tag tag-functions">functions</span><br>
+            <span style="font-size:11px;color:#64748b">6 archivo(s)</span>
+        </td>
+        <td style="color:#22c55e;font-weight:bold">89.39%<br>
+            <span style="font-size:11px;color:#64748b">236/264</span></td>
+        <td style="color:#22c55e;font-weight:bold">81.82%<br>
+            <span style="font-size:11px;color:#64748b">144/176</span></td>
+        <td style="color:#22c55e;font-weight:bold">97.67%<br>
+            <span style="font-size:11px;color:#64748b">42/43</span></td>
+        <td style="color:#22c55e;font-weight:bold">88.98%<br>
+            <span style="font-size:11px;color:#64748b">226/254</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill good" style="width:88.98%"></div>
+        </div></td>
     </tr>
     <tr>
-        <td style="font-weight:700"><a href="module_conductor-services.html">conductor-services</a><br><span style="font-size:11px;color:#64748b">5 archivos</span></td>
-        <td style="color:#ef4444;font-weight:bold">40.0%</td>
-        <td style="color:#22c55e;font-weight:bold">80.0%</td>
-        <td style="color:#ef4444;font-weight:bold">40.0%</td>
-        <td style="color:#ef4444;font-weight:bold">40.0%</td>
-        <td><div class="progress-bar"><div class="progress-fill bad" style="width:40.0%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_conductor-services.html">conductor-services</a>
+            <span class="tag tag-functions">functions</span><br>
+            <span style="font-size:11px;color:#64748b">5 archivo(s)</span>
+        </td>
+        <td style="color:#ef4444;font-weight:bold">28.57%<br>
+            <span style="font-size:11px;color:#64748b">10/35</span></td>
+        <td style="color:#ef4444;font-weight:bold">0.00%<br>
+            <span style="font-size:11px;color:#64748b">0/2</span></td>
+        <td style="color:#ef4444;font-weight:bold">25.00%<br>
+            <span style="font-size:11px;color:#64748b">2/8</span></td>
+        <td style="color:#ef4444;font-weight:bold">29.41%<br>
+            <span style="font-size:11px;color:#64748b">10/34</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill bad" style="width:29.41%"></div>
+        </div></td>
     </tr>
     <tr>
-        <td style="font-weight:700"><a href="module_config.html">config</a><br><span style="font-size:11px;color:#64748b">1 archivos</span></td>
-        <td style="color:#ef4444;font-weight:bold">3.4%</td>
-        <td style="color:#ef4444;font-weight:bold">5.1%</td>
-        <td style="color:#ef4444;font-weight:bold">0.0%</td>
-        <td style="color:#ef4444;font-weight:bold">3.5%</td>
-        <td><div class="progress-bar"><div class="progress-fill bad" style="width:3.5%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_config.html">config</a>
+            <span class="tag tag-shared">shared</span><br>
+            <span style="font-size:11px;color:#64748b">1 archivo(s)</span>
+        </td>
+        <td style="color:#ef4444;font-weight:bold">3.37%<br>
+            <span style="font-size:11px;color:#64748b">3/89</span></td>
+        <td style="color:#ef4444;font-weight:bold">5.08%<br>
+            <span style="font-size:11px;color:#64748b">3/59</span></td>
+        <td style="color:#ef4444;font-weight:bold">0.00%<br>
+            <span style="font-size:11px;color:#64748b">0/10</span></td>
+        <td style="color:#ef4444;font-weight:bold">3.49%<br>
+            <span style="font-size:11px;color:#64748b">3/86</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill bad" style="width:3.49%"></div>
+        </div></td>
     </tr>
     <tr>
-        <td style="font-weight:700"><a href="module_constants.html">constants</a><br><span style="font-size:11px;color:#64748b">2 archivos</span></td>
-        <td style="color:#eab308;font-weight:bold">50.0%</td>
-        <td style="color:#22c55e;font-weight:bold">100.0%</td>
-        <td style="color:#22c55e;font-weight:bold">100.0%</td>
-        <td style="color:#eab308;font-weight:bold">50.0%</td>
-        <td><div class="progress-bar"><div class="progress-fill medium" style="width:50.0%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_constants.html">constants</a>
+            <span class="tag tag-shared">shared</span><br>
+            <span style="font-size:11px;color:#64748b">2 archivo(s)</span>
+        </td>
+        <td style="color:#eab308;font-weight:bold">50.00%<br>
+            <span style="font-size:11px;color:#64748b">1/2</span></td>
+        <td style="color:#ef4444;font-weight:bold">0.00%<br>
+            <span style="font-size:11px;color:#64748b">0/0</span></td>
+        <td style="color:#ef4444;font-weight:bold">0.00%<br>
+            <span style="font-size:11px;color:#64748b">0/0</span></td>
+        <td style="color:#eab308;font-weight:bold">50.00%<br>
+            <span style="font-size:11px;color:#64748b">1/2</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill medium" style="width:50.00%"></div>
+        </div></td>
     </tr>
     <tr>
-        <td style="font-weight:700"><a href="module_contrato-services.html">contrato-services</a><br><span style="font-size:11px;color:#64748b">5 archivos</span></td>
-        <td style="color:#ef4444;font-weight:bold">41.9%</td>
-        <td style="color:#ef4444;font-weight:bold">42.4%</td>
-        <td style="color:#ef4444;font-weight:bold">41.2%</td>
-        <td style="color:#ef4444;font-weight:bold">42.0%</td>
-        <td><div class="progress-bar"><div class="progress-fill bad" style="width:42.0%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_contrato-services.html">contrato-services</a>
+            <span class="tag tag-functions">functions</span><br>
+            <span style="font-size:11px;color:#64748b">5 archivo(s)</span>
+        </td>
+        <td style="color:#eab308;font-weight:bold">58.85%<br>
+            <span style="font-size:11px;color:#64748b">113/192</span></td>
+        <td style="color:#eab308;font-weight:bold">62.26%<br>
+            <span style="font-size:11px;color:#64748b">66/106</span></td>
+        <td style="color:#eab308;font-weight:bold">51.35%<br>
+            <span style="font-size:11px;color:#64748b">19/37</span></td>
+        <td style="color:#eab308;font-weight:bold">59.04%<br>
+            <span style="font-size:11px;color:#64748b">111/188</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill medium" style="width:59.04%"></div>
+        </div></td>
     </tr>
     <tr>
-        <td style="font-weight:700"><a href="module_dashboard-gerencial-services.html">dashboard-gerencial-services</a><br><span style="font-size:11px;color:#64748b">5 archivos</span></td>
-        <td style="color:#eab308;font-weight:bold">60.0%</td>
-        <td style="color:#22c55e;font-weight:bold">76.0%</td>
-        <td style="color:#eab308;font-weight:bold">60.0%</td>
-        <td style="color:#eab308;font-weight:bold">60.0%</td>
-        <td><div class="progress-bar"><div class="progress-fill medium" style="width:60.0%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_dashboard-gerencial-services.html">dashboard-gerencial-services</a>
+            <span class="tag tag-functions">functions</span><br>
+            <span style="font-size:11px;color:#64748b">5 archivo(s)</span>
+        </td>
+        <td style="color:#ef4444;font-weight:bold">42.86%<br>
+            <span style="font-size:11px;color:#64748b">27/63</span></td>
+        <td style="color:#ef4444;font-weight:bold">47.62%<br>
+            <span style="font-size:11px;color:#64748b">10/21</span></td>
+        <td style="color:#ef4444;font-weight:bold">30.00%<br>
+            <span style="font-size:11px;color:#64748b">3/10</span></td>
+        <td style="color:#ef4444;font-weight:bold">42.86%<br>
+            <span style="font-size:11px;color:#64748b">27/63</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill bad" style="width:42.86%"></div>
+        </div></td>
     </tr>
     <tr>
-        <td style="font-weight:700"><a href="module_dashboard-services.html">dashboard-services</a><br><span style="font-size:11px;color:#64748b">5 archivos</span></td>
-        <td style="color:#ef4444;font-weight:bold">0.0%</td>
-        <td style="color:#ef4444;font-weight:bold">40.0%</td>
-        <td style="color:#ef4444;font-weight:bold">0.0%</td>
-        <td style="color:#ef4444;font-weight:bold">0.0%</td>
-        <td><div class="progress-bar"><div class="progress-fill bad" style="width:0.0%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_dashboard-services.html">dashboard-services</a>
+            <span class="tag tag-functions">functions</span><br>
+            <span style="font-size:11px;color:#64748b">5 archivo(s)</span>
+        </td>
+        <td style="color:#ef4444;font-weight:bold">0.00%<br>
+            <span style="font-size:11px;color:#64748b">0/60</span></td>
+        <td style="color:#ef4444;font-weight:bold">0.00%<br>
+            <span style="font-size:11px;color:#64748b">0/36</span></td>
+        <td style="color:#ef4444;font-weight:bold">0.00%<br>
+            <span style="font-size:11px;color:#64748b">0/15</span></td>
+        <td style="color:#ef4444;font-weight:bold">0.00%<br>
+            <span style="font-size:11px;color:#64748b">0/58</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill bad" style="width:0.00%"></div>
+        </div></td>
     </tr>
     <tr>
-        <td style="font-weight:700"><a href="module_gps-services.html">gps-services</a><br><span style="font-size:11px;color:#64748b">5 archivos</span></td>
-        <td style="color:#22c55e;font-weight:bold">85.9%</td>
-        <td style="color:#eab308;font-weight:bold">66.2%</td>
-        <td style="color:#22c55e;font-weight:bold">96.7%</td>
-        <td style="color:#22c55e;font-weight:bold">85.7%</td>
-        <td><div class="progress-bar"><div class="progress-fill good" style="width:85.7%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_gps-services.html">gps-services</a>
+            <span class="tag tag-functions">functions</span><br>
+            <span style="font-size:11px;color:#64748b">5 archivo(s)</span>
+        </td>
+        <td style="color:#22c55e;font-weight:bold">81.11%<br>
+            <span style="font-size:11px;color:#64748b">219/270</span></td>
+        <td style="color:#22c55e;font-weight:bold">71.34%<br>
+            <span style="font-size:11px;color:#64748b">112/157</span></td>
+        <td style="color:#22c55e;font-weight:bold">95.83%<br>
+            <span style="font-size:11px;color:#64748b">46/48</span></td>
+        <td style="color:#22c55e;font-weight:bold">80.68%<br>
+            <span style="font-size:11px;color:#64748b">213/264</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill good" style="width:80.68%"></div>
+        </div></td>
     </tr>
     <tr>
-        <td style="font-weight:700"><a href="module_jornada-services.html">jornada-services</a><br><span style="font-size:11px;color:#64748b">5 archivos</span></td>
-        <td style="color:#22c55e;font-weight:bold">88.9%</td>
-        <td style="color:#eab308;font-weight:bold">68.8%</td>
-        <td style="color:#22c55e;font-weight:bold">89.3%</td>
-        <td style="color:#22c55e;font-weight:bold">90.0%</td>
-        <td><div class="progress-bar"><div class="progress-fill good" style="width:90.0%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_jornada-services.html">jornada-services</a>
+            <span class="tag tag-functions">functions</span><br>
+            <span style="font-size:11px;color:#64748b">5 archivo(s)</span>
+        </td>
+        <td style="color:#22c55e;font-weight:bold">85.33%<br>
+            <span style="font-size:11px;color:#64748b">192/225</span></td>
+        <td style="color:#eab308;font-weight:bold">65.96%<br>
+            <span style="font-size:11px;color:#64748b">62/94</span></td>
+        <td style="color:#22c55e;font-weight:bold">90.62%<br>
+            <span style="font-size:11px;color:#64748b">29/32</span></td>
+        <td style="color:#22c55e;font-weight:bold">85.97%<br>
+            <span style="font-size:11px;color:#64748b">190/221</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill good" style="width:85.97%"></div>
+        </div></td>
     </tr>
     <tr>
-        <td style="font-weight:700"><a href="module_unidad-services.html">unidad-services</a><br><span style="font-size:11px;color:#64748b">5 archivos</span></td>
-        <td style="color:#ef4444;font-weight:bold">40.0%</td>
-        <td style="color:#22c55e;font-weight:bold">80.0%</td>
-        <td style="color:#ef4444;font-weight:bold">40.0%</td>
-        <td style="color:#ef4444;font-weight:bold">40.0%</td>
-        <td><div class="progress-bar"><div class="progress-fill bad" style="width:40.0%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_unidad-services.html">unidad-services</a>
+            <span class="tag tag-functions">functions</span><br>
+            <span style="font-size:11px;color:#64748b">5 archivo(s)</span>
+        </td>
+        <td style="color:#ef4444;font-weight:bold">30.30%<br>
+            <span style="font-size:11px;color:#64748b">10/33</span></td>
+        <td style="color:#ef4444;font-weight:bold">0.00%<br>
+            <span style="font-size:11px;color:#64748b">0/2</span></td>
+        <td style="color:#ef4444;font-weight:bold">25.00%<br>
+            <span style="font-size:11px;color:#64748b">2/8</span></td>
+        <td style="color:#ef4444;font-weight:bold">31.25%<br>
+            <span style="font-size:11px;color:#64748b">10/32</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill bad" style="width:31.25%"></div>
+        </div></td>
     </tr>
     <tr>
-        <td style="font-weight:700"><a href="module_utils.html">utils</a><br><span style="font-size:11px;color:#64748b">4 archivos</span></td>
-        <td style="color:#eab308;font-weight:bold">51.8%</td>
-        <td style="color:#ef4444;font-weight:bold">45.0%</td>
-        <td style="color:#eab308;font-weight:bold">66.7%</td>
-        <td style="color:#eab308;font-weight:bold">53.0%</td>
-        <td><div class="progress-bar"><div class="progress-fill medium" style="width:53.0%"></div></div></td>
+        <td style="font-weight:700">
+            <a href="module_utils.html">utils</a>
+            <span class="tag tag-shared">shared</span><br>
+            <span style="font-size:11px;color:#64748b">4 archivo(s)</span>
+        </td>
+        <td style="color:#ef4444;font-weight:bold">35.98%<br>
+            <span style="font-size:11px;color:#64748b">59/164</span></td>
+        <td style="color:#ef4444;font-weight:bold">47.02%<br>
+            <span style="font-size:11px;color:#64748b">71/151</span></td>
+        <td style="color:#eab308;font-weight:bold">66.67%<br>
+            <span style="font-size:11px;color:#64748b">18/27</span></td>
+        <td style="color:#ef4444;font-weight:bold">38.62%<br>
+            <span style="font-size:11px;color:#64748b">56/145</span></td>
+        <td><div class="progress-bar">
+            <div class="progress-fill bad" style="width:38.62%"></div>
+        </div></td>
     </tr>
         </tbody>
     </table>
     </div>
-    
+
     <div class="footer">
-        <p>💡 Haz clic en cualquier módulo para ver el detalle de todos sus archivos</p>
-        <p>Reporte generado automáticamente por CI/CD Pipeline</p>
+        <p>💡 Haz clic en cualquier módulo para ver el detalle de sus archivos</p>
+        <p style="margin-top:8px">Reporte generado automáticamente por CI/CD Pipeline</p>
     </div>
 </div>
-</body>
-</html>
+</body></html>

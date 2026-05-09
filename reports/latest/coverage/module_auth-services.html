@@ -14,6 +14,7 @@ h1{font-size:32px;margin-bottom:8px}
 table{width:100%;border-collapse:collapse;background:#1e293b;border-radius:16px;overflow:hidden}
 th,td{padding:16px 20px;text-align:left;border-bottom:1px solid #334155}
 th{background:#0f172a;color:#94a3b8;font-size:13px;font-weight:600;text-transform:uppercase}
+tr:last-child td{border-bottom:none}
 tr:hover{background:#243044}
 .progress-bar{background:#334155;border-radius:12px;height:10px;width:140px;overflow:hidden}
 .progress-fill{height:100%;border-radius:12px}
@@ -22,125 +23,183 @@ tr:hover{background:#243044}
 .bad{background:#ef4444}
 a{color:#60a5fa;text-decoration:none}
 a:hover{text-decoration:underline}
-.module-link{display:inline-block;background:#1e293b;padding:8px 16px;border-radius:12px;margin:4px}
-.module-link:hover{background:#334155}
 .footer{margin-top:40px;padding:20px;text-align:center;color:#475569;border-top:1px solid #334155}
-.legend{display:flex;gap:24px;justify-content:center;margin:20px 0;padding:16px;background:#1e293b;border-radius:16px}
-.legend-color{width:20px;height:20px;border-radius:6px;display:inline-block;margin-right:8px}
+.legend{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin:20px 0;padding:16px;background:#1e293b;border-radius:16px}
+.legend-color{width:20px;height:20px;border-radius:6px;display:inline-block;margin-right:8px;vertical-align:middle}
 .table-container{overflow-x:auto}
-</style>
-    </head>
+.back-link{display:inline-block;margin-bottom:20px;color:#60a5fa}
+.tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:8px;margin-left:8px;vertical-align:middle;font-weight:600}
+.tag-functions{background:#1e3a8a;color:#93c5fd}
+.tag-shared{background:#14532d;color:#86efac}
+</style></head>
     <body>
     <div class="container">
-        <a href="index.html" style="display:inline-block;margin-bottom:20px">← Volver al Dashboard</a>
+        <a class="back-link" href="index.html">← Volver al Dashboard</a>
         <h1>📁 auth-services</h1>
-        <div class="sub">Detalle de cobertura por archivo</div>
-        
+        <div class="sub">Detalle de cobertura por archivo · 10 archivo(s)</div>
+
         <div class="legend">
-            <div><span class="legend-color" style="background:#22c55e"></span> ≥ 70% (Excelente)</div>
-            <div><span class="legend-color" style="background:#eab308"></span> 50% - 69% (Aceptable)</div>
-            <div><span class="legend-color" style="background:#ef4444"></span> &lt; 50% (Necesita mejora)</div>
+            <div><span class="legend-color" style="background:#22c55e"></span>≥ 70% — Excelente</div>
+            <div><span class="legend-color" style="background:#eab308"></span>50%–69% — Aceptable</div>
+            <div><span class="legend-color" style="background:#ef4444"></span>&lt; 50% — Necesita mejora</div>
         </div>
-        
+
         <div class="table-container">
         <table>
             <thead>
                 <tr>
                     <th>Archivo</th>
-                    <th>Sentencias<br><span style="font-size:10px">Cubiertas/Total</span></th>
-                    <th>Ramas<br><span style="font-size:10px">Cubiertas/Total</span></th>
-                    <th>Funciones<br><span style="font-size:10px">Cubiertas/Total</span></th>
-                    <th>Líneas<br><span style="font-size:10px">Cubiertas/Total</span></th>
+                    <th>Sentencias<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                    <th>Ramas<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                    <th>Funciones<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
+                    <th>Líneas<br><span style="font-size:10px;font-weight:400">Cubiertas/Total</span></th>
                     <th>Barra</th>
                 </tr>
             </thead>
             <tbody>
-                
         <tr>
             <td style="font-weight:500">authCognitoProvider.mjs</td>
-            <td style="color:#eab308;font-weight:bold">64.8%<br><span style="font-size:11px;color:#64748b">70/108</span></td>
-            <td style="color:#ef4444;font-weight:bold">40.2%<br><span style="font-size:11px;color:#64748b">31/77</span></td>
-            <td style="color:#22c55e;font-weight:bold">92.8%<br><span style="font-size:11px;color:#64748b">13/14</span></td>
-            <td style="color:#eab308;font-weight:bold">64.7%<br><span style="font-size:11px;color:#64748b">66/102</span></td>
-            <td><div class="progress-bar"><div class="progress-fill medium" style="width:64.7%"></div></div></td>
+            <td style="color:#eab308;font-weight:bold">64.81%<br>
+                <span style="font-size:11px;color:#64748b">70/108</span></td>
+            <td style="color:#ef4444;font-weight:bold">40.26%<br>
+                <span style="font-size:11px;color:#64748b">31/77</span></td>
+            <td style="color:#22c55e;font-weight:bold">92.86%<br>
+                <span style="font-size:11px;color:#64748b">13/14</span></td>
+            <td style="color:#eab308;font-weight:bold">64.71%<br>
+                <span style="font-size:11px;color:#64748b">66/102</span></td>
+            <td><div class="progress-bar">
+                <div class="progress-fill medium" style="width:64.71%"></div>
+            </div></td>
         </tr>
         <tr>
             <td style="font-weight:500">authConfig.mjs</td>
-            <td style="color:#22c55e;font-weight:bold">94.7%<br><span style="font-size:11px;color:#64748b">18/19</span></td>
-            <td style="color:#22c55e;font-weight:bold">87.5%<br><span style="font-size:11px;color:#64748b">14/16</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">5/5</span></td>
-            <td style="color:#22c55e;font-weight:bold">94.7%<br><span style="font-size:11px;color:#64748b">18/19</span></td>
-            <td><div class="progress-bar"><div class="progress-fill good" style="width:94.7%"></div></div></td>
+            <td style="color:#22c55e;font-weight:bold">94.74%<br>
+                <span style="font-size:11px;color:#64748b">18/19</span></td>
+            <td style="color:#22c55e;font-weight:bold">87.50%<br>
+                <span style="font-size:11px;color:#64748b">14/16</span></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">5/5</span></td>
+            <td style="color:#22c55e;font-weight:bold">94.74%<br>
+                <span style="font-size:11px;color:#64748b">18/19</span></td>
+            <td><div class="progress-bar">
+                <div class="progress-fill good" style="width:94.74%"></div>
+            </div></td>
         </tr>
         <tr>
             <td style="font-weight:500">authController.mjs</td>
-            <td style="color:#22c55e;font-weight:bold">77.1%<br><span style="font-size:11px;color:#64748b">27/35</span></td>
-            <td style="color:#eab308;font-weight:bold">62.5%<br><span style="font-size:11px;color:#64748b">5/8</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">6/6</span></td>
-            <td style="color:#22c55e;font-weight:bold">79.4%<br><span style="font-size:11px;color:#64748b">27/34</span></td>
-            <td><div class="progress-bar"><div class="progress-fill good" style="width:79.4%"></div></div></td>
+            <td style="color:#22c55e;font-weight:bold">77.14%<br>
+                <span style="font-size:11px;color:#64748b">27/35</span></td>
+            <td style="color:#eab308;font-weight:bold">62.50%<br>
+                <span style="font-size:11px;color:#64748b">5/8</span></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">6/6</span></td>
+            <td style="color:#22c55e;font-weight:bold">79.41%<br>
+                <span style="font-size:11px;color:#64748b">27/34</span></td>
+            <td><div class="progress-bar">
+                <div class="progress-fill good" style="width:79.41%"></div>
+            </div></td>
         </tr>
         <tr>
             <td style="font-weight:500">authHandler.mjs</td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">7/7</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">2/2</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">1/1</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">7/7</span></td>
-            <td><div class="progress-bar"><div class="progress-fill good" style="width:100.0%"></div></div></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">7/7</span></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">2/2</span></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">1/1</span></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">7/7</span></td>
+            <td><div class="progress-bar">
+                <div class="progress-fill good" style="width:100.00%"></div>
+            </div></td>
         </tr>
         <tr>
             <td style="font-weight:500">authModel.mjs</td>
-            <td style="color:#ef4444;font-weight:bold">0.0%<br><span style="font-size:11px;color:#64748b">0/1</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">0/0</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">0/0</span></td>
-            <td style="color:#ef4444;font-weight:bold">0.0%<br><span style="font-size:11px;color:#64748b">0/1</span></td>
-            <td><div class="progress-bar"><div class="progress-fill bad" style="width:0.0%"></div></div></td>
+            <td style="color:#ef4444;font-weight:bold">0.00%<br>
+                <span style="font-size:11px;color:#64748b">0/1</span></td>
+            <td style="color:#ef4444;font-weight:bold">0.00%<br>
+                <span style="font-size:11px;color:#64748b">0/0</span></td>
+            <td style="color:#ef4444;font-weight:bold">0.00%<br>
+                <span style="font-size:11px;color:#64748b">0/0</span></td>
+            <td style="color:#ef4444;font-weight:bold">0.00%<br>
+                <span style="font-size:11px;color:#64748b">0/1</span></td>
+            <td><div class="progress-bar">
+                <div class="progress-fill bad" style="width:0.00%"></div>
+            </div></td>
         </tr>
         <tr>
             <td style="font-weight:500">authRepository.mjs</td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">47/47</span></td>
-            <td style="color:#eab308;font-weight:bold">50.0%<br><span style="font-size:11px;color:#64748b">8/16</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">21/21</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">30/30</span></td>
-            <td><div class="progress-bar"><div class="progress-fill good" style="width:100.0%"></div></div></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">47/47</span></td>
+            <td style="color:#eab308;font-weight:bold">50.00%<br>
+                <span style="font-size:11px;color:#64748b">8/16</span></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">21/21</span></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">30/30</span></td>
+            <td><div class="progress-bar">
+                <div class="progress-fill good" style="width:100.00%"></div>
+            </div></td>
         </tr>
         <tr>
             <td style="font-weight:500">authService.mjs</td>
-            <td style="color:#22c55e;font-weight:bold">90.9%<br><span style="font-size:11px;color:#64748b">100/110</span></td>
-            <td style="color:#eab308;font-weight:bold">67.5%<br><span style="font-size:11px;color:#64748b">52/77</span></td>
-            <td style="color:#22c55e;font-weight:bold">88.2%<br><span style="font-size:11px;color:#64748b">15/17</span></td>
-            <td style="color:#22c55e;font-weight:bold">93.2%<br><span style="font-size:11px;color:#64748b">96/103</span></td>
-            <td><div class="progress-bar"><div class="progress-fill good" style="width:93.2%"></div></div></td>
+            <td style="color:#22c55e;font-weight:bold">90.91%<br>
+                <span style="font-size:11px;color:#64748b">100/110</span></td>
+            <td style="color:#eab308;font-weight:bold">67.53%<br>
+                <span style="font-size:11px;color:#64748b">52/77</span></td>
+            <td style="color:#22c55e;font-weight:bold">88.24%<br>
+                <span style="font-size:11px;color:#64748b">15/17</span></td>
+            <td style="color:#22c55e;font-weight:bold">93.20%<br>
+                <span style="font-size:11px;color:#64748b">96/103</span></td>
+            <td><div class="progress-bar">
+                <div class="progress-fill good" style="width:93.20%"></div>
+            </div></td>
         </tr>
         <tr>
             <td style="font-weight:500">authToken.mjs</td>
-            <td style="color:#22c55e;font-weight:bold">88.6%<br><span style="font-size:11px;color:#64748b">39/44</span></td>
-            <td style="color:#22c55e;font-weight:bold">70.6%<br><span style="font-size:11px;color:#64748b">12/17</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">7/7</span></td>
-            <td style="color:#22c55e;font-weight:bold">88.6%<br><span style="font-size:11px;color:#64748b">39/44</span></td>
-            <td><div class="progress-bar"><div class="progress-fill good" style="width:88.6%"></div></div></td>
+            <td style="color:#22c55e;font-weight:bold">88.64%<br>
+                <span style="font-size:11px;color:#64748b">39/44</span></td>
+            <td style="color:#22c55e;font-weight:bold">70.59%<br>
+                <span style="font-size:11px;color:#64748b">12/17</span></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">7/7</span></td>
+            <td style="color:#22c55e;font-weight:bold">88.64%<br>
+                <span style="font-size:11px;color:#64748b">39/44</span></td>
+            <td><div class="progress-bar">
+                <div class="progress-fill good" style="width:88.64%"></div>
+            </div></td>
         </tr>
         <tr>
             <td style="font-weight:500">authValidator.mjs</td>
-            <td style="color:#eab308;font-weight:bold">62.2%<br><span style="font-size:11px;color:#64748b">23/37</span></td>
-            <td style="color:#eab308;font-weight:bold">68.0%<br><span style="font-size:11px;color:#64748b">17/25</span></td>
-            <td style="color:#22c55e;font-weight:bold">80.0%<br><span style="font-size:11px;color:#64748b">4/5</span></td>
-            <td style="color:#eab308;font-weight:bold">62.2%<br><span style="font-size:11px;color:#64748b">23/37</span></td>
-            <td><div class="progress-bar"><div class="progress-fill medium" style="width:62.2%"></div></div></td>
+            <td style="color:#eab308;font-weight:bold">62.16%<br>
+                <span style="font-size:11px;color:#64748b">23/37</span></td>
+            <td style="color:#eab308;font-weight:bold">68.00%<br>
+                <span style="font-size:11px;color:#64748b">17/25</span></td>
+            <td style="color:#22c55e;font-weight:bold">80.00%<br>
+                <span style="font-size:11px;color:#64748b">4/5</span></td>
+            <td style="color:#eab308;font-weight:bold">62.16%<br>
+                <span style="font-size:11px;color:#64748b">23/37</span></td>
+            <td><div class="progress-bar">
+                <div class="progress-fill medium" style="width:62.16%"></div>
+            </div></td>
         </tr>
         <tr>
             <td style="font-weight:500">userRepository.mjs</td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">16/16</span></td>
-            <td style="color:#eab308;font-weight:bold">64.3%<br><span style="font-size:11px;color:#64748b">9/14</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">5/5</span></td>
-            <td style="color:#22c55e;font-weight:bold">100.0%<br><span style="font-size:11px;color:#64748b">15/15</span></td>
-            <td><div class="progress-bar"><div class="progress-fill good" style="width:100.0%"></div></div></td>
-        </tr>
-            </tbody>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">16/16</span></td>
+            <td style="color:#eab308;font-weight:bold">64.29%<br>
+                <span style="font-size:11px;color:#64748b">9/14</span></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">5/5</span></td>
+            <td style="color:#22c55e;font-weight:bold">100.00%<br>
+                <span style="font-size:11px;color:#64748b">15/15</span></td>
+            <td><div class="progress-bar">
+                <div class="progress-fill good" style="width:100.00%"></div>
+            </div></td>
+        </tr></tbody>
         </table>
         </div>
-        
+
         <div class="footer">Generado automáticamente por CI/CD Pipeline</div>
     </div>
-    </body>
-    </html>
+    </body></html>
