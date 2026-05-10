@@ -35,9 +35,9 @@ WHERE usuario_id = '55555555-5555-5555-5555-555555555555'
   AND correo = 'gerencia@nanutech.com';
 
 UPDATE password_reset_tokens
-SET correo = 'chofer@nanutech.com'
+SET email = 'chofer@nanutech.com'
 WHERE usuario_id = '22222222-2222-2222-2222-222222222222'
-  AND correo = 'chofer1@nanutech.com';
+  AND email = 'chofer1@nanutech.com';
 
 -- migrate:down
 
@@ -62,6 +62,6 @@ WHERE usuario_id = '55555555-5555-5555-5555-555555555555'
   AND correo = 'gerente@nanutech.com';
 
 UPDATE password_reset_tokens
-SET correo = 'chofer1@nanutech.com'
+SET email = 'chofer1@nanutech.com'
 WHERE usuario_id = '22222222-2222-2222-2222-222222222222'
-  AND correo = 'chofer@nanutech.com';
+  AND email = 'chofer@nanutech.com';
