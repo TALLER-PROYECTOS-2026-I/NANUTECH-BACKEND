@@ -17,6 +17,13 @@ function resolveCamionError(error) {
   return errorResponse(error.message, statusCode);
 }
 
+/**
+ * Obtiene el listado completo de camiones registrados.
+ * 
+ * Endpoint utilizado por vistas administrativas
+ * y paneles operativos.
+ */
+
 export const getAllCamionesController = async (event) => {
   try {
     const camionService = new CamionService();
@@ -35,6 +42,13 @@ export const getAllCamionesController = async (event) => {
   }
 };
 
+/**
+ * Obtiene el detalle de un camión específico.
+ * 
+ * Valida que el ID exista antes de retornar
+ * información operativa y métricas asociadas.
+ */
+
 export const getCamionByIdController = async (event) => {
   try {
     const id = event.pathParameters?.id;
@@ -51,6 +65,18 @@ export const getCamionByIdController = async (event) => {
     return resolveCamionError(error);
   }
 };
+
+/**
+ * Registra un nuevo camión en el sistema.
+ * 
+ * Recibe la información desde el body HTTP
+ * y delega las validaciones al service.
+ * 
+ * Respuestas:
+ * - 201 → creación exitosa
+ * - 400 → error de validación
+ * - 500 → error interno
+ */
 
 export const createCamionController = async (event) => {
   try {
@@ -70,6 +96,17 @@ export const createCamionController = async (event) => {
   }
 };
 
+/**
+ * Obtiene información consolidada para el panel
+ * de monitoreo de camiones.
+ * 
+ * Permite visualizar:
+ * - estados operativos
+ * - métricas GPS
+ * - tiempos de actividad
+ * - filtros por placa y estado
+ */
+
 export const getPanelCamionesController = async (event) => {
   try {
     const camionService = new CamionService();
@@ -87,6 +124,13 @@ export const getPanelCamionesController = async (event) => {
     return resolveCamionError(error);
   }
 };
+
+/**
+ * Exporta información de camiones en formato CSV.
+ * 
+ * El archivo generado es compatible con Excel
+ * y soporta filtros dinámicos.
+ */
 
 export const exportCamionesCsvController = async (event) => {
   try {

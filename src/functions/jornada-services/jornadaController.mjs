@@ -3,7 +3,15 @@ import {
   successResponse,
   errorResponse,
 } from "../../shared/utils/response/response.mjs";
+import { getCurrentSession } from "../auth-services/authService.mjs";
 
+/**
+ * Parsea el body del evento Lambda como JSON.
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @returns {Object} Objeto parseado o vacío si no hay body
+ * @throws {Error} Con statusCode 400 si el body no es JSON válido
+ */
 function parseJsonBody(event) {
   if (!event.body) return {};
 
@@ -17,6 +25,13 @@ function parseJsonBody(event) {
   }
 }
 
+/**
+ * Construye una respuesta de error estandarizada para el módulo de jornadas.
+ * Infiere el statusCode desde el error o desde palabras clave del mensaje.
+ *
+ * @param {Error} error - Error capturado con propiedades opcionales statusCode y code
+ * @returns {Object} Respuesta HTTP con formato { success, message, statusCode }
+ */
 function resolveErrorResponse(error) {
   const statusCode =
     error.statusCode ||
@@ -27,8 +42,31 @@ function resolveErrorResponse(error) {
   });
 }
 
+/**
+ * Registra una nueva jornada en el sistema.
+ * Verifica que ni el conductor ni la unidad tengan jornadas activas antes de crear.
+ * Requiere autenticación Bearer válida.
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @param {string} event.body - JSON con los datos de la jornada
+ * @param {number} event.body.conductor_id - ID del conductor asignado
+ * @param {number} event.body.unidad_id - ID de la unidad/camión asignada
+ * @param {number} event.body.contrato_id - ID del contrato asociado
+ * @param {string} [event.body.fecha_jornada] - Fecha de la jornada (default: hoy)
+ * @param {string} [event.body.origen] - Punto de partida
+ * @param {string} [event.body.destino] - Punto de llegada
+ * @returns {Promise<Object>} Respuesta HTTP 200 con la jornada creada
+ * @throws {Error} 401 si el token es inválido o está ausente
+ * @throws {Error} 400 UNIDAD_CON_JORNADA_ACTIVA si la unidad ya está en uso
+ * @throws {Error} 400 CONDUCTOR_CON_JORNADA_ACTIVA si el conductor ya está en uso
+ */
 export const createJornadaController = async (event) => {
   try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    await getCurrentSession(authorizationHeader);
+
     const body = parseJsonBody(event);
     const jornadaService = new JornadaService();
     const jornada = await jornadaService.createJornada(body);
@@ -40,8 +78,27 @@ export const createJornadaController = async (event) => {
   }
 };
 
+/**
+ * Obtiene la jornada activa más reciente de un conductor.
+ * Solo considera estados REGISTRADA, PENDIENTE o EN_PROCESO.
+ * Retorna null si el conductor no tiene jornada activa (el dashboard omite la sección).
+ * Requiere autenticación Bearer válida.
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @param {Object} [event.pathParameters] - Parámetros de ruta
+ * @param {string} [event.pathParameters.conductorId] - ID del conductor (desde la ruta)
+ * @param {Object} [event.queryStringParameters] - Query parameters
+ * @param {string} [event.queryStringParameters.conductor_id] - ID del conductor (alternativo por query)
+ * @returns {Promise<Object>} Respuesta HTTP 200 con la jornada actual o null
+ * @throws {Error} 401 si el token es inválido o está ausente
+ */
 export const getCurrentJornadaController = async (event) => {
   try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    await getCurrentSession(authorizationHeader);
+
     const jornadaService = new JornadaService();
     const conductorId =
       event.pathParameters?.conductorId ||
@@ -55,8 +112,28 @@ export const getCurrentJornadaController = async (event) => {
   }
 };
 
+/**
+ * Inicia el turno de una jornada, cambiando su estado a EN_PROCESO.
+ * La hora de inicio la fija el servidor en el momento de la llamada.
+ * Solo se puede iniciar desde los estados REGISTRADA o PENDIENTE.
+ * Requiere autenticación Bearer válida.
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @param {string} event.body - JSON con el ID de la jornada
+ * @param {number} event.body.jornada_id - ID de la jornada a iniciar
+ * @returns {Promise<Object>} Respuesta HTTP 200 con la jornada actualizada (estado EN_PROCESO)
+ * @throws {Error} 401 si el token es inválido o está ausente
+ * @throws {Error} 404 JORNADA_NOT_FOUND si la jornada no existe
+ * @throws {Error} 400 JORNADA_ALREADY_STARTED si la jornada ya está EN_PROCESO
+ * @throws {Error} 400 JORNADA_INVALID_STATE si el estado actual no permite iniciar
+ */
 export const startTurnController = async (event) => {
   try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    await getCurrentSession(authorizationHeader);
+
     const body = parseJsonBody(event);
     const jornadaService = new JornadaService();
     const jornada = await jornadaService.startTurn(body);
@@ -68,8 +145,28 @@ export const startTurnController = async (event) => {
   }
 };
 
+/**
+ * Finaliza el turno de una jornada EN_PROCESO, cambiando su estado a COMPLETADA.
+ * El servidor fija la hora de fin y el repositorio calcula la duración total.
+ * Solo se pueden cerrar jornadas que estén exactamente en estado EN_PROCESO.
+ * Requiere autenticación Bearer válida.
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @param {string} event.body - JSON con el ID de la jornada y observaciones opcionales
+ * @param {number} event.body.jornada_id - ID de la jornada a finalizar
+ * @param {string} [event.body.observaciones] - Observaciones finales del turno
+ * @returns {Promise<Object>} Respuesta HTTP 200 con la jornada finalizada y duración calculada
+ * @throws {Error} 401 si el token es inválido o está ausente
+ * @throws {Error} 404 JORNADA_NOT_FOUND si la jornada no existe
+ * @throws {Error} 400 JORNADA_NOT_IN_PROGRESS si la jornada no está EN_PROCESO
+ */
 export const finishTurnController = async (event) => {
   try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    await getCurrentSession(authorizationHeader);
+
     const body = parseJsonBody(event);
     const jornadaService = new JornadaService();
     const jornada = await jornadaService.finishTurn(body);
@@ -81,8 +178,28 @@ export const finishTurnController = async (event) => {
   }
 };
 
+/**
+ * Obtiene todas las jornadas con filtros opcionales.
+ * Valida que fecha_desde no sea posterior a fecha_hasta antes de consultar.
+ * Requiere autenticación Bearer válida.
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @param {Object} [event.queryStringParameters] - Filtros de búsqueda
+ * @param {string} [event.queryStringParameters.q] - Texto libre para buscar por placa o nombre del conductor
+ * @param {string} [event.queryStringParameters.conductor_id] - Filtrar por ID exacto de conductor
+ * @param {string} [event.queryStringParameters.fecha_desde] - Límite inferior de fecha_jornada (YYYY-MM-DD)
+ * @param {string} [event.queryStringParameters.fecha_hasta] - Límite superior de fecha_jornada (YYYY-MM-DD)
+ * @returns {Promise<Object>} Respuesta HTTP 200 con lista de jornadas enriquecidas
+ * @throws {Error} 401 si el token es inválido o está ausente
+ * @throws {Error} 400 INVALID_DATE_RANGE si fecha_desde es posterior a fecha_hasta
+ */
 export const getAllJornadasController = async (event) => {
   try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    await getCurrentSession(authorizationHeader);
+
     const jornadaService = new JornadaService();
     const { q, conductor_id, fecha_desde, fecha_hasta } =
       event.queryStringParameters || {};
@@ -109,8 +226,28 @@ export const getAllJornadasController = async (event) => {
   }
 };
 
+/**
+ * Exporta las jornadas filtradas en formato CSV para descarga directa.
+ * Retorna la respuesta con Content-Type text/csv y Content-Disposition para forzar descarga.
+ * Los campos se escapan según RFC 4180 para manejar comas, comillas y saltos de línea.
+ * Requiere autenticación Bearer válida.
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @param {Object} [event.queryStringParameters] - Filtros de exportación
+ * @param {string} [event.queryStringParameters.q] - Texto libre para buscar por placa o conductor
+ * @param {string} [event.queryStringParameters.conductor_id] - Filtrar por ID de conductor
+ * @param {string} [event.queryStringParameters.fecha_desde] - Fecha inicio del rango (YYYY-MM-DD)
+ * @param {string} [event.queryStringParameters.fecha_hasta] - Fecha fin del rango (YYYY-MM-DD)
+ * @returns {Promise<Object>} Respuesta HTTP 200 con body CSV y header Content-Disposition
+ * @throws {Error} 401 si el token es inválido o está ausente
+ */
 export const exportCsvController = async (event) => {
   try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    await getCurrentSession(authorizationHeader);
+
     const jornadaService = new JornadaService();
     const { q, conductor_id, fecha_desde, fecha_hasta } =
       event.queryStringParameters || {};

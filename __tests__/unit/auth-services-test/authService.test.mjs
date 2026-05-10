@@ -91,6 +91,22 @@ describe("AuthService", () => {
     expect(result.session.idleTimeoutSeconds).toBe(7200);
   });
 
+  it("permite login local del gerente y redirige al dashboard gerencial", async () => {
+    const result = await authService.handleLoginAttempt(
+      "gerente@test.com",
+      "123456",
+    );
+
+    expect(result.user).toEqual({
+      email: "gerente@test.com",
+      role: "gerente",
+    });
+    expect(result.role).toBe("gerente");
+    expect(result.nextRoute).toBe("/dashboard/gerencial");
+    expect(result.session.provider).toBe("local");
+    expect(result.session.accessToken).toBeTruthy();
+  });
+
   it("mantiene la logica de bloqueo tras 5 intentos fallidos", async () => {
     for (let attempt = 1; attempt <= 4; attempt += 1) {
       await expect(
@@ -125,6 +141,25 @@ describe("AuthService", () => {
     });
     expect(session.role).toBe("chofer");
     expect(session.nextRoute).toBe("/dashboard/chofer");
+    expect(session.session.isAuthenticated).toBe(true);
+  });
+
+  it("expone la sesion actual del gerente local con su ruta gerencial", async () => {
+    const login = await authService.handleLoginAttempt(
+      "gerente@test.com",
+      "123456",
+    );
+
+    const session = await authService.getCurrentSession(
+      `Bearer ${login.session.accessToken}`,
+    );
+
+    expect(session.user).toEqual({
+      email: "gerente@test.com",
+      role: "gerente",
+    });
+    expect(session.role).toBe("gerente");
+    expect(session.nextRoute).toBe("/dashboard/gerencial");
     expect(session.session.isAuthenticated).toBe(true);
   });
 
@@ -263,6 +298,66 @@ describe("AuthService", () => {
     });
     expect(result.role).toBe("admin");
     expect(result.nextRoute).toBe("/dashboard/admin");
+    expect(result.session.provider).toBe("cognito");
+    expect(mockDbQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it("resuelve login Cognito del gerente usando el sub real de AWS", async () => {
+    process.env.AUTH_PROVIDER = "cognito";
+    process.env.COGNITO_USER_POOL_ID = "pool-id";
+    process.env.COGNITO_CLIENT_ID = "client-id";
+    process.env.AWS_REGION = "us-east-1";
+
+    const gerenteSub = "744844e8-d051-70fb-a746-c22ccc07352a";
+    const gerenteDbUser = buildDbUser({
+      id: "55555555-5555-5555-5555-555555555555",
+      cognito_sub: gerenteSub,
+      correo: "gerente@nanutech.com",
+      nombres: "Laura",
+      apellidos: "Vasquez",
+      rol: "GERENTE",
+    });
+    const idToken = createJwtLikeToken({
+      sub: gerenteSub,
+      email: "gerente@nanutech.com",
+      "custom:role": "GERENTE",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+    const accessToken = createJwtLikeToken({
+      sub: gerenteSub,
+      username: "gerente@nanutech.com",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+
+    cognitoClientMock.on(InitiateAuthCommand).resolves({
+      AuthenticationResult: {
+        AccessToken: accessToken,
+        IdToken: idToken,
+        ExpiresIn: 3600,
+      },
+    });
+
+    mockDbQuery
+      .mockResolvedValueOnce({ rows: [gerenteDbUser] })
+      .mockResolvedValueOnce({
+        rows: [{ ...gerenteDbUser, ultimo_acceso: "2026-04-05T10:00:00.000Z" }],
+      });
+
+    const result = await authService.handleLoginAttempt(
+      "gerente@nanutech.com",
+      "Admin123!",
+    );
+
+    expect(result.user).toEqual({
+      id: "55555555-5555-5555-5555-555555555555",
+      email: "gerente@nanutech.com",
+      nombres: "Laura",
+      apellidos: "Vasquez",
+      role: "gerente",
+      estado: "ACTIVO",
+    });
+    expect(result.role).toBe("gerente");
+    expect(result.nextRoute).toBe("/dashboard/gerencial");
     expect(result.session.provider).toBe("cognito");
     expect(mockDbQuery).toHaveBeenCalledTimes(2);
   });

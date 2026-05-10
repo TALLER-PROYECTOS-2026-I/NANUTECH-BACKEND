@@ -1,3 +1,7 @@
+/**
+ * Ejecuta validaciones de estructura y contenido CSV.
+ */
+
 import { GpsRepository } from "./gpsRepository.mjs";
 import {
   assertCsvFilename,
@@ -19,6 +23,10 @@ export class GpsService {
       encabezados: provider.headers,
     }));
   }
+
+/**
+ * Genera estructura CSV compatible con importaciones.
+ */
 
   getTemplate(provider) {
     const config = getProviderConfig(provider);
@@ -57,6 +65,16 @@ export class GpsService {
     };
   }
 
+/**
+ * Procesa e inserta registros GPS válidos.
+ * 
+ * Reglas:
+ * - evita duplicados
+ * - valida coordenadas
+ * - valida proveedor
+ * - valida velocidades
+ */
+
   async importCsv({ proveedor, nombreArchivo, csvContent, cargadoPor }) {
     const normalizedProvider = normalizeProvider(proveedor);
 
@@ -83,9 +101,17 @@ export class GpsService {
     });
   }
 
+/**
+ * Calcula métricas operativas GPS.
+ */
+
   async getSummary() {
     return this.repository.getSummary();
   }
+
+/**
+ * Lista registros GPS almacenados.
+ */
 
   async listRegistros(filters = {}) {
     const proveedor = filters.proveedor
