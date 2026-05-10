@@ -1,67 +1,70 @@
-// Importa el servicio principal del dashboard.
-// Este servicio se encarga de obtener toda la información necesaria.
-import { getDashboardService } from "./dashboardService.mjs";
+// Importa servicio principal dashboard.
+import { getDashboardService }
+from "./dashboardService.mjs";
 
-// Importa la función que valida el token y obtiene la sesión actual.
-import { getCurrentSession } from "../auth-services/authService.mjs";
+// Importa helpers response.
+import {
 
-// Controlador principal del endpoint dashboard.
-export const getDashboardController = async (event) => {
+  successResponse,
 
-  // Bloque try/catch para manejar errores del flujo.
+  errorResponse
+
+} from "../../shared/utils/response/response.mjs";
+
+
+// CONTROLADOR DASHBOARD
+
+export const getDashboardController =
+async (event) => {
+
   try {
+    // Obtiene el token enviado en el header Authorization.
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
 
-    // Obtiene el header Authorization enviado desde el frontend.
-    // Se valida tanto "Authorization" como "authorization"
-    // por compatibilidad.
-    const authorizationHeader =
-      event.headers?.Authorization || event.headers?.authorization;
-
-    // Si no existe token se retorna error 401.
-    if (!authorizationHeader) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({
-          message: "Token requerido",
-        }),
-      };
-    }
-
-    // Valida el token y obtiene los datos de sesión.
+    // Valida el token y obtiene la sesión actual del usuario.
     const session = await getCurrentSession(authorizationHeader);
 
-    // Verifica si el usuario tiene rol administrador.
-    // Solo el admin puede acceder al dashboard.
+    // Regla de seguridad: solo el Administrador de Operaciones puede registrar contratos.
     if (session.role !== "admin") {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({
-          message: "Solo el Administrador puede acceder al dashboard",
-        }),
-      };
+      return errorResponse("Solo el Administrador puede acceder al Dashboard", 403, {
+        code: "FORBIDDEN_ROLE",
+      });
     }
 
-    // Llama al servicio que obtiene toda la información
-    // del dashboard.
-    const data = await getDashboardService();
+    // OBTIENE DATA DEL DASHBOARD
 
-    // Retorna respuesta exitosa con status 200.
-    return {
-      statusCode: 200,
-      body: JSON.stringify(data),
-    };
+    const data =
+      await getDashboardService();
+
+    // RESPUESTA EXITOSA
+
+    return successResponse(
+
+      data,
+
+      "Dashboard obtenido correctamente",
+
+      200
+    );
 
   } catch (error) {
 
-    // Muestra el error en consola para debugging.
-    console.error("Error en controller:", error);
+    // LOG ERROR
 
-    // Retorna error interno del servidor.
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        message: "Error interno del servidor",
-      }),
-    };
+    console.error(
+
+      "Error en dashboard controller:",
+
+      error
+    );
+
+    // RESPUESTA ERROR
+
+    return errorResponse(
+
+      "Error interno del servidor",
+
+      500
+    );
   }
 };

@@ -1,220 +1,642 @@
-// Importa la función query para ejecutar consultas SQL.
+// Importa conexión a base de datos.
 import { query } from "../../shared/config/database.mjs";
 
-// KPIs
-// Obtiene los indicadores principales del dashboard.
+
+// KPIs PRINCIPALES
+
 export const getKPIs = async () => {
 
   try {
 
-    // Cuenta el total de camiones registrados.
+    // Total camiones.
     const totalCamiones = await query(`
-      SELECT COUNT(*) FROM unidades
+      SELECT COUNT(*)
+      FROM unidades
     `);
 
-    // Cuenta contratos vigentes.
+    // Contratos vigentes.
     const contratosActivos = await query(`
-      SELECT COUNT(*) 
-      FROM contratos 
-      WHERE fecha_fin >= CURRENT_DATE
+      SELECT COUNT(*)
+      FROM contratos
+      WHERE estado = 'VIGENTE'
     `);
 
-    // Cuenta alertas activas.
+    // Alertas activas.
     const alertasActivas = await query(`
-      SELECT COUNT(*) 
-      FROM alertas_jornada
-      WHERE estado = 'ACTIVA'
+      SELECT COUNT(*)
+      FROM gps_registros
+      WHERE estado = 'EXCESO_VELOCIDAD'
     `);
 
-    // Suma ingresos de contratos activos.
+    // Ingresos estimados.
     const ingresos = await query(`
-      SELECT COALESCE(SUM(tarifa), 0) AS total
-      FROM contratos 
-      WHERE activo = true
+      SELECT COALESCE(
+        SUM(tarifa),
+        0
+      ) AS total
+      FROM contratos
+      WHERE estado = 'VIGENTE'
     `);
 
-    // Retorna los KPIs formateados.
+    // Jornadas completadas.
+    const jornadasCompletadas = await query(`
+      SELECT COUNT(*)
+      FROM jornadas
+      WHERE estado = 'COMPLETADA'
+    `);
+
+    // Jornadas activas.
+    const jornadasActivas = await query(`
+      SELECT COUNT(*)
+      FROM jornadas
+      WHERE estado = 'EN_PROCESO'
+    `);
+
+    // Horas totales.
+    const horasTotales = await query(`
+      SELECT COALESCE(
+
+        SUM(
+          EXTRACT(
+            EPOCH FROM (
+              hora_fin - hora_inicio
+            )
+          ) / 3600
+        ),
+
+        0
+
+      ) AS total
+
+      FROM jornadas
+
+      WHERE hora_inicio IS NOT NULL
+      AND hora_fin IS NOT NULL
+    `);
+
+    // Kilómetros totales.
+    const kilometrosTotales = await query(`
+      SELECT COALESCE(
+        SUM(km_recorridos),
+        0
+      ) AS total
+      FROM jornadas
+    `);
+
+    // Retorna KPIs.
     return {
-      totalCamiones: Number(totalCamiones.rows[0]?.count || 0),
-      contratosActivos: Number(contratosActivos.rows[0]?.count || 0),
-      alertasActivas: Number(alertasActivas.rows[0]?.count || 0),
-      ingresos: Number(ingresos.rows[0]?.total || 0),
+
+      totalCamiones: Number(
+        totalCamiones.rows[0]?.count || 0
+      ),
+
+      contratosActivos: Number(
+        contratosActivos.rows[0]?.count || 0
+      ),
+
+      alertasActivas: Number(
+        alertasActivas.rows[0]?.count || 0
+      ),
+
+      ingresos: Number(
+        ingresos.rows[0]?.total || 0
+      ),
+
+      jornadasCompletadas: Number(
+        jornadasCompletadas.rows[0]?.count || 0
+      ),
+
+      jornadasActivas: Number(
+        jornadasActivas.rows[0]?.count || 0
+      ),
+
+      horasTotales: Number(
+        Number(
+          horasTotales.rows[0]?.total || 0
+        ).toFixed(2)
+      ),
+
+      kilometrosTotales: Number(
+        kilometrosTotales.rows[0]?.total || 0
+      )
     };
 
   } catch (error) {
 
-    // Muestra error en consola.
-    console.error("Error en getKPIs:", error);
+    console.error(
+      "Error en getKPIs:",
+      error
+    );
 
-    // Propaga el error.
     throw error;
   }
 };
 
 // ALERTAS
-// Obtiene alertas activas y contratos por expirar.
+
 export const getAlertas = async () => {
 
   try {
 
-    // Consulta alertas activas.
+    // Alertas GPS reales.
     const alertasActivas = await query(`
-      SELECT 
-        id,
-        tipo,
-        estado,
-        severidad
-      FROM alertas_jornada
-      WHERE estado = 'ACTIVA'
-      ORDER BY severidad DESC
+      SELECT
+
+        gr.id,
+
+        u.placa,
+
+        gr.velocidad_kmh,
+
+        gr.estado,
+
+        gr.fecha_hora
+
+      FROM gps_registros gr
+
+      INNER JOIN unidades u
+        ON gr.unidad_id = u.id
+
+      WHERE gr.estado = 'EXCESO_VELOCIDAD'
+
+      ORDER BY gr.fecha_hora DESC
+
       LIMIT 10
     `);
 
-    // Consulta contratos próximos a vencer.
-    const contratosPorExpirar = await query(`
-      SELECT id, cliente, tarifa, fecha_fin
-      FROM contratos
-      WHERE fecha_fin <= CURRENT_DATE + INTERVAL '30 days'
-      ORDER BY fecha_fin ASC
-      LIMIT 10
-    `);
+    // Contratos próximos a vencer.
+    const contratosPorExpirar =
+      await query(`
+        SELECT
 
-    // Retorna datos transformados.
+          id,
+
+          cliente,
+
+          tarifa,
+
+          fecha_fin
+
+        FROM contratos
+
+        WHERE fecha_fin BETWEEN CURRENT_DATE
+        AND CURRENT_DATE + INTERVAL '30 days'
+
+        ORDER BY fecha_fin ASC
+
+        LIMIT 10
+      `);
+
     return {
 
-      // Lista de alertas activas.
-      alertasActivas: (alertasActivas.rows || []).map(a => ({
+      // Alertas GPS.
+      alertasActivas: (
+        alertasActivas.rows || []
+      ).map(a => ({
+
         id: a.id,
-        tipo: a.tipo,
+
+        placa: a.placa,
+
+        velocidad_kmh: Number(
+          a.velocidad_kmh
+        ),
+
         estado: a.estado,
-        severidad: a.severidad
+
+        fecha_hora: a.fecha_hora
       })),
 
-      // Lista de contratos por expirar.
-      contratosPorExpirar: (contratosPorExpirar.rows || []).map(c => ({
+      // Contratos próximos a vencer.
+      contratosPorExpirar: (
+        contratosPorExpirar.rows || []
+      ).map(c => ({
+
         id: c.id,
+
         cliente: c.cliente,
+
         tarifa: Number(c.tarifa),
+
         fecha_fin: c.fecha_fin
-      })),
+      }))
     };
 
   } catch (error) {
 
-    console.error("Error en getAlertas:", error);
+    console.error(
+      "Error en getAlertas:",
+      error
+    );
 
     throw error;
   }
 };
 
-// GRAFICAS
-// Obtiene información estadística para gráficas.
+// GRÁFICAS
+
 export const getGraficas = async () => {
 
   try {
 
-    // Consulta eventos GPS agrupados por tipo.
+    // Estado GPS.
     const gps = await query(`
-      SELECT tipo_evento, COUNT(*) AS total
-      FROM gps_eventos
-      GROUP BY tipo_evento
-      ORDER BY total DESC
-    `);
+      SELECT
 
-    // Consulta estados de camiones.
-    const camiones = await query(`
-      SELECT estado, COUNT(*) AS total
-      FROM unidades
+        estado,
+
+        COUNT(*) AS total
+
+      FROM gps_registros
+
       GROUP BY estado
+
       ORDER BY total DESC
     `);
 
-    // Retorna información procesada.
+    // Estados operativos.
+    const camiones = await query(`
+      SELECT
+
+        estado,
+
+        COUNT(*) AS total
+
+      FROM unidades
+
+      GROUP BY estado
+
+      ORDER BY total DESC
+    `);
+
+    // Total GPS.
+    const totalGPS = (gps.rows || []).reduce(
+
+      (acc, item) => {
+
+        return acc + Number(item.total);
+
+      },
+
+      0
+    );
+
+    // Total camiones.
+    const totalCamiones =
+      (camiones.rows || []).reduce(
+
+        (acc, item) => {
+
+          return acc + Number(item.total);
+
+        },
+
+        0
+      );
+
     return {
 
-      // Datos gráficos GPS.
-      gps: (gps.rows || []).map(r => ({
-        tipo_evento: r.tipo_evento,
-        total: Number(r.total)
-      })),
+      // Datos GPS.
+      gps: (gps.rows || []).map(r => {
 
-      // Datos gráficos de camiones.
-      camiones: (camiones.rows || []).map(r => ({
-        estado: r.estado,
-        total: Number(r.total)
-      })),
+        const total = Number(r.total);
+
+        return {
+
+          estado: r.estado,
+
+          total,
+
+          porcentaje:
+
+            totalGPS === 0
+              ? 0
+              : Number(
+                  (
+                    (total / totalGPS)
+                    * 100
+                  ).toFixed(2)
+                )
+        };
+      }),
+
+      // Estados operativos.
+      camiones: (
+        camiones.rows || []
+      ).map(r => {
+
+        const total = Number(r.total);
+
+        return {
+
+          estado: r.estado,
+
+          total,
+
+          porcentaje:
+
+            totalCamiones === 0
+              ? 0
+              : Number(
+                  (
+                    (total / totalCamiones)
+                    * 100
+                  ).toFixed(2)
+                )
+        };
+      })
     };
 
   } catch (error) {
 
-    console.error("Error en getGraficas:", error);
+    console.error(
+      "Error en getGraficas:",
+      error
+    );
 
-    // Si falla, retorna arrays vacíos.
     return {
+
       gps: [],
-      camiones: [],
+
+      camiones: []
     };
   }
 };
 
 // TOP CAMIONES
-// Obtiene los camiones con mayor kilometraje.
+
 export const getTopCamiones = async () => {
 
   try {
 
-    // Consulta kilómetros recorridos por unidad.
     const result = await query(`
-      SELECT 
+      SELECT
+
         u.id AS unidad,
-        SUM(j.km_recorridos) AS km
+
+        u.placa,
+
+        u.modelo,
+
+        COALESCE(
+          SUM(j.km_recorridos),
+          0
+        ) AS kilometros,
+
+        COALESCE(
+
+          SUM(
+            EXTRACT(
+              EPOCH FROM (
+                j.hora_fin - j.hora_inicio
+              )
+            ) / 3600
+          ),
+
+          0
+
+        ) AS horas
+
       FROM jornadas j
-      JOIN unidades u ON j.unidad_id = u.id
-      GROUP BY u.id
-      ORDER BY km DESC
+
+      INNER JOIN unidades u
+        ON j.unidad_id = u.id
+
+      GROUP BY
+
+        u.id,
+        u.placa,
+        u.modelo
+
+      ORDER BY kilometros DESC
+
       LIMIT 6
     `);
 
-    // Retorna datos procesados.
+    return (result.rows || []).map(r => {
+
+      const kilometros =
+        Number(r.kilometros);
+
+      const horas =
+        Number(r.horas);
+
+      return {
+
+        unidad: r.unidad,
+
+        placa: r.placa,
+
+        modelo: r.modelo,
+
+        kilometros,
+
+        horas: Number(
+          horas.toFixed(2)
+        ),
+
+        eficiencia:
+
+          horas === 0
+            ? 0
+            : Number(
+                (
+                  kilometros / horas
+                ).toFixed(2)
+              )
+      };
+    });
+
+  } catch (error) {
+
+    console.error(
+      "Error en getTopCamiones:",
+      error
+    );
+
+    throw error;
+  }
+};
+
+// DETALLE CAMIONES
+
+export const getDetalleCamiones = async () => {
+
+  try {
+
+    const result = await query(`
+      SELECT
+
+        u.id AS unidad,
+
+        u.placa,
+
+        u.modelo,
+
+        u.estado,
+
+        COUNT(j.id) AS jornadas,
+
+        COALESCE(
+
+          SUM(
+            EXTRACT(
+              EPOCH FROM (
+                j.hora_fin - j.hora_inicio
+              )
+            ) / 3600
+          ),
+
+          0
+
+        ) AS horas,
+
+        COALESCE(
+          SUM(j.km_recorridos),
+          0
+        ) AS kilometros,
+
+        CASE
+
+          WHEN COALESCE(
+
+            SUM(
+              EXTRACT(
+                EPOCH FROM (
+                  j.hora_fin - j.hora_inicio
+                )
+              ) / 3600
+            ),
+
+            0
+
+          ) = 0
+
+          THEN 0
+
+          ELSE ROUND(
+
+            SUM(j.km_recorridos)
+            /
+
+            SUM(
+              EXTRACT(
+                EPOCH FROM (
+                  j.hora_fin - j.hora_inicio
+                )
+              ) / 3600
+            ),
+
+            2
+          )
+
+        END AS eficiencia
+
+      FROM unidades u
+
+      LEFT JOIN jornadas j
+        ON j.unidad_id = u.id
+
+      GROUP BY
+
+        u.id,
+        u.placa,
+        u.modelo,
+        u.estado
+
+      ORDER BY eficiencia DESC
+    `);
+
     return (result.rows || []).map(r => ({
+
       unidad: r.unidad,
-      km: Number(r.km)
+
+      placa: r.placa,
+
+      modelo: r.modelo,
+
+      estado: r.estado,
+
+      jornadas: Number(r.jornadas),
+
+      horas: Number(
+        Number(r.horas).toFixed(2)
+      ),
+
+      kilometros: Number(r.kilometros),
+
+      eficiencia: Number(r.eficiencia)
     }));
 
   } catch (error) {
 
-    console.error("Error en getTopCamiones:", error);
+    console.error(
+      "Error en getDetalleCamiones:",
+      error
+    );
 
     throw error;
   }
 };
 
 // CONTRATOS ACTIVOS
-// Obtiene contratos activos.
+
 export const getContratos = async () => {
 
   try {
 
-    // Consulta contratos vigentes.
     const result = await query(`
-      SELECT id, cliente, tarifa, fecha_fin
-      FROM contratos
-      WHERE activo = true
-      AND fecha_fin >= CURRENT_DATE
-      ORDER BY fecha_fin ASC
+      SELECT
+
+        c.id,
+
+        c.cliente,
+
+        c.tarifa,
+
+        c.fecha_fin,
+
+        COUNT(cu.unidad_id)
+        AS camiones_asignados
+
+      FROM contratos c
+
+      LEFT JOIN contrato_unidades cu
+        ON c.id = cu.contrato_id
+
+      WHERE c.estado = 'VIGENTE'
+
+      GROUP BY
+
+        c.id,
+        c.cliente,
+        c.tarifa,
+        c.fecha_fin
+
+      ORDER BY c.fecha_fin ASC
     `);
 
-    // Retorna contratos procesados.
     return (result.rows || []).map(r => ({
+
       id: r.id,
+
       cliente: r.cliente,
+
       tarifa: Number(r.tarifa),
-      fecha_fin: r.fecha_fin
+
+      fecha_fin: r.fecha_fin,
+
+      camionesAsignados: Number(
+        r.camiones_asignados
+      )
     }));
 
   } catch (error) {
 
-    console.error("Error en getContratos:", error);
+    console.error(
+      "Error en getContratos:",
+      error
+    );
 
     throw error;
   }
