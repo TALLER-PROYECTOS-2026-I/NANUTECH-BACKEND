@@ -50,6 +50,10 @@ Parameters:
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: "ID del Security Group para las Lambdas"
+  FrontendUrl:
+    Type: String
+    Description: "URL del Frontend de Amplify (Testing o Producción)"
+    Default: "http://localhost:3000"
 
 Globals:
   Function:
@@ -94,7 +98,7 @@ Resources:
       Cors:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-        AllowOrigin: "'https://testing.dcoqassfbrwx2.amplifyapp.com'"
+        AllowOrigin: !Sub "'${FrontendUrl}'"
       TracingEnabled: true
       Tags:
         Environment: !Ref StageName
