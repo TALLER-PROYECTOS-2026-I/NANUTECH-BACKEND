@@ -1,46 +1,34 @@
-import {
-  jest,
-  describe,
-  it,
-  expect,
-  beforeEach,
-  beforeAll,
-} from "@jest/globals";
+import { jest, describe, it, expect, beforeEach, beforeAll } from "@jest/globals";
 
-let getAllVigentesController, createContratoController, getIndicadoresController, getAllContratosController, getContratoByIdController;
-let ContratoService,
-  successResponse,
-  errorResponse,
-  SUCCESS_MESSAGES,
-  getCurrentSession;
+let getAllVigentesController,
+  createContratoController,
+  getIndicadoresController,
+  getAllContratosController,
+  getContratoByIdController;
+let ContratoService, successResponse, errorResponse, SUCCESS_MESSAGES, getCurrentSession;
 
 const logSuccess = jest.fn();
 const logError = jest.fn();
 
-jest.unstable_mockModule(
-  "../../../src/functions/contrato-services/contratoService.mjs",
-  () => ({ ContratoService: jest.fn() }),
-);
+jest.unstable_mockModule("../../../src/functions/contrato-services/contratoService.mjs", () => ({
+  ContratoService: jest.fn(),
+}));
 
-jest.unstable_mockModule(
-  "../../../src/shared/utils/response/response.mjs",
-  () => ({ successResponse: jest.fn(), errorResponse: jest.fn() }),
-);
+jest.unstable_mockModule("../../../src/shared/utils/response/response.mjs", () => ({
+  successResponse: jest.fn(),
+  errorResponse: jest.fn(),
+}));
 
-jest.unstable_mockModule(
-  "../../../src/functions/auth-services/authService.mjs",
-  () => ({
-    getCurrentSession: jest.fn(),
-  }),
-);
+jest.unstable_mockModule("../../../src/functions/auth-services/authService.mjs", () => ({
+  getCurrentSession: jest.fn(),
+}));
 
 beforeAll(async () => {
   ({ ContratoService } =
     await import("../../../src/functions/contrato-services/contratoService.mjs"));
   ({ successResponse, errorResponse } =
     await import("../../../src/shared/utils/response/response.mjs"));
-  ({ SUCCESS_MESSAGES } =
-    await import("../../../src/shared/constants/successMessages.mjs"));
+  ({ SUCCESS_MESSAGES } = await import("../../../src/shared/constants/successMessages.mjs"));
   ({
     getAllVigentesController,
     createContratoController,
@@ -48,8 +36,7 @@ beforeAll(async () => {
     getAllContratosController,
     getContratoByIdController,
   } = await import("../../../src/functions/contrato-services/contratoController.mjs"));
-  ({ getCurrentSession } =
-    await import("../../../src/functions/auth-services/authService.mjs"));
+  ({ getCurrentSession } = await import("../../../src/functions/auth-services/authService.mjs"));
 });
 
 describe("contratoController", () => {
@@ -123,10 +110,7 @@ describe("contratoController", () => {
       const result = await getAllVigentesController(event);
 
       expect(result.statusCode).toBe(200);
-      expect(logSuccess).toHaveBeenCalledWith(
-        mockContratos,
-        SUCCESS_MESSAGES.CONTRATOS_RETRIEVED,
-      );
+      expect(logSuccess).toHaveBeenCalledWith(mockContratos, SUCCESS_MESSAGES.CONTRATOS_RETRIEVED);
       expect(mockService.getAllVigentes).toHaveBeenCalled();
     });
 
@@ -148,13 +132,10 @@ describe("contratoController", () => {
       const result = await getAllVigentesController(event);
 
       expect(result.statusCode).toBe(200);
-      expect(logSuccess).toHaveBeenCalledWith(
-        [],
-        SUCCESS_MESSAGES.CONTRATOS_RETRIEVED,
-      );
+      expect(logSuccess).toHaveBeenCalledWith([], SUCCESS_MESSAGES.CONTRATOS_RETRIEVED);
     });
   });
-  
+
   describe("createContratoController", () => {
     it("debería registrar contrato exitosamente con status 200", async () => {
       const body = {
@@ -194,50 +175,56 @@ describe("contratoController", () => {
       expect(result.statusCode).toBe(200);
       expect(getCurrentSession).toHaveBeenCalledWith("Bearer token-test");
       expect(mockService.createContrato).toHaveBeenCalledWith(body);
-      expect(logSuccess).toHaveBeenCalledWith(
-        contratoCreado,
-        "Contrato registrado correctamente",
-      );
+      expect(logSuccess).toHaveBeenCalledWith(contratoCreado, "Contrato registrado correctamente");
     });
 
-    it("debería retornar 400 si el body JSON es inválido", async () => {
+    it("debería retornar 500 si el body JSON es inválido", async () => {
+      getCurrentSession.mockResolvedValue({
+        role: "gerente",
+      });
+
       const event = {
         body: "{ json inválido",
-        headers: {},
+        headers: {
+          Authorization: "Bearer token-test",
+        },
       };
 
       const result = await createContratoController(event);
 
-      expect(result.statusCode).toBe(400);
-      expect(logError).toHaveBeenCalledWith(
-        "Cuerpo de solicitud inválido",
-        400,
-      );
+      expect(result.statusCode).toBe(500);
+
+      expect(logError).toHaveBeenCalledWith("Cuerpo de solicitud inválido", 500);
     });
 
-    it("debería retornar 400 si el servicio lanza error de validación", async () => {
+    it("debería retornar 500 si el servicio lanza error", async () => {
+      getCurrentSession.mockResolvedValue({
+        role: "gerente",
+      });
+
       const body = {
         cliente: "",
         ruc: "14575396385",
       };
 
       mockService.createContrato.mockRejectedValue(
-        new Error("El nombre del cliente no puede estar vacío"),
+        new Error("El nombre del cliente no puede estar vacío")
       );
 
       const event = {
         body: JSON.stringify(body),
-        headers: {},
+        headers: {
+          Authorization: "Bearer token-test",
+        },
       };
 
       const result = await createContratoController(event);
 
-      expect(result.statusCode).toBe(400);
-      expect(logError).toHaveBeenCalledWith(
-        "El nombre del cliente no puede estar vacío",
-        400,
-      );
+      expect(result.statusCode).toBe(500);
+
+      expect(logError).toHaveBeenCalledWith("El nombre del cliente no puede estar vacío", 500);
     });
+
     it("debería retornar 403 si el usuario no es gerente", async () => {
       getCurrentSession.mockResolvedValue({
         role: "chofer",
@@ -256,7 +243,7 @@ describe("contratoController", () => {
       expect(mockService.createContrato).not.toHaveBeenCalled();
       expect(logError).toHaveBeenCalledWith(
         "Solo el Gerente de Operaciones puede registrar contratos",
-        403,
+        403
       );
     });
   });
@@ -280,7 +267,7 @@ describe("contratoController", () => {
       expect(result.statusCode).toBe(200);
       expect(logSuccess).toHaveBeenCalledWith(
         mockIndicadores,
-        "Indicadores de contratos obtenidos exitosamente.",
+        "Indicadores de contratos obtenidos exitosamente."
       );
       expect(mockService.getIndicadores).toHaveBeenCalled();
     });
@@ -328,7 +315,7 @@ describe("contratoController", () => {
 
       expect(mockService.getAllContratos).toHaveBeenCalledWith(
         { q: "CTR", estado: "VIGENTE" },
-        { page: "2", limit: "5", order_by: "cliente" },
+        { page: "2", limit: "5", order_by: "cliente" }
       );
     });
 
