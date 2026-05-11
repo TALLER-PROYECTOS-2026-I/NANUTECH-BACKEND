@@ -1,6 +1,6 @@
 // Importa servicio principal dashboard.
-import { getDashboardService }
-from "./dashboardService.mjs";
+import { getDashboardService } from "./dashboardService.mjs";
+import { getCurrentSession } from "../auth-services/authService.mjs";
 
 // Importa helpers response.
 import {
