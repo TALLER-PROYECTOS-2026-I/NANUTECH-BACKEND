@@ -1,13 +1,10 @@
 // Importa conexión a base de datos.
 import { query } from "../../shared/config/database.mjs";
 
-
 // KPIs PRINCIPALES
-
 export const getKPIs = async () => {
 
   try {
-
     // Total camiones.
     const totalCamiones = await query(`
       SELECT COUNT(*)
@@ -133,7 +130,6 @@ export const getKPIs = async () => {
 };
 
 // ALERTAS
-
 export const getAlertas = async () => {
 
   try {
@@ -234,7 +230,6 @@ export const getAlertas = async () => {
 };
 
 // GRÁFICAS
-
 export const getGraficas = async () => {
 
   try {
@@ -364,7 +359,6 @@ export const getGraficas = async () => {
 };
 
 // TOP CAMIONES
-
 export const getTopCamiones = async () => {
 
   try {
@@ -459,7 +453,6 @@ export const getTopCamiones = async () => {
 };
 
 // DETALLE CAMIONES
-
 export const getDetalleCamiones = async () => {
 
   try {
@@ -580,7 +573,6 @@ export const getDetalleCamiones = async () => {
 };
 
 // CONTRATOS ACTIVOS
-
 export const getContratos = async () => {
 
   try {
