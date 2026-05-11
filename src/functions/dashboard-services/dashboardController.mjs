@@ -1,56 +1,115 @@
+// ===============================
+// dashboardController.mjs
+// ===============================
+
 // Importa servicio principal dashboard.
 import { getDashboardService }
 from "./dashboardService.mjs";
 
-// Importa helpers response.
-import {
+// Importa validación de sesión.
+import { getCurrentSession }
+from "../auth-services/authService.mjs";
 
-  successResponse,
+// Importa helper error response.
+import {
 
   errorResponse
 
 } from "../../shared/utils/response/response.mjs";
 
 
+// ======================================================
 // CONTROLADOR DASHBOARD
-
+// ======================================================
 export const getDashboardController =
 async (event) => {
 
   try {
-    // Obtiene el token enviado en el header Authorization.
-    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
 
-    // Valida el token y obtiene la sesión actual del usuario.
-    const session = await getCurrentSession(authorizationHeader);
+    // ==============================================
+    // OBTIENE TOKEN JWT
+    // ==============================================
+    const authorizationHeader =
 
-    // Regla de seguridad: solo el Administrador de Operaciones puede registrar contratos.
-    if (session.role !== "admin") {
-      return errorResponse("Solo el Administrador puede acceder al Dashboard", 403, {
-        code: "FORBIDDEN_ROLE",
-      });
+      event.headers?.Authorization ||
+
+      event.headers?.authorization;
+
+    // ==============================================
+    // VALIDA EXISTENCIA TOKEN
+    // ==============================================
+    if (!authorizationHeader) {
+
+      return errorResponse(
+
+        "Token requerido",
+
+        401
+      );
     }
 
-    // OBTIENE DATA DEL DASHBOARD
+    // ==============================================
+    // OBTIENE SESIÓN ACTUAL
+    // ==============================================
+    const session =
+      await getCurrentSession(
+        authorizationHeader
+      );
 
+    // ==============================================
+    // VALIDACIÓN ROL ADMIN
+    // ==============================================
+    if (session.role !== "admin") {
+
+      return errorResponse(
+
+        "Solo el Administrador puede acceder al Dashboard",
+
+        403,
+
+        {
+          code: "FORBIDDEN_ROLE",
+        }
+      );
+    }
+
+    // ==============================================
+    // OBTIENE DATA DASHBOARD
+    // ==============================================
     const data =
       await getDashboardService();
 
+    // ==============================================
     // RESPUESTA EXITOSA
+    // ==============================================
+    // QA espera body directo SIN wrapper.
+    return {
 
-    return successResponse(
+      statusCode: 200,
 
-      data,
+      headers: {
 
-      "Dashboard obtenido correctamente",
+        "Access-Control-Allow-Origin":
+          "*",
 
-      200
-    );
+        "Access-Control-Allow-Headers":
+          "*",
+
+        "Access-Control-Allow-Methods":
+          "*",
+
+        "Content-Type":
+          "application/json"
+      },
+
+      body: JSON.stringify(data)
+    };
 
   } catch (error) {
 
+    // ==============================================
     // LOG ERROR
-
+    // ==============================================
     console.error(
 
       "Error en dashboard controller:",
@@ -58,8 +117,9 @@ async (event) => {
       error
     );
 
+    // ==============================================
     // RESPUESTA ERROR
-
+    // ==============================================
     return errorResponse(
 
       "Error interno del servidor",

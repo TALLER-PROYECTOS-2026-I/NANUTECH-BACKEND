@@ -1,34 +1,36 @@
-// Importa conexión a base de datos.
-import { query } from "../../shared/config/database.mjs";
+// ===============================
+// dashboardRepository.mjs
+// ===============================
+
+// Importa conexión PostgreSQL.
+import { query }
+from "../../shared/config/database.mjs";
 
 
+// ======================================================
 // KPIs PRINCIPALES
-
+// ======================================================
 export const getKPIs = async () => {
 
   try {
 
-    // Total camiones.
     const totalCamiones = await query(`
       SELECT COUNT(*)
       FROM unidades
     `);
 
-    // Contratos vigentes.
     const contratosActivos = await query(`
       SELECT COUNT(*)
       FROM contratos
       WHERE estado = 'VIGENTE'
     `);
 
-    // Alertas activas.
     const alertasActivas = await query(`
       SELECT COUNT(*)
       FROM gps_registros
       WHERE estado = 'EXCESO_VELOCIDAD'
     `);
 
-    // Ingresos estimados.
     const ingresos = await query(`
       SELECT COALESCE(
         SUM(tarifa),
@@ -38,52 +40,51 @@ export const getKPIs = async () => {
       WHERE estado = 'VIGENTE'
     `);
 
-    // Jornadas completadas.
-    const jornadasCompletadas = await query(`
-      SELECT COUNT(*)
-      FROM jornadas
-      WHERE estado = 'COMPLETADA'
-    `);
+    const jornadasCompletadas =
+      await query(`
+        SELECT COUNT(*)
+        FROM jornadas
+        WHERE estado = 'COMPLETADA'
+      `);
 
-    // Jornadas activas.
-    const jornadasActivas = await query(`
-      SELECT COUNT(*)
-      FROM jornadas
-      WHERE estado = 'EN_PROCESO'
-    `);
+    const jornadasActivas =
+      await query(`
+        SELECT COUNT(*)
+        FROM jornadas
+        WHERE estado = 'EN_PROCESO'
+      `);
 
-    // Horas totales.
-    const horasTotales = await query(`
-      SELECT COALESCE(
+    const horasTotales =
+      await query(`
+        SELECT COALESCE(
 
-        SUM(
-          EXTRACT(
-            EPOCH FROM (
-              hora_fin - hora_inicio
-            )
-          ) / 3600
-        ),
+          SUM(
+            EXTRACT(
+              EPOCH FROM (
+                hora_fin - hora_inicio
+              )
+            ) / 3600
+          ),
 
-        0
+          0
 
-      ) AS total
+        ) AS total
 
-      FROM jornadas
+        FROM jornadas
 
-      WHERE hora_inicio IS NOT NULL
-      AND hora_fin IS NOT NULL
-    `);
+        WHERE hora_inicio IS NOT NULL
+        AND hora_fin IS NOT NULL
+      `);
 
-    // Kilómetros totales.
-    const kilometrosTotales = await query(`
-      SELECT COALESCE(
-        SUM(km_recorridos),
-        0
-      ) AS total
-      FROM jornadas
-    `);
+    const kilometrosTotales =
+      await query(`
+        SELECT COALESCE(
+          SUM(km_recorridos),
+          0
+        ) AS total
+        FROM jornadas
+      `);
 
-    // Retorna KPIs.
     return {
 
       totalCamiones: Number(
@@ -132,39 +133,41 @@ export const getKPIs = async () => {
   }
 };
 
-// ALERTAS
 
+// ======================================================
+// ALERTAS
+// ======================================================
 export const getAlertas = async () => {
 
   try {
 
-    // Alertas GPS reales.
-    const alertasActivas = await query(`
-      SELECT
+    const alertasActivas =
+      await query(`
+        SELECT
 
-        gr.id,
+          gr.id,
 
-        u.placa,
+          u.placa,
 
-        gr.velocidad_kmh,
+          gr.velocidad_kmh,
 
-        gr.estado,
+          gr.estado,
 
-        gr.fecha_hora
+          gr.fecha_hora
 
-      FROM gps_registros gr
+        FROM gps_registros gr
 
-      INNER JOIN unidades u
-        ON gr.unidad_id = u.id
+        INNER JOIN unidades u
+          ON gr.unidad_id = u.id
 
-      WHERE gr.estado = 'EXCESO_VELOCIDAD'
+        WHERE gr.estado =
+          'EXCESO_VELOCIDAD'
 
-      ORDER BY gr.fecha_hora DESC
+        ORDER BY gr.fecha_hora DESC
 
-      LIMIT 10
-    `);
+        LIMIT 10
+      `);
 
-    // Contratos próximos a vencer.
     const contratosPorExpirar =
       await query(`
         SELECT
@@ -179,8 +182,11 @@ export const getAlertas = async () => {
 
         FROM contratos
 
-        WHERE fecha_fin BETWEEN CURRENT_DATE
-        AND CURRENT_DATE + INTERVAL '30 days'
+        WHERE fecha_fin
+        BETWEEN CURRENT_DATE
+
+        AND CURRENT_DATE
+        + INTERVAL '30 days'
 
         ORDER BY fecha_fin ASC
 
@@ -189,7 +195,6 @@ export const getAlertas = async () => {
 
     return {
 
-      // Alertas GPS.
       alertasActivas: (
         alertasActivas.rows || []
       ).map(a => ({
@@ -204,10 +209,13 @@ export const getAlertas = async () => {
 
         estado: a.estado,
 
+        tipo: "EXCESO_VELOCIDAD",
+
+        severidad: "ALTA",
+
         fecha_hora: a.fecha_hora
       })),
 
-      // Contratos próximos a vencer.
       contratosPorExpirar: (
         contratosPorExpirar.rows || []
       ).map(c => ({
@@ -233,13 +241,14 @@ export const getAlertas = async () => {
   }
 };
 
-// GRÁFICAS
 
+// ======================================================
+// GRÁFICAS
+// ======================================================
 export const getGraficas = async () => {
 
   try {
 
-    // Estado GPS.
     const gps = await query(`
       SELECT
 
@@ -254,7 +263,6 @@ export const getGraficas = async () => {
       ORDER BY total DESC
     `);
 
-    // Estados operativos.
     const camiones = await query(`
       SELECT
 
@@ -269,25 +277,26 @@ export const getGraficas = async () => {
       ORDER BY total DESC
     `);
 
-    // Total GPS.
-    const totalGPS = (gps.rows || []).reduce(
+    const totalGPS =
+      (gps.rows || []).reduce(
 
-      (acc, item) => {
+        (acc, item) => {
 
-        return acc + Number(item.total);
+          return acc +
+            Number(item.total);
 
-      },
+        },
 
-      0
-    );
+        0
+      );
 
-    // Total camiones.
     const totalCamiones =
       (camiones.rows || []).reduce(
 
         (acc, item) => {
 
-          return acc + Number(item.total);
+          return acc +
+            Number(item.total);
 
         },
 
@@ -296,14 +305,14 @@ export const getGraficas = async () => {
 
     return {
 
-      // Datos GPS.
       gps: (gps.rows || []).map(r => {
 
-        const total = Number(r.total);
+        const total =
+          Number(r.total);
 
         return {
 
-          estado: r.estado,
+          tipo_evento: r.estado,
 
           total,
 
@@ -320,12 +329,12 @@ export const getGraficas = async () => {
         };
       }),
 
-      // Estados operativos.
       camiones: (
         camiones.rows || []
       ).map(r => {
 
-        const total = Number(r.total);
+        const total =
+          Number(r.total);
 
         return {
 
@@ -363,8 +372,10 @@ export const getGraficas = async () => {
   }
 };
 
-// TOP CAMIONES
 
+// ======================================================
+// TOP CAMIONES
+// ======================================================
 export const getTopCamiones = async () => {
 
   try {
@@ -429,6 +440,8 @@ export const getTopCamiones = async () => {
 
         modelo: r.modelo,
 
+        km: kilometros,
+
         kilometros,
 
         horas: Number(
@@ -451,190 +464,6 @@ export const getTopCamiones = async () => {
 
     console.error(
       "Error en getTopCamiones:",
-      error
-    );
-
-    throw error;
-  }
-};
-
-// DETALLE CAMIONES
-
-export const getDetalleCamiones = async () => {
-
-  try {
-
-    const result = await query(`
-      SELECT
-
-        u.id AS unidad,
-
-        u.placa,
-
-        u.modelo,
-
-        u.estado,
-
-        COUNT(j.id) AS jornadas,
-
-        COALESCE(
-
-          SUM(
-            EXTRACT(
-              EPOCH FROM (
-                j.hora_fin - j.hora_inicio
-              )
-            ) / 3600
-          ),
-
-          0
-
-        ) AS horas,
-
-        COALESCE(
-          SUM(j.km_recorridos),
-          0
-        ) AS kilometros,
-
-        CASE
-
-          WHEN COALESCE(
-
-            SUM(
-              EXTRACT(
-                EPOCH FROM (
-                  j.hora_fin - j.hora_inicio
-                )
-              ) / 3600
-            ),
-
-            0
-
-          ) = 0
-
-          THEN 0
-
-          ELSE ROUND(
-
-            SUM(j.km_recorridos)
-            /
-
-            SUM(
-              EXTRACT(
-                EPOCH FROM (
-                  j.hora_fin - j.hora_inicio
-                )
-              ) / 3600
-            ),
-
-            2
-          )
-
-        END AS eficiencia
-
-      FROM unidades u
-
-      LEFT JOIN jornadas j
-        ON j.unidad_id = u.id
-
-      GROUP BY
-
-        u.id,
-        u.placa,
-        u.modelo,
-        u.estado
-
-      ORDER BY eficiencia DESC
-    `);
-
-    return (result.rows || []).map(r => ({
-
-      unidad: r.unidad,
-
-      placa: r.placa,
-
-      modelo: r.modelo,
-
-      estado: r.estado,
-
-      jornadas: Number(r.jornadas),
-
-      horas: Number(
-        Number(r.horas).toFixed(2)
-      ),
-
-      kilometros: Number(r.kilometros),
-
-      eficiencia: Number(r.eficiencia)
-    }));
-
-  } catch (error) {
-
-    console.error(
-      "Error en getDetalleCamiones:",
-      error
-    );
-
-    throw error;
-  }
-};
-
-// CONTRATOS ACTIVOS
-
-export const getContratos = async () => {
-
-  try {
-
-    const result = await query(`
-      SELECT
-
-        c.id,
-
-        c.cliente,
-
-        c.tarifa,
-
-        c.fecha_fin,
-
-        COUNT(cu.unidad_id)
-        AS camiones_asignados
-
-      FROM contratos c
-
-      LEFT JOIN contrato_unidades cu
-        ON c.id = cu.contrato_id
-
-      WHERE c.estado = 'VIGENTE'
-
-      GROUP BY
-
-        c.id,
-        c.cliente,
-        c.tarifa,
-        c.fecha_fin
-
-      ORDER BY c.fecha_fin ASC
-    `);
-
-    return (result.rows || []).map(r => ({
-
-      id: r.id,
-
-      cliente: r.cliente,
-
-      tarifa: Number(r.tarifa),
-
-      fecha_fin: r.fecha_fin,
-
-      camionesAsignados: Number(
-        r.camiones_asignados
-      )
-    }));
-
-  } catch (error) {
-
-    console.error(
-      "Error en getContratos:",
       error
     );
 
