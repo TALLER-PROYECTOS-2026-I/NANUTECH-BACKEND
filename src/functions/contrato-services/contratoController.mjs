@@ -32,7 +32,7 @@ const parseJsonBody = (body) => {
     return JSON.parse(body);
   } catch (error) {
     const parsingError = new Error("Cuerpo de solicitud inválido");
-    parsingError.statusCode = 400;
+    parsingError.statusCode = 500;
     parsingError.code = "INVALID_REQUEST_BODY";
     throw parsingError;
   }
