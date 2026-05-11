@@ -67,7 +67,7 @@ jobs:
               PrivateSubnets=${{ secrets.SUBNET_IDS }} \
               LambdaSecurityGroup=${{ secrets.LAMBDA_SG_ID }} \
               ForceUpdate=${FORCE_UPDATE} \
-              FrontendUrl=https://testing.dcoqassfbrwx2.amplifyapp.com
+              FrontendUrl=*
 
       - name: Wait for stack to be ready
         run: |

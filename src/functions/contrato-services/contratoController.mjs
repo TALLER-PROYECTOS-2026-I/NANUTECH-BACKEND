@@ -32,7 +32,7 @@ const parseJsonBody = (body) => {
     return JSON.parse(body);
   } catch (error) {
     const parsingError = new Error("Cuerpo de solicitud inválido");
-    parsingError.statusCode = 400;
+    parsingError.statusCode = 500;
     parsingError.code = "INVALID_REQUEST_BODY";
     throw parsingError;
   }
@@ -109,7 +109,7 @@ export const createContratoController = async (event) => {
     console.error("Error en createContratoController:", error);
 
     // Retorna errores controlados de validación, autorización o procesamiento.
-    return errorResponse(error.message || "Error al registrar contrato", error.statusCode || 400, {
+    return errorResponse(error.message || "Error interno del servidor", error.statusCode || 500, {
       code: error.code || "CONTRATO_CREATE_ERROR",
     });
   }
