@@ -1,10 +1,7 @@
 import { JornadaService } from "./jornadaService.mjs";
-import {
-  successResponse,
-  errorResponse,
-} from "../../shared/utils/response/response.mjs";
+import { successResponse, errorResponse } from "../../shared/utils/response/response.mjs";
 import { getCurrentSession } from "../auth-services/authService.mjs";
-
+console.log("IMPORTS OK");
 /**
  * Parsea el body del evento Lambda como JSON.
  *
@@ -34,8 +31,7 @@ function parseJsonBody(event) {
  */
 function resolveErrorResponse(error) {
   const statusCode =
-    error.statusCode ||
-    (/(requerido|inv[aá]lido|validaci[oó]n)/i.test(error.message) ? 400 : 500);
+    error.statusCode || (/(requerido|inv[aá]lido|validaci[oó]n)/i.test(error.message) ? 400 : 500);
 
   return errorResponse(error.message, statusCode, {
     code: error.code || "JORNADA_ERROR",
@@ -101,8 +97,7 @@ export const getCurrentJornadaController = async (event) => {
 
     const jornadaService = new JornadaService();
     const conductorId =
-      event.pathParameters?.conductorId ||
-      event.queryStringParameters?.conductor_id;
+      event.pathParameters?.conductorId || event.queryStringParameters?.conductor_id;
 
     const jornada = await jornadaService.getCurrentJornada(conductorId);
     return successResponse(jornada, "Jornada actual obtenida exitosamente.");
@@ -201,16 +196,13 @@ export const getAllJornadasController = async (event) => {
     await getCurrentSession(authorizationHeader);
 
     const jornadaService = new JornadaService();
-    const { q, conductor_id, fecha_desde, fecha_hasta } =
-      event.queryStringParameters || {};
+    const { q, conductor_id, fecha_desde, fecha_hasta } = event.queryStringParameters || {};
 
     // Validación de rango de fechas
     if (fecha_desde && fecha_hasta && fecha_desde > fecha_hasta) {
-      return errorResponse(
-        "La fecha de inicio no puede ser posterior a la fecha de fin.",
-        400,
-        { code: "INVALID_DATE_RANGE" }
-      );
+      return errorResponse("La fecha de inicio no puede ser posterior a la fecha de fin.", 400, {
+        code: "INVALID_DATE_RANGE",
+      });
     }
 
     const data = await jornadaService.getAllJornadas({
@@ -225,7 +217,119 @@ export const getAllJornadasController = async (event) => {
     return resolveErrorResponse(error);
   }
 };
+/**
+ * Obtiene el historial gerencial de jornadas con métricas operativas,
+ * alertas de emergencia y observaciones para auditoría.
+ * Permite aplicar filtros por conductor, estado de alerta,
+ * rango de fechas y observaciones.
+ * Requiere autenticación Bearer válida.
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @param {Object} [event.queryStringParameters] - Filtros de búsqueda
+ * @param {string} [event.queryStringParameters.conductor] - Nombre del conductor
+ * @param {string} [event.queryStringParameters.estado_alerta] - Tipo de alerta (PANICO | AUXILIO)
+ * @param {string} [event.queryStringParameters.fecha_desde] - Fecha inicio del rango
+ * @param {string} [event.queryStringParameters.fecha_hasta] - Fecha fin del rango
+ * @param {string} [event.queryStringParameters.observaciones] - Texto de observaciones
+ * @returns {Promise<Object>} Respuesta HTTP 200 con métricas y registros detallados
+ * @throws {Error} 401 si el token es inválido o está ausente
+ * @throws {Error} 400 INVALID_DATE_RANGE si fecha_desde es posterior a fecha_hasta
+ */
+export const getManagerHistoryController = async (event) => {
+  try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
 
+    await getCurrentSession(authorizationHeader);
+
+    const jornadaService = new JornadaService();
+
+    const { conductor, estado_alerta, fecha_desde, fecha_hasta, observaciones } =
+      event.queryStringParameters || {};
+
+    // Validación de rango de fechas
+    if (fecha_desde && fecha_hasta && fecha_desde > fecha_hasta) {
+      return errorResponse("La fecha de inicio no puede ser posterior a la fecha de fin.", 400, {
+        code: "INVALID_DATE_RANGE",
+      });
+    }
+
+    const data = await jornadaService.getAllJornadas({
+      conductor,
+      estado_alerta,
+      fecha_desde,
+      fecha_hasta,
+      observaciones,
+    });
+
+    return successResponse(data, "Historial gerencial obtenido exitosamente.");
+  } catch (error) {
+    console.error("Error en getManagerHistoryController:", error);
+    return resolveErrorResponse(error);
+  }
+};
+/**
+ * Obtiene las métricas operativas del historial gerencial.
+ * Retorna indicadores para las tarjetas del dashboard:
+ * Total Jornadas, Alertas Pánico, Auxilio Mecánico,
+ * Jornadas con Observaciones y KM Promedio.
+ *
+ * @param {Object} event - Evento AWS Lambda
+ * @returns {Promise<Object>} Métricas operativas
+ */
+export const getHistorialMetricsController = async (event) => {
+  try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+
+    await getCurrentSession(authorizationHeader);
+
+    const jornadaService = new JornadaService();
+
+    const filtros = event.queryStringParameters || {};
+
+    const metrics = await jornadaService.getHistorialMetrics(filtros);
+
+    return successResponse(metrics, "Métricas gerenciales obtenidas exitosamente.");
+  } catch (error) {
+    console.error("Error en getHistorialMetricsController:", error);
+    return resolveErrorResponse(error);
+  }
+};
+console.log("ANTES DE ALERT DETAIL");
+/**
+ * Obtiene el detalle completo de una alerta de emergencia
+ * asociada a una jornada específica.
+ *
+ * Incluye:
+ * - conductor
+ * - placa
+ * - ubicación
+ * - tipo alerta
+ * - descripción
+ * - resolución
+ *
+ * @param {Object} event - Evento AWS Lambda
+ * @returns {Promise<Object>} Detalle completo de alerta
+ */
+export const getAlertDetailController = async (event) => {
+  try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+
+    await getCurrentSession(authorizationHeader);
+
+    const jornadaService = new JornadaService();
+
+    const jornadaId = event.pathParameters?.jornadaId;
+
+    const detail = await jornadaService.getAlertDetail(jornadaId);
+
+    return successResponse(detail, "Detalle de alerta obtenido exitosamente.");
+  } catch (error) {
+    console.error("Error en getAlertDetailController:", error);
+    return resolveErrorResponse(error);
+  }
+};
 /**
  * Exporta las jornadas filtradas en formato CSV para descarga directa.
  * Retorna la respuesta con Content-Type text/csv y Content-Disposition para forzar descarga.
@@ -249,8 +353,7 @@ export const exportCsvController = async (event) => {
     await getCurrentSession(authorizationHeader);
 
     const jornadaService = new JornadaService();
-    const { q, conductor_id, fecha_desde, fecha_hasta } =
-      event.queryStringParameters || {};
+    const { q, conductor_id, fecha_desde, fecha_hasta } = event.queryStringParameters || {};
     const csv = await jornadaService.generateCsv({
       q,
       conductor_id,
@@ -261,9 +364,9 @@ export const exportCsvController = async (event) => {
     return {
       statusCode: 200,
       headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': 'attachment; filename="jornadas.csv"',
-        'Access-Control-Allow-Origin': '*',
+        "Content-Type": "text/csv",
+        "Content-Disposition": 'attachment; filename="jornadas.csv"',
+        "Access-Control-Allow-Origin": "*",
       },
       body: csv,
     };
@@ -272,3 +375,4 @@ export const exportCsvController = async (event) => {
     return resolveErrorResponse(error);
   }
 };
+console.log("FIN DEL ARCHIVO");
