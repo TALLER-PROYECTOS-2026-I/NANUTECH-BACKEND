@@ -28,9 +28,9 @@ function createJornadaError(message, statusCode = 400, code = "JORNADA_ERROR") {
  * @returns {string} Valor escapado listo para CSV, o cadena vacía si es null/undefined
  */
 const escapeCsv = (value) => {
-  if (value === null || value === undefined) return '';
+  if (value === null || value === undefined) return "";
   const str = String(value);
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
@@ -65,25 +65,21 @@ export class JornadaService {
   async createJornada(jornadaData) {
     const validatedData = JornadaValidator.validateCreateJornada(jornadaData);
 
-    const unidadOcupada = await this.repository.checkUnidadActiva(
-      validatedData.unidad_id,
-    );
+    const unidadOcupada = await this.repository.checkUnidadActiva(validatedData.unidad_id);
     if (unidadOcupada) {
       throw createJornadaError(
         "La unidad ya tiene una jornada activa o pendiente.",
         400,
-        "UNIDAD_CON_JORNADA_ACTIVA",
+        "UNIDAD_CON_JORNADA_ACTIVA"
       );
     }
 
-    const conductorOcupado = await this.repository.checkConductorActivo(
-      validatedData.conductor_id,
-    );
+    const conductorOcupado = await this.repository.checkConductorActivo(validatedData.conductor_id);
     if (conductorOcupado) {
       throw createJornadaError(
         "El conductor ya tiene una jornada activa o pendiente.",
         400,
-        "CONDUCTOR_CON_JORNADA_ACTIVA",
+        "CONDUCTOR_CON_JORNADA_ACTIVA"
       );
     }
 
@@ -102,9 +98,7 @@ export class JornadaService {
    */
   async getCurrentJornada(conductorId) {
     const validatedConductorId = JornadaValidator.validateConductorId(conductorId);
-    const jornada = await this.repository.findCurrentByConductorId(
-      validatedConductorId,
-    );
+    const jornada = await this.repository.findCurrentByConductorId(validatedConductorId);
 
     // El dashboard deja de mostrar jornada cuando ya no existe una pendiente o en proceso.
     return jornada ? Jornada.fromDatabase(jornada) : null;
@@ -132,18 +126,14 @@ export class JornadaService {
 
     // Solo se permite pasar de REGISTRADA/PENDIENTE a EN_PROCESO y la hora de inicio la fija el servidor.
     if (jornada.estado === "EN_PROCESO") {
-      throw createJornadaError(
-        "La jornada ya fue iniciada.",
-        400,
-        "JORNADA_ALREADY_STARTED",
-      );
+      throw createJornadaError("La jornada ya fue iniciada.", 400, "JORNADA_ALREADY_STARTED");
     }
 
     if (!ACTIVE_STATES.has(jornada.estado)) {
       throw createJornadaError(
         "La jornada no puede iniciarse desde su estado actual.",
         400,
-        "JORNADA_INVALID_STATE",
+        "JORNADA_INVALID_STATE"
       );
     }
 
@@ -151,7 +141,7 @@ export class JornadaService {
       throw createJornadaError(
         "La jornada solo puede iniciarse desde REGISTRADA o PENDIENTE.",
         400,
-        "JORNADA_INVALID_STATE",
+        "JORNADA_INVALID_STATE"
       );
     }
 
@@ -172,10 +162,7 @@ export class JornadaService {
    * @throws {Error} 400 JORNADA_NOT_IN_PROGRESS si la jornada no está EN_PROCESO
    */
   async finishTurn(payload) {
-    const {
-      jornada_id: jornadaId,
-      observaciones,
-    } = JornadaValidator.validateFinishTurn(payload);
+    const { jornada_id: jornadaId, observaciones } = JornadaValidator.validateFinishTurn(payload);
     const jornada = await this.repository.findById(jornadaId);
 
     if (!jornada) {
@@ -187,7 +174,7 @@ export class JornadaService {
       throw createJornadaError(
         "La jornada solo puede finalizarse cuando está EN_PROCESO.",
         400,
-        "JORNADA_NOT_IN_PROGRESS",
+        "JORNADA_NOT_IN_PROGRESS"
       );
     }
 
@@ -210,7 +197,42 @@ export class JornadaService {
   async getAllJornadas(filtros = {}) {
     return this.repository.findAll(filtros);
   }
+  /**
+   * Obtiene el historial gerencial de jornadas con métricas operativas,
+   * alertas registradas y observaciones para auditoría.
+   * Permite filtrar por conductor, estado de alerta,
+   * rango de fechas y observaciones.
+   *
+   * Métricas incluidas:
+   * - Total de jornadas
+   * - Total de alertas de pánico
+   * - Total de alertas de auxilio mecánico
+   * - Jornadas con observaciones
+   * - Kilometraje promedio
+   *
+   * @param {Object} [filtros={}] - Filtros de búsqueda
+   * @param {string} [filtros.conductor] - Nombre del conductor
+   * @param {string} [filtros.estado_alerta] - Tipo de alerta (PANICO | AUXILIO)
+   * @param {string} [filtros.fecha_desde] - Fecha mínima de jornada
+   * @param {string} [filtros.fecha_hasta] - Fecha máxima de jornada
+   * @param {string} [filtros.observaciones] - Texto libre de observaciones
+   * @returns {Promise<Object>} Resumen gerencial y listado detallado
+   */
+  async getManagerHistory(filtros = {}) {
+    const summary = await this.repository.getManagerSummary(filtros);
+    const details = await this.repository.getManagerHistory(filtros);
 
+    return {
+      resumen: {
+        total_jornadas: Number(summary.total_jornadas || 0),
+        alertas_panico: Number(summary.alertas_panico || 0),
+        auxilios_mecanicos: Number(summary.auxilios_mecanicos || 0),
+        jornadas_con_observaciones: Number(summary.jornadas_con_observaciones || 0),
+        km_promedio: Number(summary.km_promedio || 0),
+      },
+      registros: details,
+    };
+  }
   /**
    * Genera el contenido de un archivo CSV con todas las jornadas que coincidan
    * con los filtros aplicados. Los campos se escapan según RFC 4180.
@@ -228,22 +250,38 @@ export class JornadaService {
   async generateCsv(filtros = {}) {
     const rows = await this.repository.exportAll(filtros);
 
-    const header = 'ID Jornada,Fecha,Conductor,Placa del Camion,Contrato,Hora Inicio,Hora Fin,Duracion Total,KM Recorridos,Estado,Observaciones';
+    const header =
+      "ID Jornada,Fecha,Conductor,Placa del Camion,Contrato,Hora Inicio,Hora Fin,Duracion Total,KM Recorridos,Estado,Observaciones";
 
-    const csvRows = rows.map((row) => [
-      escapeCsv(row.id),
-      escapeCsv(row.fecha),
-      escapeCsv(row.conductor),
-      escapeCsv(row.placa),
-      escapeCsv(row.contrato),
-      escapeCsv(row.hora_inicio),
-      escapeCsv(row.hora_fin),
-      escapeCsv(row.duracion_total),
-      escapeCsv(row.km_recorridos),
-      escapeCsv(row.estado),
-      escapeCsv(row.observaciones),
-    ].join(','));
+    const csvRows = rows.map((row) =>
+      [
+        escapeCsv(row.id),
+        escapeCsv(row.fecha),
+        escapeCsv(row.conductor),
+        escapeCsv(row.placa),
+        escapeCsv(row.contrato),
+        escapeCsv(row.hora_inicio),
+        escapeCsv(row.hora_fin),
+        escapeCsv(row.duracion_total),
+        escapeCsv(row.km_recorridos),
+        escapeCsv(row.estado),
+        escapeCsv(row.observaciones),
+      ].join(",")
+    );
 
-    return [header, ...csvRows].join('\n');
+    return [header, ...csvRows].join("\n");
+  }
+  /**
+   * Obtiene métricas del historial gerencial.
+   */
+  async getHistorialMetrics(filtros = {}) {
+    return this.repository.getHistorialMetrics(filtros);
+  }
+
+  /**
+   * Obtiene detalle de alerta por jornada.
+   */
+  async getAlertDetail(jornadaId) {
+    return this.repository.getAlertDetail(jornadaId);
   }
 }
