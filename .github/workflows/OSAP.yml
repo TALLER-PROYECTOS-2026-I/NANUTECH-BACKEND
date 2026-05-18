@@ -9,6 +9,10 @@ jobs:
   zap_scan:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      issues: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,9 +30,121 @@ jobs:
         env:
           API_URL: ${{ secrets.API_URL_TESTING }}
 
+      - name: Mostrar OpenAPI generado
+        run: |
+          echo "======================================"
+          echo "OPENAPI GENERADO"
+          echo "======================================"
+
+          cat ./docs/openapi.json
+
+      - name: Mostrar URLs importadas desde OpenAPI
+        run: |
+          echo "======================================"
+          echo "URLS IMPORTADAS POR ZAP"
+          echo "======================================"
+
+          SERVER=$(jq -r '.servers[0].url' ./docs/openapi.json)
+
+          jq -r '
+            .paths
+            | to_entries[]
+            | .key as $path
+            | .value
+            | keys[]
+            | "\(ascii_upcase) '"$SERVER"'"\($path)"
+          ' ./docs/openapi.json
+
       - name: Run OWASP ZAP API Scan
         uses: zaproxy/action-api-scan@v0.7.0
         with:
           target: "./docs/openapi.json"
           format: openapi
           fail_action: true
+          artifact_name: zap_scan
+
+      - name: Mostrar URLs realmente escaneadas por ZAP
+        if: always()
+        run: |
+          echo "======================================"
+          echo "URLS ESCANEADAS POR ZAP"
+          echo "======================================"
+
+          if [ -f report_json.json ]; then
+            jq -r '
+              .site[].alerts[].instances[].uri
+            ' report_json.json | sort | uniq
+          else
+            echo "No se encontro report_json.json"
+          fi
+
+      - name: Mostrar pruebas realizadas y alertas por URL
+        if: always()
+        run: |
+          echo "======================================"
+          echo "DETALLE COMPLETO DEL ESCANEO"
+          echo "======================================"
+
+          if [ -f report_json.json ]; then
+
+            jq -r '
+              .site[].alerts[] as $alert |
+
+              $alert.instances[] |
+
+              "----------------------------------------",
+              "URL: \(.uri)",
+              "METODO: \(.method)",
+              "TIPO DE PRUEBA: \($alert.alert)",
+              "PLUGIN ID: \($alert.pluginid)",
+              "RIESGO: \($alert.riskdesc)",
+              "CONFIANZA: \($alert.confidence)",
+              "DESCRIPCION:",
+              ($alert.desc // "Sin descripcion"),
+              "SOLUCION:",
+              ($alert.solution // "Sin solucion"),
+              "EVIDENCIA:",
+              (.evidence // "Sin evidencia"),
+              "PARAMETRO:",
+              (.param // "Ninguno"),
+              "ATAQUE UTILIZADO:",
+              (.attack // "Ninguno"),
+              "CWE:",
+              ($alert.cweid | tostring),
+              "WASC:",
+              ($alert.wascid | tostring),
+              "----------------------------------------",
+              ""
+            ' report_json.json
+
+          else
+            echo "No se encontro report_json.json"
+          fi
+
+      - name: Resumen de alertas agrupadas
+        if: always()
+        run: |
+          echo "======================================"
+          echo "RESUMEN DE ALERTAS"
+          echo "======================================"
+
+          if [ -f report_json.json ]; then
+
+            jq -r '
+              .site[].alerts[] |
+              "\(.alert) | Riesgo: \(.riskdesc) | Ocurrencias: \(.instances | length)"
+            ' report_json.json
+
+          else
+            echo "No se encontro report_json.json"
+          fi
+
+      - name: Upload ZAP Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-reports
+          path: |
+            report_json.json
+            report_html.html
+            report_md.md
