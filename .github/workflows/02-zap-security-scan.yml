@@ -1,20 +1,20 @@
-name: 2. Escanear con OWASP ZAP
+name: 2. Escanear
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Entorno a escanear'
+        description: "Entorno a escanear"
         required: true
-        default: 'testing'
+        default: "testing"
         type: choice
         options:
           - testing
           - dev
       run_id:
-        description: 'ID de la ejecución que generó el artifact'
+        description: "ID de la ejecución que generó el artifact"
         required: true
-        default: ''
+        default: ""
         type: string
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
   scan:
     name: Escanear API
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Descargar endpoints descubiertos
         uses: actions/download-artifact@v4
@@ -102,15 +102,15 @@ jobs:
               </context>
           </configuration>
           CONTEXT
-          
+
           sed -i "s|API_URL_PLACEHOLDER|${{ steps.get-api.outputs.api_url }}|g" nanutech.context
 
       - name: Ejecutar ZAP API Scan (TODOS los endpoints)
         uses: zaproxy/action-api-scan@v0.9.0
         with:
           target: ${{ steps.get-api.outputs.api_url }}
-          api_spec: endpoints-discovered.json   # ← CLAVE: Usar tu archivo
-          context: nanutech.context             # ← CLAVE: Para autenticación
+          api_spec: endpoints-discovered.json # ← CLAVE: Usar tu archivo
+          context: nanutech.context # ← CLAVE: Para autenticación
           cmd_options: -a -r report.html -J report.json
           # ❌ SIN token - así no puede crear Issues
 
@@ -130,7 +130,7 @@ jobs:
           echo "=========================================="
           echo "📊 ENDPOINTS EVALUADOS:"
           echo "=========================================="
-          
+
           if [ -f report.json ]; then
             # Mostrar qué endpoints se evaluaron
             echo "🔍 Endpoints evaluados por ZAP:"
