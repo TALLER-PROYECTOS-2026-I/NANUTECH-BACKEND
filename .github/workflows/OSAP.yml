@@ -46,14 +46,22 @@ jobs:
 
           SERVER=$(jq -r '.servers[0].url' ./docs/openapi.json)
 
-          jq -r '
+          jq -r --arg SERVER "$SERVER" '
             .paths
             | to_entries[]
             | .key as $path
             | .value
             | keys[]
-            | "\(ascii_upcase) '"$SERVER"'"\($path)"
+            | "\(. | ascii_upcase) \($SERVER)\($path)"
           ' ./docs/openapi.json
+
+      - name: Mostrar detalle de paths OpenAPI
+        run: |
+          echo "======================================"
+          echo "DETALLE PATHS OPENAPI"
+          echo "======================================"
+
+          jq '.paths' ./docs/openapi.json
 
       - name: Run OWASP ZAP API Scan
         uses: zaproxy/action-api-scan@v0.7.0
