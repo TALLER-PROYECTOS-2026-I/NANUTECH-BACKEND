@@ -6,7 +6,7 @@ on:
     types: [ opened, synchronize, reopened ]
   push:
     branches: [ develop, main ]  # ✅ Agregado: se ejecuta en push directo
-  workflow_dispatch:              # ✅ Opcional: permite ejecución manual
+  workflow_dispatch:              # ✅ Opcional: permite ejecución manual DDWD
 
 jobs:
   checkov-scan:
