@@ -40,9 +40,9 @@ jobs:
       EMAIL_ADMIN:   "admin@nanutech.com"
       PASS_ADMIN:    "Admin123!"
       EMAIL_CHOFER:  "chofer@nanutech.com"
-      PASS_CHOFER:   "Chofer123!"
+      PASS_CHOFER:   "Admin123!"
       EMAIL_GERENTE: "gerente@nanutech.com"
-      PASS_GERENTE:  "Gerente123!"
+      PASS_GERENTE:  "Admin123!"
 
     steps:
       # ──────────────────────────────────────────────────────────────────────
