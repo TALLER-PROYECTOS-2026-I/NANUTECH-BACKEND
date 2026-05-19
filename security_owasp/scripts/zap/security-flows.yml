@@ -1,0 +1,242 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# security-flows.yml
+#
+# INSTRUCCIONES PARA EL DESARROLLADOR:
+# Define aquí los flujos de negocio que OWASP ZAP debe seguir.
+# El pipeline convierte este archivo en la config completa de ZAP automáticamente.
+#
+# Cada "flow" es una secuencia de pasos con orden garantizado.
+# ZAP ejecuta los steps en orden y pasa variables entre ellos.
+# ─────────────────────────────────────────────────────────────────────────────
+
+target:
+  # URL base del ambiente levantado durante el pipeline (docker-compose o SAM local)
+  url: http://localhost:3000
+  # Tiempo máximo de espera para que el servicio esté listo (segundos)
+  ready_timeout: 30
+
+# ─── Configuración de autenticación ──────────────────────────────────────────
+auth:
+  type: cognito                         # cognito | jwt_endpoint | api_key | none
+  
+  cognito:
+    region: us-east-1
+    user_pool_id: ${COGNITO_USER_POOL_ID}
+    client_id: ${COGNITO_CLIENT_ID}
+    username: ${TEST_USERNAME}
+    password: ${TEST_PASSWORD}
+    # Variable donde se guarda el token para usarla en los steps
+    token_variable: ACCESS_TOKEN
+    # Header que ZAP inyecta automáticamente en todos los requests
+    inject_header: "Authorization: Bearer"
+
+  # Alternativa: si auth es un endpoint propio (no Cognito)
+  # type: jwt_endpoint
+  # endpoint:
+  #   url: POST /auth/login
+  #   body_file: fixtures/auth-login.json
+  #   extract:
+  #     token: $.data.token          # JSONPath del token en la respuesta
+  #     token_variable: ACCESS_TOKEN
+
+# ─── Flujos de prueba ─────────────────────────────────────────────────────────
+flows:
+
+  # ── Flujo 1: Gestión completa de camiones ────────────────────────────────
+  - name: camion-crud
+    description: |
+      Flujo principal de negocio: crear un camión, consultarlo,
+      ver el panel de monitoreo y exportar CSV.
+      Cubre OWASP A01 (acceso), A03 (inyección), A05 (config).
+    
+    # Controles de escaneo para este flujo
+    scan:
+      active_scan: true               # ¿Ejecutar active scan sobre este flujo?
+      ajax_spider: false              # No aplica para APIs REST
+      alert_threshold: MEDIUM         # Reportar desde este nivel: LOW | MEDIUM | HIGH
+    
+    steps:
+      # Paso 1: Crear un camión nuevo
+      - name: crear-camion
+        method: POST
+        path: /camiones
+        description: "Registrar nueva unidad de transporte"
+        auth: required                # Usa el token de la sección auth
+        body_file: fixtures/camion-create.json
+        # Extraer valores de la respuesta para pasos siguientes
+        extract:
+          - variable: CAMION_ID
+            jsonpath: $.data.id
+          - variable: CAMION_PLACA
+            jsonpath: $.data.placa
+        # Validaciones de respuesta esperada
+        expect:
+          status: 201
+          body_contains: ["placa", "marca", "modelo"]
+        # Tags OWASP que este endpoint debe cubrir
+        owasp_tags: [A01, A03, A05]
+
+      # Paso 2: Consultar el camión recién creado
+      - name: obtener-camion-por-id
+        method: GET
+        path: /camiones/${CAMION_ID}   # Variable extraída del paso anterior
+        description: "Obtener detalle del camión creado"
+        auth: required
+        expect:
+          status: 200
+          body_contains: ["id", "placa", "estado"]
+        owasp_tags: [A01, A05]
+
+      # Paso 3: Intentar acceso sin autenticación (prueba negativa)
+      - name: acceso-sin-auth
+        method: GET
+        path: /camiones/${CAMION_ID}
+        description: "Verificar que el endpoint rechaza requests sin token"
+        auth: none                    # Forzar request sin autenticación
+        expect:
+          status: 401                 # Se espera rechazo
+        owasp_tags: [A01, A07]
+
+      # Paso 4: Consultar el panel de monitoreo
+      - name: panel-monitoreo
+        method: GET
+        path: /camiones/panel
+        description: "Panel consolidado de métricas operativas"
+        auth: required
+        query_params:
+          estado: DISPONIBLE
+          placa: ${CAMION_PLACA}
+        expect:
+          status: 200
+          body_contains: ["resumen", "camiones", "grafica_movimiento"]
+        owasp_tags: [A01, A05]
+
+      # Paso 5: Exportar CSV
+      - name: exportar-csv
+        method: GET
+        path: /camiones/exportar/csv
+        description: "Exportación de datos en formato CSV"
+        auth: required
+        expect:
+          status: 200
+          headers:
+            Content-Type: "text/csv"
+        owasp_tags: [A01, A05]
+
+  # ── Flujo 2: Listado y filtros ───────────────────────────────────────────
+  - name: camion-listado
+    description: |
+      Pruebas de inyección en parámetros de búsqueda y filtros.
+      Foco en OWASP A03 (SQL Injection via query params).
+    
+    scan:
+      active_scan: true
+      alert_threshold: LOW            # Más agresivo: reportar todo
+
+    steps:
+      - name: listar-todos
+        method: GET
+        path: /camiones
+        description: "Listado completo sin filtros"
+        auth: required
+        expect:
+          status: 200
+        owasp_tags: [A01, A03]
+
+      - name: filtrar-por-placa
+        method: GET
+        path: /camiones
+        description: "Filtro por placa - vector de inyección"
+        auth: required
+        query_params:
+          placa: "ABC123"
+        # ZAP active scan intentará inyecciones SQL/XSS sobre este param
+        fuzz_params: [placa, estado]
+        owasp_tags: [A03]
+
+      - name: filtrar-por-estado
+        method: GET
+        path: /camiones
+        description: "Filtro por estado operativo"
+        auth: required
+        query_params:
+          estado: DISPONIBLE
+        fuzz_params: [estado]
+        owasp_tags: [A03]
+
+  # ── Flujo 3: Pruebas de validación de input ──────────────────────────────
+  - name: camion-validacion-input
+    description: |
+      Intentar crear camiones con datos inválidos o maliciosos.
+      Verifica manejo correcto de errores y sanitización.
+      Cubre OWASP A03 (inyección) y A04 (diseño inseguro).
+    
+    scan:
+      active_scan: false              # Aquí usamos fuzzing manual con fixtures
+      alert_threshold: MEDIUM
+
+    steps:
+      - name: crear-placa-duplicada
+        method: POST
+        path: /camiones
+        description: "Intentar crear camión con placa duplicada"
+        auth: required
+        body_file: fixtures/camion-create.json  # Misma placa del flujo anterior
+        expect:
+          status: 400
+          body_contains: ["duplicad", "placa"]
+        owasp_tags: [A04]
+
+      - name: crear-vin-duplicado
+        method: POST
+        path: /camiones
+        description: "Intentar crear camión con VIN duplicado"
+        auth: required
+        body_file: fixtures/camion-vin-duplicado.json
+        expect:
+          status: 400
+        owasp_tags: [A04]
+
+      - name: crear-sin-campos-requeridos
+        method: POST
+        path: /camiones
+        description: "Body vacío - validación de campos obligatorios"
+        auth: required
+        body: "{}"
+        expect:
+          status: 400
+        owasp_tags: [A04]
+
+      - name: inyeccion-sql-en-placa
+        method: POST
+        path: /camiones
+        description: "Placa con payload SQL injection"
+        auth: required
+        body_file: fixtures/camion-sql-injection.json
+        expect:
+          status: 400           # Debe rechazar, no explotar con 500
+          not_contains: ["syntax error", "SQL", "postgres"]
+        owasp_tags: [A03]
+
+# ─── Exclusiones (rutas que ZAP NO debe tocar) ───────────────────────────────
+exclude:
+  paths:
+    - /health
+    - /metrics
+    - /docs
+    - /swagger
+  methods:
+    - DELETE              # No ejecutar DELETEs en ambiente de test
+    - PATCH
+
+# ─── Configuración de alertas ─────────────────────────────────────────────────
+alerts:
+  # Si hay alertas de este nivel o superior, el pipeline falla el check
+  fail_on: HIGH
+  # Si hay alertas de este nivel, el pipeline avisa pero no falla
+  warn_on: MEDIUM
+  # Falsos positivos conocidos que ignorar
+  ignore:
+    - rule_id: 10038      # Content Security Policy (no aplica a APIs REST)
+    - rule_id: 10055      # CSP Scanner
+    - rule_id: 90003      # Sub Resource Integrity
