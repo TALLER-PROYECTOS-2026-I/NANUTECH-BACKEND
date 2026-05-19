@@ -22,7 +22,7 @@ jobs:
       - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Checkov - Escanear IaC (múltiples formatos)
+      - name: Checkov - Escanear IaC
         uses: bridgecrewio/checkov-action@master
         with:
           directory: .
@@ -32,7 +32,7 @@ jobs:
           output_file_path: checkov-results
           skip_check: CKV_AWS_45,CKV_AWS_272
 
-      - name: Generar reporte detallado en JSON y texto plano
+      - name: Generar reporte detallado
         run: |
           echo "📁 Archivos generados por Checkov:"
           ls -la checkov-results* 2>/dev/null || echo "No se encontraron archivos checkov-results*"
@@ -47,17 +47,34 @@ jobs:
             SARIF_FILE="checkov_output.sarif"
           fi
           
-          # Si no existe SARIF, creamos uno vacío
+          # Si no existe SARIF, creamos uno vacío con estructura válida
           if [ -z "$SARIF_FILE" ] || [ ! -f "$SARIF_FILE" ]; then
-            echo '{"version":"2.1.0","runs":[{"results":[]}]}' > checkov-output.sarif
+            echo '{
+              "version": "2.1.0",
+              "runs": [{
+                "tool": {
+                  "driver": {
+                    "name": "checkov",
+                    "version": "3.2.527",
+                    "informationUri": "https://www.checkov.io/",
+                    "rules": []
+                  }
+                },
+                "results": []
+              }]
+            }' > checkov-output.sarif
+            echo "✅ Creado archivo SARIF vacío con estructura válida"
           else
             cp "$SARIF_FILE" checkov-output.sarif
+            echo "✅ Copiado SARIF existente: $SARIF_FILE"
           fi
           
           # ============================================
-          # GENERAR REPORTE DETALLADO EN TEXTO PLANO
+          # GENERAR REPORTE DETALLADO COMPLETO
           # ============================================
-          cat > checkov-report.txt << 'EOF'
+          
+          # Crear cabecera del reporte
+          cat > checkov-report.txt << EOF
           ============================================================
           🔒 CHECKOV - INFRAESTRUCTURE AS CODE SECURITY REPORT
           ============================================================
@@ -68,19 +85,18 @@ jobs:
           COMMIT: ${{ github.sha }}
           
           ============================================================
-          📊 RESUMEN DE RESULTADOS
-          ============================================================
+          
           EOF
           
-          # Parsear SARIF y generar reporte detallado
-          node -e '
-          const fs = require("fs");
+          # Generar reporte con Node.js
+          node << 'NODESCRIPT' >> checkov-report.txt
+          const fs = require('fs');
           
           let sarif;
           try {
             sarif = JSON.parse(fs.readFileSync("checkov-output.sarif", "utf8"));
           } catch(e) {
-            sarif = { runs: [{ results: [] }] };
+            sarif = { runs: [{ tool: { driver: { name: "checkov" } }, results: [] }] };
           }
           
           const runs = sarif.runs || [];
@@ -89,7 +105,7 @@ jobs:
             results = results.concat(run.results || []);
           }
           
-          // Diccionario de descripciones amigables
+          // Diccionario de descripciones y soluciones
           const descriptions = {
             "CKV_AWS_76": "API Gateway sin Access Logging habilitado",
             "CKV_AWS_120": "API Gateway sin caching habilitado",
@@ -121,7 +137,8 @@ jobs:
               "CKV_AWS_115": "Agregar ReservedConcurrentExecutions: <numero> en cada función",
               "CKV_AWS_116": "Agregar DeadLetterQueue con TargetArn a SQS",
               "CKV_AWS_76": "Agregar AccessLogSetting en ApiGateway",
-              "CKV_AWS_120": "Agregar MethodSettings con CachingEnabled: true"
+              "CKV_AWS_120": "Agregar MethodSettings con CachingEnabled: true",
+              "CKV_AWS_117": "Configurar VpcConfig con SecurityGroupIds y SubnetIds"
             };
             return recs[ruleId] || "Revisar documentación de Checkov para este check";
           };
@@ -155,7 +172,7 @@ jobs:
           `);
           
           if (total === 0) {
-            console.log("✨ ¡No se encontraron issues de seguridad! Todo está correcto. ✨");
+            console.log("\n✨ ¡No se encontraron issues de seguridad! Todo está correcto. ✨\n");
           } else {
             for (let i = 0; i < results.length; i++) {
               const r = results[i];
@@ -165,13 +182,20 @@ jobs:
               const severity = getSeverity(r.level);
               const recommendation = getRecommendation(r.ruleId);
               
+              // Obtener snippet de código si existe
+              let snippet = "";
+              if (r.locations?.[0]?.physicalLocation?.region?.snippet?.text) {
+                snippet = r.locations[0].physicalLocation.region.snippet.text;
+              }
+              
               console.log(`
           [${i+1}] ${severity}
           ┌─────────────────────────────────────────────────────────────┐
-          │ CHECK ID:    ${r.ruleId}
-          │ DESCRIPCIÓN: ${description}
-          │ UBICACIÓN:   ${location}${line !== "N/A" ? ` (línea ${line})` : ""}
-          │ SOLUCIÓN:    ${recommendation}
+          │ CHECK ID:        ${r.ruleId}
+          │ DESCRIPCIÓN:     ${description}
+          │ UBICACIÓN:       ${location} (línea ${line})
+          │ SOLUCIÓN:        ${recommendation}
+          ${snippet ? `│ CÓDIGO:          ${snippet.substring(0, 100)}${snippet.length > 100 ? '...' : ''}\n│` : ''}
           └─────────────────────────────────────────────────────────────┘
               `);
             }
@@ -183,122 +207,71 @@ jobs:
           ============================================================
           • Documentación Checkov: https://www.checkov.io/
           • Guía AWS SAM Security: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-security.html
-          • Ver resultados completos: Security → Code scanning alerts (GitHub)
+          • Guía de remediación: https://www.checkov.io/4.Examples/AWS-examples.html
           
           ============================================================
-          FIN DEL REPORTE
+          🏁 FIN DEL REPORTE
           ============================================================
           `);
-          ' >> checkov-report.txt 2>/dev/null || echo "Error al generar reporte" >> checkov-report.txt
+          NODESCRIPT
           
-          # También guardamos una copia del JSON original
-          cp checkov-output.sarif checkov-results-detailed.json 2>/dev/null || echo '{"results":[]}' > checkov-results-detailed.json
+          # Crear archivo JSON con el detalle completo de resultados
+          if [ -f "checkov-output.sarif" ]; then
+            cp checkov-output.sarif checkov-results-detailed.json
+            echo "✅ Copiado SARIF a JSON"
+          else
+            echo '{"results":[], "summary": {"critical": 0, "high": 0, "total": 0}}' > checkov-results-detailed.json
+          fi
+          
+          # Crear un resumen ejecutivo en markdown
+          cat > REPORT-SUMMARY.md << 'EOFMD'
+          # 📊 Checkov Security Scan Report
+          
+          ## 📈 Resumen Ejecutivo
+          
+          EOFMD
+          
+          # Agregar estadísticas al resumen
+          echo '```' >> REPORT-SUMMARY.md
+          grep -A 15 "ESTADÍSTICAS GENERALES" checkov-report.txt >> REPORT-SUMMARY.md 2>/dev/null || echo "No stats found" >> REPORT-SUMMARY.md
+          echo '```' >> REPORT-SUMMARY.md
+          
+          echo "" >> REPORT-SUMMARY.md
+          echo "## 📋 Issues Encontrados" >> REPORT-SUMMARY.md
+          echo "" >> REPORT-SUMMARY.md
+          echo '```' >> REPORT-SUMMARY.md
+          grep -A 500 "LISTADO DETALLADO DE ISSUES" checkov-report.txt | head -200 >> REPORT-SUMMARY.md 2>/dev/null || echo "No issues found" >> REPORT-SUMMARY.md
+          echo '```' >> REPORT-SUMMARY.md
           
           echo "✅ Reportes generados:"
-          echo "   - checkov-report.txt (reporte legible)"
-          echo "   - checkov-results-detailed.json (datos crudos)"
-          echo "   - checkov-output.sarif (formato SARIF)"
+          echo "   📄 checkov-report.txt - Reporte completo detallado"
+          echo "   📄 checkov-results-detailed.json - Resultados en formato JSON"
+          echo "   📄 checkov-output.sarif - Formato SARIF estándar"
+          echo "   📄 REPORT-SUMMARY.md - Resumen ejecutivo"
+          
+          # Mostrar resumen en consola
+          echo ""
+          echo "========== RESUMEN DEL ESCANEO =========="
+          grep -A 10 "ESTADÍSTICAS GENERALES" checkov-report.txt | head -15
+          echo "=========================================="
 
       - name: Subir resultados a GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: checkov-output.sarif
           category: checkov
 
-      - name: 📦 Subir artifact descargable con reporte completo
+      - name: 📦 Subir artifact con reporte completo
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: checkov-security-report
+          name: checkov-security-report-${{ github.run_number }}
           path: |
             checkov-report.txt
             checkov-results-detailed.json
             checkov-output.sarif
+            REPORT-SUMMARY.md
           retention-days: 30
-          compression-level: 6
-
-      - name: Publicar resumen en el PR
-        uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            
-            // Leer el reporte generado para extraer datos
-            let reportContent = "";
-            try {
-              reportContent = fs.readFileSync('checkov-report.txt', 'utf8');
-            } catch(e) {
-              reportContent = "No se pudo generar el reporte";
-            }
-            
-            // Parsear SARIF para estadísticas
-            let sarif;
-            try {
-              sarif = JSON.parse(fs.readFileSync('checkov-output.sarif', 'utf8'));
-            } catch(e) {
-              sarif = { runs: [{ results: [] }] };
-            }
-            
-            const results = (sarif.runs || []).flatMap(r => r.results || []);
-            let critical = 0, high = 0;
-            for (const r of results) {
-              if (r.level === 'error') critical++;
-              else if (r.level === 'warning') high++;
-            }
-            
-            const total = results.length;
-            const icon = critical > 0 ? '🔴' : high > 0 ? '🟡' : '🟢';
-            const status = critical > 0 
-              ? '❌ **NO APROBADO** - Se encontraron issues críticos que deben corregirse'
-              : high > 0 
-              ? '⚠️ **APROBADO CONDICIONAL** - Revisar advertencias antes de mergear'
-              : '✅ **APROBADO** - Sin issues de seguridad detectados';
-            
-            // Extraer top issues para el resumen
-            const topIssues = results.filter(r => r.level === 'error' || r.level === 'warning').slice(0, 5);
-            const issueRows = topIssues.map(i => {
-              const resource = i.locations?.[0]?.physicalLocation?.artifactLocation?.uri || 'template.yaml';
-              return `| ${i.level === 'error' ? '🔴' : '🟡'} | \`${i.ruleId}\` | ${resource} |`;
-            }).join('\n');
-            
-            const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
-            const body = [
-              `## ${icon} Checkov - Reporte de Seguridad IaC`,
-              ``,
-              `| Métrica | Valor |`,
-              `|---------|-------|`,
-              `| **Estado** | ${status} |`,
-              `| 🔴 Critical | ${critical} |`,
-              `| 🟡 High | ${high} |`,
-              `| **Total issues** | ${total} |`,
-              `| **Archivo escaneado** | \`template.yaml\` |`,
-              ``,
-              `### 📋 Issues principales`,
-              total > 0 ? (
-                `| Severidad | Check ID | Recurso |`,
-                `|-----------|----------|---------|`,
-                issueRows || '| - | No se encontraron issues | - |'
-              ) : '✅ **¡Todos los checks pasaron correctamente!**',
-              ``,
-              `### 📎 Descargar reporte completo`,
-              `[📥 Descargar artifact](${artifactUrl}) - Buscar \`checkov-security-report\``,
-              ``,
-              `> El artifact incluye:`,
-              `> - \`checkov-report.txt\` - Reporte detallado legible`,
-              `> - \`checkov-results-detailed.json\` - Resultados en JSON`,
-              `> - \`checkov-output.sarif\` - Formato SARIF para herramientas`,
-              ``,
-              `---`,
-              `_🔍 Revisa **Security → Code scanning alerts** para más detalles_`
-            ].join('\n');
-            
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+          compression-level: 9
+          if-no-files-found: warn
