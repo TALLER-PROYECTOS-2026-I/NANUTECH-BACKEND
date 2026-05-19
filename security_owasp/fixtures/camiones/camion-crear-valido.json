@@ -1,0 +1,16 @@
+{
+  "placa": "ZAP-TEST-01",
+  "marca": "Volvo",
+  "modelo": "FH16 750",
+  "anio": 2023,
+  "capacidad_ton": 25.5,
+  "vin": "VINZAPTEST000001",
+  "color": "Blanco",
+  "combustible": "DIESEL",
+  "gps": true,
+  "kilometraje_actual": 0,
+  "fecha_registro": "2024-01-15",
+  "ultima_fecha_mantenimiento": "2024-06-01",
+  "proxima_fecha_mantenimiento": "2024-12-01",
+  "notas": "Unidad de prueba ZAP - no usar en producción"
+}

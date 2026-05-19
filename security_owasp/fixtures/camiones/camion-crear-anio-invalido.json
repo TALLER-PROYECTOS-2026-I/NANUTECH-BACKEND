@@ -1,0 +1,12 @@
+{
+  "placa": "ZAP-ANIO-INV-01",
+  "marca": "Volvo",
+  "modelo": "FH12",
+  "anio": 1985,
+  "capacidad_ton": 15,
+  "vin": "VINZAPANIOINV001",
+  "color": "Verde",
+  "combustible": "DIESEL",
+  "gps": false,
+  "kilometraje_actual": 0
+}

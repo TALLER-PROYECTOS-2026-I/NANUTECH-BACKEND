@@ -1,0 +1,12 @@
+{
+  "placa": "ZAP-CAP-CERO-01",
+  "marca": "Scania",
+  "modelo": "R450",
+  "anio": 2022,
+  "capacidad_ton": 0,
+  "vin": "VINZAPCAPCERO001",
+  "color": "Azul",
+  "combustible": "DIESEL",
+  "gps": true,
+  "kilometraje_actual": 0
+}
