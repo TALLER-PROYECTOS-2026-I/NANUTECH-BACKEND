@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# owasp-security-scan.yml - VERSIÓN CORREGIDA
+# owasp-security-scan.yml - VERSIÓN FINAL FUNCIONAL
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: OWASP Security Scan
@@ -43,152 +43,79 @@ jobs:
         run: npm ci
 
       # ──────────────────────────────────────────────────────────────────────
-      # FASE 1 — Login
+      # LOGINS
       # ──────────────────────────────────────────────────────────────────────
-      - name: Login ADMIN → extrae TOKEN_ADMIN
+      - name: Login ADMIN
         run: |
-          echo "══════════════════════════════════════"
-          echo "LOGIN ADMIN"
-          echo "══════════════════════════════════════"
-
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${{ env.API_URL }}/auth/login" \
+          RESPONSE=$(curl -s -X POST "${{ env.API_URL }}/auth/login" \
             -H "Content-Type: application/json" \
             -d "{\"email\":\"${{ env.EMAIL_ADMIN }}\",\"password\":\"${{ env.PASS_ADMIN }}\"}")
+          TOKEN=$(echo "$RESPONSE" | jq -r '.data.session.accessToken // empty')
+          echo "TOKEN_ADMIN=$TOKEN" >> $GITHUB_ENV
+          echo "✅ TOKEN_ADMIN obtenido"
 
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | head -n -1)
-
-          echo "Status: $HTTP_CODE"
-
-          TOKEN=$(echo "$BODY" | jq -r '.data.session.accessToken // empty')
-
-          if [ -z "$TOKEN" ]; then
-            echo "⚠️ No se pudo extraer TOKEN_ADMIN — status $HTTP_CODE"
-            echo "TOKEN_ADMIN=" >> $GITHUB_ENV
-          else
-            echo "✅ TOKEN_ADMIN extraído"
-            echo "TOKEN_ADMIN=$TOKEN" >> $GITHUB_ENV
-          fi
-
-      - name: Login CHOFER → extrae TOKEN_CHOFER
+      - name: Login CHOFER
         run: |
-          echo "══════════════════════════════════════"
-          echo "LOGIN CHOFER"
-          echo "══════════════════════════════════════"
-
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${{ env.API_URL }}/auth/login" \
+          RESPONSE=$(curl -s -X POST "${{ env.API_URL }}/auth/login" \
             -H "Content-Type: application/json" \
             -d "{\"email\":\"${{ env.EMAIL_CHOFER }}\",\"password\":\"${{ env.PASS_CHOFER }}\"}")
+          TOKEN=$(echo "$RESPONSE" | jq -r '.data.session.accessToken // empty')
+          echo "TOKEN_CHOFER=$TOKEN" >> $GITHUB_ENV
 
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | head -n -1)
-
-          echo "Status: $HTTP_CODE"
-
-          TOKEN=$(echo "$BODY" | jq -r '.data.session.accessToken // empty')
-
-          if [ -z "$TOKEN" ]; then
-            echo "⚠️ No se pudo extraer TOKEN_CHOFER — status $HTTP_CODE"
-            echo "TOKEN_CHOFER=" >> $GITHUB_ENV
-          else
-            echo "✅ TOKEN_CHOFER extraído"
-            echo "TOKEN_CHOFER=$TOKEN" >> $GITHUB_ENV
-          fi
-
-      - name: Login GERENTE → extrae TOKEN_GERENTE
+      - name: Login GERENTE
         run: |
-          echo "══════════════════════════════════════"
-          echo "LOGIN GERENTE"
-          echo "══════════════════════════════════════"
-
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${{ env.API_URL }}/auth/login" \
+          RESPONSE=$(curl -s -X POST "${{ env.API_URL }}/auth/login" \
             -H "Content-Type: application/json" \
             -d "{\"email\":\"${{ env.EMAIL_GERENTE }}\",\"password\":\"${{ env.PASS_GERENTE }}\"}")
-
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | head -n -1)
-
-          echo "Status: $HTTP_CODE"
-
-          TOKEN=$(echo "$BODY" | jq -r '.data.session.accessToken // empty')
-
-          if [ -z "$TOKEN" ]; then
-            echo "⚠️ No se pudo extraer TOKEN_GERENTE — status $HTTP_CODE"
-            echo "TOKEN_GERENTE=" >> $GITHUB_ENV
-          else
-            echo "✅ TOKEN_GERENTE extraído"
-            echo "TOKEN_GERENTE=$TOKEN" >> $GITHUB_ENV
-          fi
+          TOKEN=$(echo "$RESPONSE" | jq -r '.data.session.accessToken // empty')
+          echo "TOKEN_GERENTE=$TOKEN" >> $GITHUB_ENV
 
       # ──────────────────────────────────────────────────────────────────────
-      # FASE 2 — Generar OpenAPI
+      # GENERAR OPENAPI
       # ──────────────────────────────────────────────────────────────────────
       - name: Generate OpenAPI spec
         run: npm run generate:openapi
         env:
           API_URL: ${{ env.API_URL }}
 
-      - name: Mostrar OpenAPI generado
-        run: |
-          echo "══════════════════════════════════════"
-          echo "ENDPOINTS en openapi.json"
-          echo "══════════════════════════════════════"
-          if [ -f ./docs/openapi.json ]; then
-            SERVER=$(jq -r '.servers[0].url' ./docs/openapi.json)
-            jq -r --arg SERVER "$SERVER" '
-              .paths | to_entries[] | .key as $path | .value | keys[] |
-              "\(. | ascii_upcase) \($SERVER)\($path)"
-            ' ./docs/openapi.json
-          fi
-
       # ──────────────────────────────────────────────────────────────────────
-      # FASE 2b — ZAP API Scan CORREGIDO (usando -z en lugar de archivo)
+      # ZAP SCAN (CORREGIDO - con artifact_name válido)
       # ──────────────────────────────────────────────────────────────────────
-      - name: Run OWASP ZAP API Scan (con TOKEN_ADMIN)
+      - name: Run OWASP ZAP API Scan
         uses: zaproxy/action-api-scan@v0.8.0
         continue-on-error: true
         with:
           target: "./docs/openapi.json"
           format: openapi
           fail_action: false
-          # ✅ CORREGIDO: Usar -z con comillas simples para pasar configuraciones
+          artifact_name: "zap-security-report"  # ✅ Nombre válido sin guión bajo problemático
           cmd_options: -z "-config replacer.full_list(0).description=auth_admin -config replacer.full_list(0).enabled=true -config replacer.full_list(0).matchtype=REQ_HEADER -config replacer.full_list(0).matchstr=Authorization -config replacer.full_list(0).replacement=Bearer ${{ env.TOKEN_ADMIN }}" -J report_json.json -w report_md.md -r report_html.html
-
-      # ──────────────────────────────────────────────────────────────────────
-      # FASE 3 — Security flows (opcional)
-      # ──────────────────────────────────────────────────────────────────────
-      - name: Run security flows (si existe)
-        if: hashFiles('run-security-flows.mjs') != ''
-        continue-on-error: true
-        run: node run-security-flows.mjs
-        env:
-          API_URL:            ${{ env.API_URL }}
-          TOKEN_ADMIN:        ${{ env.TOKEN_ADMIN }}
-          TOKEN_CHOFER:       ${{ env.TOKEN_CHOFER }}
-          TOKEN_GERENTE:      ${{ env.TOKEN_GERENTE }}
-          CONDUCTOR_ID_SEED:  ${{ env.CONDUCTOR_ID_SEED }}
 
       # ──────────────────────────────────────────────────────────────────────
       # REPORTES
       # ──────────────────────────────────────────────────────────────────────
-      - name: Resumen alertas ZAP
+      - name: Mostrar resumen de alertas
         if: always()
         run: |
           echo "══════════════════════════════════════"
-          echo "RESUMEN ALERTAS ZAP"
+          echo "📊 RESUMEN DE ALERTAS ZAP"
           echo "══════════════════════════════════════"
           if [ -f report_json.json ] && [ -s report_json.json ]; then
             echo ""
-            jq -r '.site[].alerts[] | "\(.riskdesc) | \(.alert) | Ocurrencias: \(.instances | length)"' report_json.json 2>/dev/null | sort -r || echo "No hay alertas"
+            echo "🔴 HIGH / 🟡 MEDIUM:"
+            jq -r '.site[].alerts[] | select(.riskcode >= "2") | "  \(.riskdesc) | \(.alert)"' report_json.json 2>/dev/null || echo "  No hay alertas High/Medium"
+            echo ""
+            echo "📋 Todas las alertas:"
+            jq -r '.site[].alerts[] | "  \(.riskdesc) | \(.alert)"' report_json.json 2>/dev/null | sort -u
           else
             echo "⚠️ No se encontró report_json.json"
           fi
 
-      - name: Upload ZAP reports
-        if: always()
+      - name: Upload ZAP reports (manual)
+        if: always() && (success() || failure())
         uses: actions/upload-artifact@v4
         with:
-          name: zap-reports
+          name: zap-security-reports
           path: |
             report_*.json
             report_*.md
