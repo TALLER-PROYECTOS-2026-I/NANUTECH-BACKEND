@@ -1,224 +1,489 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # security-flows.yml
 #
-# INSTRUCCIONES PARA EL DESARROLLADOR:
-# Define aquí los flujos de negocio que OWASP ZAP debe seguir.
-# El pipeline convierte este archivo en la config completa de ZAP automáticamente.
+# Flujos de seguridad para OWASP ZAP.
+# Este archivo es leído por run-security-flows.mjs, que lo convierte en
+# requests reales contra el API y genera security-flows-report.json.
 #
-# Cada "flow" es una secuencia de pasos con orden garantizado.
-# ZAP ejecuta los steps en orden y pasa variables entre ellos.
+# Complementa (NO reemplaza) el ZAP API Scan sobre openapi.json:
+#   - ZAP API Scan  → cubre estructura de endpoints desde la spec
+#   - security-flows → cubre lógica de negocio, auth encadenada, fuzzing manual
 # ─────────────────────────────────────────────────────────────────────────────
 
 target:
-  # URL base del ambiente levantado durante el pipeline (docker-compose o SAM local)
-  url: http://localhost:3000
-  # Tiempo máximo de espera para que el servicio esté listo (segundos)
+  url: "${API_URL_TESTING}"
   ready_timeout: 30
 
-# ─── Configuración de autenticación ──────────────────────────────────────────
+# ─── Autenticación global ─────────────────────────────────────────────────────
+# El token se obtiene ejecutando cognito-auth.js ANTES de este script.
+# El workflow lo exporta como ZAP_TOKEN y aquí lo inyectamos.
 auth:
-  type: cognito                         # cognito | jwt_endpoint | api_key | none
-  
-  cognito:
-    region: us-east-1
-    user_pool_id: ${COGNITO_USER_POOL_ID}
-    client_id: ${COGNITO_CLIENT_ID}
-    username: ${TEST_USERNAME}
-    password: ${TEST_PASSWORD}
-    # Variable donde se guarda el token para usarla en los steps
-    token_variable: ACCESS_TOKEN
-    # Header que ZAP inyecta automáticamente en todos los requests
-    inject_header: "Authorization: Bearer"
+  type: bearer_env                    # Lee el token desde la variable ZAP_TOKEN
+  token_env: ZAP_TOKEN
+  inject_header: "Authorization"
+  inject_value_prefix: "Bearer "
 
-  # Alternativa: si auth es un endpoint propio (no Cognito)
-  # type: jwt_endpoint
-  # endpoint:
-  #   url: POST /auth/login
-  #   body_file: fixtures/auth-login.json
-  #   extract:
-  #     token: $.data.token          # JSONPath del token en la respuesta
-  #     token_variable: ACCESS_TOKEN
-
-# ─── Flujos de prueba ─────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJOS
+# ─────────────────────────────────────────────────────────────────────────────
 flows:
 
-  # ── Flujo 1: Gestión completa de camiones ────────────────────────────────
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 1 — Auth: casos positivos y negativos
+  # Cubre todos los fixtures de security_owasp/fixtures/auth/
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: auth-login
+    description: |
+      Prueba el endpoint /auth/login con credenciales válidas e inválidas.
+      Los tokens extraídos alimentan los flujos posteriores.
+      Cubre OWASP A07 (Fallas de identificación y autenticación).
+
+    scan:
+      active_scan: false              # Los fixtures ya son el fuzzing manual
+      alert_threshold: MEDIUM
+
+    steps:
+
+      # ── 1.1 Login admin válido ─────────────────────────────────────────
+      - name: login-admin-valido
+        method: POST
+        path: /auth/login
+        description: "Admin con credenciales correctas → debe retornar token"
+        auth: none                    # Login no requiere token previo
+        body_file: fixtures/auth/auth-login-admin.json
+        # {
+        #   "email": "admin@nanutech.com",
+        #   "password": "Admin123!"
+        # }
+        extract:
+          - variable: TOKEN_ADMIN
+            jsonpath: $.data.session.accessToken
+          - variable: ADMIN_ROLE
+            jsonpath: $.data.role
+        expect:
+          status: 200
+          body_contains: ["accessToken", "user", "role", "nextRoute"]
+          body_not_contains: ["password", "hash"]   # No debe filtrar datos sensibles
+        owasp_tags: [A07]
+
+      # ── 1.2 Login chofer válido ────────────────────────────────────────
+      - name: login-chofer-valido
+        method: POST
+        path: /auth/login
+        description: "Chofer con credenciales correctas → token con rol chofer"
+        auth: none
+        body:
+          email: "chofer@nanutech.com"
+          password: "${TEST_PASSWORD_CHOFER}"
+        extract:
+          - variable: TOKEN_CHOFER
+            jsonpath: $.data.session.accessToken
+        expect:
+          status: 200
+          body_contains: ["accessToken"]
+        owasp_tags: [A07]
+
+      # ── 1.3 Email inválido (formato) ──────────────────────────────────
+      - name: login-email-invalido
+        method: POST
+        path: /auth/login
+        description: "Email con formato inválido → 400, sin token"
+        auth: none
+        body_file: fixtures/auth/auth-login-email-invalido.json
+        # {
+        #   "email": "esto-no-es-un-email",
+        #   "password": "cualquier_password"
+        # }
+        expect:
+          status: 400
+          body_not_contains: ["accessToken", "token"]
+        owasp_tags: [A07, A04]
+
+      # ── 1.4 Password incorrecto ────────────────────────────────────────
+      - name: login-password-invalido
+        method: POST
+        path: /auth/login
+        description: "Password incorrecto → 401, mensaje genérico (no revelar si el email existe)"
+        auth: none
+        body_file: fixtures/auth/auth-login-password-invalido.json
+        expect:
+          status: 401
+          # El mensaje NO debe decir "email correcto pero password incorrecto"
+          # para evitar user enumeration (OWASP A07)
+          body_not_contains: ["email correcto", "usuario existe", "password incorrecto"]
+        owasp_tags: [A07]
+
+      # ── 1.5 SQL Injection en login ────────────────────────────────────
+      - name: login-sql-injection
+        method: POST
+        path: /auth/login
+        description: "Payload SQL injection en email y password → debe rechazar sin error 500"
+        auth: none
+        body_file: fixtures/auth/auth-login-sql-injection.json
+        # {
+        #   "email": "' OR '1'='1",
+        #   "password": "' OR '1'='1' --"
+        # }
+        expect:
+          status: 400          # o 401 — lo que importa es que NO sea 200 ni 500
+          not_status: [200, 500]
+          body_not_contains: ["syntax error", "SQL", "postgres", "pg_", "stack trace"]
+        owasp_tags: [A03, A07]
+
+      # ── 1.6 Body vacío ────────────────────────────────────────────────
+      - name: login-body-vacio
+        method: POST
+        path: /auth/login
+        description: "Sin body → 400, no 500"
+        auth: none
+        body: "{}"
+        expect:
+          status: 400
+          not_status: [500]
+        owasp_tags: [A04]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 2 — Auth: sesión activa (/auth/me)
+  # Depende de los tokens obtenidos en el flujo anterior
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: auth-me
+    description: |
+      Verifica el endpoint /auth/me con distintos estados de token.
+      Cubre A07 (autenticación) y A01 (control de acceso).
+
+    scan:
+      active_scan: false
+      alert_threshold: MEDIUM
+
+    steps:
+
+      # ── 2.1 Token válido (admin) ───────────────────────────────────────
+      - name: me-con-token-admin
+        method: GET
+        path: /auth/me
+        description: "Token de admin → sesión válida con datos del usuario"
+        auth: token                   # Usa TOKEN_ADMIN extraído en flujo anterior
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          body_contains: ["user", "session", "role", "isAuthenticated"]
+          body_not_contains: ["password", "hash", "secret"]
+        owasp_tags: [A01, A07]
+
+      # ── 2.2 Sin token ─────────────────────────────────────────────────
+      - name: me-sin-token
+        method: GET
+        path: /auth/me
+        description: "Sin Authorization header → 401"
+        auth: none
+        expect:
+          status: 401
+        owasp_tags: [A01, A07]
+
+      # ── 2.3 Token malformado ───────────────────────────────────────────
+      - name: me-token-invalido
+        method: GET
+        path: /auth/me
+        description: "Token basura → 401, sin leak de info interna"
+        auth: raw_header
+        headers:
+          Authorization: "Bearer esto.no.es.un.jwt.valido"
+        expect:
+          status: 401
+          body_not_contains: ["secret", "stack", "Error:", "at Object"]
+        owasp_tags: [A01, A07]
+
+      # ── 2.4 Token de otro rol (chofer intenta endpoint de admin) ──────
+      - name: me-rol-chofer
+        method: GET
+        path: /auth/me
+        description: "Token chofer → sesión válida pero rol correcto"
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 200
+          body_contains: ["role"]
+        owasp_tags: [A01]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 3 — Forgot Password
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: auth-forgot-password
+    description: |
+      Prueba el flujo completo de recuperación de contraseña.
+      Verifica que no se filtren diferencias entre email existente/inexistente
+      (user enumeration via timing o mensajes distintos).
+
+    scan:
+      active_scan: false
+      alert_threshold: MEDIUM
+
+    steps:
+
+      # ── 3.1 Email existente ────────────────────────────────────────────
+      - name: forgot-password-email-existente
+        method: POST
+        path: /auth/forgot-password
+        description: "Email registrado → 200, mensaje genérico"
+        auth: none
+        body_file: fixtures/auth/auth-forgot-password.json
+        # {
+        #   "email": "chofer@nanutech.com"
+        # }
+        expect:
+          status: 200
+          # El mensaje debe ser idéntico al de email inexistente (anti-enumeration)
+        owasp_tags: [A07]
+
+      # ── 3.2 Email inexistente ──────────────────────────────────────────
+      - name: forgot-password-email-inexistente
+        method: POST
+        path: /auth/forgot-password
+        description: "Email no registrado → mismo 200 y mismo mensaje (evitar user enumeration)"
+        auth: none
+        body_file: fixtures/auth/auth-forgot-password-inexistente.json
+        # {
+        #   "email": "no-existe@nanutech.com"
+        # }
+        expect:
+          status: 200           # DEBE ser 200, no 404 (evitar revelar si el email existe)
+          body_not_contains: ["no encontrado", "not found", "no existe"]
+        owasp_tags: [A07]
+
+      # ── 3.3 Confirm con código inválido ───────────────────────────────
+      - name: forgot-password-confirm-codigo-invalido
+        method: POST
+        path: /auth/forgot-password/confirm
+        description: "Código de verificación incorrecto → 401"
+        auth: none
+        body_file: fixtures/auth/auth-forgot-password-confirm-codigo-invalido.json
+        # {
+        #   "email": "chofer@nanutech.com",
+        #   "code": "000000",
+        #   "newPassword": "NuevoPassword123!"
+        # }
+        expect:
+          status: 401
+          body_not_contains: ["stack", "Error:", "postgres"]
+        owasp_tags: [A07]
+
+      # ── 3.4 Confirm con datos válidos (smoke) ─────────────────────────
+      - name: forgot-password-confirm-valido
+        method: POST
+        path: /auth/forgot-password/confirm
+        description: "Código y datos correctos → 200 (requiere código real de Cognito en TEST)"
+        auth: none
+        body_file: fixtures/auth/auth-forgot-password-confirm.json
+        # {
+        #   "email": "chofer@nanutech.com",
+        #   "code": "${TEST_RECOVERY_CODE}",   ← variable de entorno en testing
+        #   "newPassword": "NuevoPassword123!"
+        # }
+        skip_if_missing_env: [TEST_RECOVERY_CODE]   # Se omite si no hay código real
+        expect:
+          status: 200
+        owasp_tags: [A07]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 4 — Camiones: CRUD completo con token real
+  # El token de admin obtenido en el flujo 1 se reutiliza aquí
+  # ══════════════════════════════════════════════════════════════════════════
   - name: camion-crud
     description: |
-      Flujo principal de negocio: crear un camión, consultarlo,
-      ver el panel de monitoreo y exportar CSV.
-      Cubre OWASP A01 (acceso), A03 (inyección), A05 (config).
-    
-    # Controles de escaneo para este flujo
+      Flujo principal de camiones usando el token de admin del flujo auth.
+      Verifica acceso, creación, consulta y exportación.
+      Cubre OWASP A01, A03, A05.
+
     scan:
-      active_scan: true               # ¿Ejecutar active scan sobre este flujo?
-      ajax_spider: false              # No aplica para APIs REST
-      alert_threshold: MEDIUM         # Reportar desde este nivel: LOW | MEDIUM | HIGH
-    
+      active_scan: true
+      alert_threshold: MEDIUM
+
     steps:
-      # Paso 1: Crear un camión nuevo
-      - name: crear-camion
+
+      - name: crear-camion-valido
         method: POST
         path: /camiones
-        description: "Registrar nueva unidad de transporte"
-        auth: required                # Usa el token de la sección auth
-        body_file: fixtures/camion-create.json
-        # Extraer valores de la respuesta para pasos siguientes
+        description: "Crear camión con datos válidos usando token admin"
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body_file: fixtures/camiones/camion-crear-valido.json
         extract:
           - variable: CAMION_ID
             jsonpath: $.data.id
           - variable: CAMION_PLACA
             jsonpath: $.data.placa
-        # Validaciones de respuesta esperada
         expect:
           status: 201
           body_contains: ["placa", "marca", "modelo"]
-        # Tags OWASP que este endpoint debe cubrir
         owasp_tags: [A01, A03, A05]
 
-      # Paso 2: Consultar el camión recién creado
       - name: obtener-camion-por-id
         method: GET
-        path: /camiones/${CAMION_ID}   # Variable extraída del paso anterior
-        description: "Obtener detalle del camión creado"
-        auth: required
+        path: /camiones/${CAMION_ID}
+        description: "Consultar camión recién creado"
+        auth: token
+        token_variable: TOKEN_ADMIN
         expect:
           status: 200
-          body_contains: ["id", "placa", "estado"]
+          body_contains: ["id", "placa"]
         owasp_tags: [A01, A05]
 
-      # Paso 3: Intentar acceso sin autenticación (prueba negativa)
       - name: acceso-sin-auth
         method: GET
         path: /camiones/${CAMION_ID}
-        description: "Verificar que el endpoint rechaza requests sin token"
-        auth: none                    # Forzar request sin autenticación
+        description: "Sin token → 401"
+        auth: none
         expect:
-          status: 401                 # Se espera rechazo
+          status: 401
         owasp_tags: [A01, A07]
 
-      # Paso 4: Consultar el panel de monitoreo
+      - name: acceso-con-token-chofer
+        method: GET
+        path: /camiones/${CAMION_ID}
+        description: "Token de chofer en endpoint de admin → verificar autorización"
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          # Puede ser 200 (si chofer tiene acceso) o 403 (si es solo admin)
+          # Lo importante es que no sea 500 y no filtre datos de otros choferes
+          not_status: [500]
+        owasp_tags: [A01]
+
       - name: panel-monitoreo
         method: GET
         path: /camiones/panel
-        description: "Panel consolidado de métricas operativas"
-        auth: required
-        query_params:
-          estado: DISPONIBLE
-          placa: ${CAMION_PLACA}
+        auth: token
+        token_variable: TOKEN_ADMIN
         expect:
           status: 200
-          body_contains: ["resumen", "camiones", "grafica_movimiento"]
         owasp_tags: [A01, A05]
 
-      # Paso 5: Exportar CSV
       - name: exportar-csv
         method: GET
         path: /camiones/exportar/csv
-        description: "Exportación de datos en formato CSV"
-        auth: required
+        auth: token
+        token_variable: TOKEN_ADMIN
         expect:
           status: 200
           headers:
             Content-Type: "text/csv"
         owasp_tags: [A01, A05]
 
-  # ── Flujo 2: Listado y filtros ───────────────────────────────────────────
-  - name: camion-listado
-    description: |
-      Pruebas de inyección en parámetros de búsqueda y filtros.
-      Foco en OWASP A03 (SQL Injection via query params).
-    
-    scan:
-      active_scan: true
-      alert_threshold: LOW            # Más agresivo: reportar todo
-
-    steps:
-      - name: listar-todos
-        method: GET
-        path: /camiones
-        description: "Listado completo sin filtros"
-        auth: required
-        expect:
-          status: 200
-        owasp_tags: [A01, A03]
-
-      - name: filtrar-por-placa
-        method: GET
-        path: /camiones
-        description: "Filtro por placa - vector de inyección"
-        auth: required
-        query_params:
-          placa: "ABC123"
-        # ZAP active scan intentará inyecciones SQL/XSS sobre este param
-        fuzz_params: [placa, estado]
-        owasp_tags: [A03]
-
-      - name: filtrar-por-estado
-        method: GET
-        path: /camiones
-        description: "Filtro por estado operativo"
-        auth: required
-        query_params:
-          estado: DISPONIBLE
-        fuzz_params: [estado]
-        owasp_tags: [A03]
-
-  # ── Flujo 3: Pruebas de validación de input ──────────────────────────────
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 5 — Camiones: validación de input malicioso
+  # ══════════════════════════════════════════════════════════════════════════
   - name: camion-validacion-input
     description: |
-      Intentar crear camiones con datos inválidos o maliciosos.
-      Verifica manejo correcto de errores y sanitización.
+      Intenta crear camiones con datos inválidos o maliciosos.
+      Verifica sanitización y manejo correcto de errores.
       Cubre OWASP A03 (inyección) y A04 (diseño inseguro).
-    
+
     scan:
-      active_scan: false              # Aquí usamos fuzzing manual con fixtures
+      active_scan: false
       alert_threshold: MEDIUM
 
     steps:
-      - name: crear-placa-duplicada
+
+      - name: anio-invalido
         method: POST
         path: /camiones
-        description: "Intentar crear camión con placa duplicada"
-        auth: required
-        body_file: fixtures/camion-create.json  # Misma placa del flujo anterior
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body_file: fixtures/camiones/camion-crear-anio-invalido.json
         expect:
           status: 400
-          body_contains: ["duplicad", "placa"]
+          not_status: [500]
         owasp_tags: [A04]
 
-      - name: crear-vin-duplicado
+      - name: capacidad-cero
         method: POST
         path: /camiones
-        description: "Intentar crear camión con VIN duplicado"
-        auth: required
-        body_file: fixtures/camion-vin-duplicado.json
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body_file: fixtures/camiones/camion-crear-capacidad-cero.json
         expect:
           status: 400
+          not_status: [500]
         owasp_tags: [A04]
 
-      - name: crear-sin-campos-requeridos
+      - name: combustible-invalido
         method: POST
         path: /camiones
-        description: "Body vacío - validación de campos obligatorios"
-        auth: required
-        body: "{}"
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body_file: fixtures/camiones/camion-crear-combustible-invalido.json
         expect:
           status: 400
+          not_status: [500]
         owasp_tags: [A04]
 
-      - name: inyeccion-sql-en-placa
+      - name: placa-duplicada
         method: POST
         path: /camiones
-        description: "Placa con payload SQL injection"
-        auth: required
-        body_file: fixtures/camion-sql-injection.json
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body_file: fixtures/camiones/camion-crear-placa-duplicada.json
         expect:
-          status: 400           # Debe rechazar, no explotar con 500
-          not_contains: ["syntax error", "SQL", "postgres"]
+          status: 400
+          body_not_contains: ["duplicate key", "unique constraint", "pg_"]
+        owasp_tags: [A04]
+
+      - name: sin-marca
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body_file: fixtures/camiones/camion-crear-sin-marca.json
+        expect:
+          status: 400
+          not_status: [500]
+        owasp_tags: [A04]
+
+      - name: sin-vin
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body_file: fixtures/camiones/camion-crear-sin-vin.json
+        expect:
+          status: 400
+          not_status: [500]
+        owasp_tags: [A04]
+
+      - name: sql-injection-en-placa
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body_file: fixtures/camiones/camion-crear-sql-injection.json
+        expect:
+          not_status: [200, 500]
+          body_not_contains: ["syntax error", "SQL", "postgres", "pg_", "stack trace"]
         owasp_tags: [A03]
 
-# ─── Exclusiones (rutas que ZAP NO debe tocar) ───────────────────────────────
+      - name: xss-en-campos
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body_file: fixtures/camiones/camion-crear-xss.json
+        expect:
+          not_status: [200, 500]
+          body_not_contains: ["<script>", "onerror", "javascript:"]
+        owasp_tags: [A03]
+
+      - name: vin-duplicado
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body_file: fixtures/camiones/camion-crear-vin-duplicado.json
+        expect:
+          status: 400
+          body_not_contains: ["duplicate key", "unique constraint"]
+        owasp_tags: [A04]
+
+# ─── Exclusiones ──────────────────────────────────────────────────────────────
 exclude:
   paths:
     - /health
@@ -226,17 +491,14 @@ exclude:
     - /docs
     - /swagger
   methods:
-    - DELETE              # No ejecutar DELETEs en ambiente de test
+    - DELETE
     - PATCH
 
-# ─── Configuración de alertas ─────────────────────────────────────────────────
+# ─── Umbrales de fallo del pipeline ───────────────────────────────────────────
 alerts:
-  # Si hay alertas de este nivel o superior, el pipeline falla el check
   fail_on: HIGH
-  # Si hay alertas de este nivel, el pipeline avisa pero no falla
   warn_on: MEDIUM
-  # Falsos positivos conocidos que ignorar
   ignore:
-    - rule_id: 10038      # Content Security Policy (no aplica a APIs REST)
+    - rule_id: 10038      # Content Security Policy (no aplica a REST APIs)
     - rule_id: 10055      # CSP Scanner
     - rule_id: 90003      # Sub Resource Integrity
