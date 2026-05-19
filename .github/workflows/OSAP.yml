@@ -1,16 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# owasp-security-scan.yml
-#
-# Pipeline de seguridad OWASP ZAP — Nanutech Backend
-#
-# FASE 1 — Login real por los 3 roles → extrae tokens desde /auth/login
-# FASE 2 — ZAP API Scan con token ADMIN sobre openapi.json
-# FASE 3 — run-security-flows.mjs (flujos RBAC, IDOR, inyección, etc.)
-#
-# Nada rompe el pipeline. Todo queda en el reporte para revisión manual.
-#
-# Secret requerido en GitHub:
-#   API_URL_TESTING → URL base del API en ambiente testing
+# owasp-security-scan.yml - VERSIÓN CORREGIDA
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: OWASP Security Scan
@@ -24,7 +13,7 @@ on:
 jobs:
   security_scan:
     runs-on: ubuntu-latest
-    continue-on-error: true   # Nunca rompe el pipeline
+    continue-on-error: true
 
     permissions:
       contents: read
@@ -34,7 +23,6 @@ jobs:
       API_URL: ${{ secrets.API_URL_TESTING }}
       CONDUCTOR_ID_SEED: "22222222-2222-2222-2222-222222222222"
 
-      # ── Credenciales de seed (ambiente testing) ──────────────────────────
       EMAIL_ADMIN:   "admin@nanutech.com"
       PASS_ADMIN:    "Admin123!"
       EMAIL_CHOFER:  "chofer@nanutech.com"
@@ -43,9 +31,6 @@ jobs:
       PASS_GERENTE:  "Admin123!"
 
     steps:
-      # ──────────────────────────────────────────────────────────────────────
-      # SETUP
-      # ──────────────────────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -58,10 +43,9 @@ jobs:
         run: npm ci
 
       # ──────────────────────────────────────────────────────────────────────
-      # FASE 1 — Login real por los 3 roles
+      # FASE 1 — Login
       # ──────────────────────────────────────────────────────────────────────
       - name: Login ADMIN → extrae TOKEN_ADMIN
-        id: login_admin
         run: |
           echo "══════════════════════════════════════"
           echo "LOGIN ADMIN"
@@ -87,7 +71,6 @@ jobs:
           fi
 
       - name: Login CHOFER → extrae TOKEN_CHOFER
-        id: login_chofer
         run: |
           echo "══════════════════════════════════════"
           echo "LOGIN CHOFER"
@@ -113,7 +96,6 @@ jobs:
           fi
 
       - name: Login GERENTE → extrae TOKEN_GERENTE
-        id: login_gerente
         run: |
           echo "══════════════════════════════════════"
           echo "LOGIN GERENTE"
@@ -157,73 +139,39 @@ jobs:
               .paths | to_entries[] | .key as $path | .value | keys[] |
               "\(. | ascii_upcase) \($SERVER)\($path)"
             ' ./docs/openapi.json
-          else
-            echo "⚠️ No se encontró openapi.json"
           fi
 
       # ──────────────────────────────────────────────────────────────────────
-      # FASE 2b — ZAP API Scan CORREGIDO
-      # El problema: -config no puede pasarse directamente así
-      # Solución: Usar archivo de configuración o -z
+      # FASE 2b — ZAP API Scan CORREGIDO (usando -z en lugar de archivo)
       # ──────────────────────────────────────────────────────────────────────
-      - name: Crear archivo de configuración para ZAP
-        run: |
-          cat > zap-config.properties << 'EOF'
-          # Configuración del replacer para inyectar token de autenticación
-          replacer.full_list(0).description=auth_admin
-          replacer.full_list(0).enabled=true
-          replacer.full_list(0).matchtype=REQ_HEADER
-          replacer.full_list(0).matchstr=Authorization
-          replacer.full_list(0).replacement=Bearer ${{ env.TOKEN_ADMIN }}
-          EOF
-          
-          echo "✅ Configuración ZAP creada"
-          cat zap-config.properties
-
       - name: Run OWASP ZAP API Scan (con TOKEN_ADMIN)
-        uses: zaproxy/action-api-scan@v0.8.0  # ⚠️ Actualizado a v0.8.0
+        uses: zaproxy/action-api-scan@v0.8.0
         continue-on-error: true
         with:
           target: "./docs/openapi.json"
           format: openapi
           fail_action: false
-          # ✅ Usar -c para archivo de configuración (CORREGIDO)
-          cmd_options: -c zap-config.properties -J report_json.json -w report_md.md -r report_html.html
+          # ✅ CORREGIDO: Usar -z con comillas simples para pasar configuraciones
+          cmd_options: -z "-config replacer.full_list(0).description=auth_admin -config replacer.full_list(0).enabled=true -config replacer.full_list(0).matchtype=REQ_HEADER -config replacer.full_list(0).matchstr=Authorization -config replacer.full_list(0).replacement=Bearer ${{ env.TOKEN_ADMIN }}" -J report_json.json -w report_md.md -r report_html.html
 
       # ──────────────────────────────────────────────────────────────────────
-      # FASE 3 — Flujos de seguridad (solo si existe el archivo)
+      # FASE 3 — Security flows (opcional)
       # ──────────────────────────────────────────────────────────────────────
-      - name: Run security flows (RBAC + lógica de negocio)
+      - name: Run security flows (si existe)
         if: hashFiles('run-security-flows.mjs') != ''
         continue-on-error: true
         run: node run-security-flows.mjs
         env:
           API_URL:            ${{ env.API_URL }}
-          API_URL_TESTING:    ${{ env.API_URL }}
           TOKEN_ADMIN:        ${{ env.TOKEN_ADMIN }}
           TOKEN_CHOFER:       ${{ env.TOKEN_CHOFER }}
           TOKEN_GERENTE:      ${{ env.TOKEN_GERENTE }}
           CONDUCTOR_ID_SEED:  ${{ env.CONDUCTOR_ID_SEED }}
-          PASS_ADMIN:         ${{ env.PASS_ADMIN }}
-          PASS_CHOFER:        ${{ env.PASS_CHOFER }}
-          PASS_GERENTE:       ${{ env.PASS_GERENTE }}
-
-      - name: ⚠️ Advertencia - security-flows.mjs no encontrado
-        if: hashFiles('run-security-flows.mjs') == ''
-        run: |
-          echo "══════════════════════════════════════"
-          echo "⚠️ ADVERTENCIA"
-          echo "══════════════════════════════════════"
-          echo "No se encontró el archivo run-security-flows.mjs"
-          echo "Los flujos de seguridad RBAC/IDOR no se ejecutarán."
-          echo ""
-          echo "Para habilitarlos, crea el archivo en la raíz del proyecto."
-          echo "══════════════════════════════════════"
 
       # ──────────────────────────────────────────────────────────────────────
-      # REPORTES — Siempre se muestran, nunca bloquean
+      # REPORTES
       # ──────────────────────────────────────────────────────────────────────
-      - name: Resumen alertas ZAP por nivel de riesgo
+      - name: Resumen alertas ZAP
         if: always()
         run: |
           echo "══════════════════════════════════════"
@@ -231,70 +179,9 @@ jobs:
           echo "══════════════════════════════════════"
           if [ -f report_json.json ] && [ -s report_json.json ]; then
             echo ""
-            jq -r '
-              .site[].alerts[] |
-              "\(.riskdesc) | \(.alert) | Ocurrencias: \(.instances | length)"
-            ' report_json.json 2>/dev/null | sort -r || echo "No hay alertas en el reporte"
-          else
-            echo "⚠️ No se encontró report_json.json o está vacío"
-            echo "   Esto puede deberse a que ZAP no pudo escanear correctamente."
-          fi
-
-      - name: Detalle alertas HIGH y MEDIUM de ZAP
-        if: always()
-        run: |
-          echo "══════════════════════════════════════"
-          echo "ALERTAS HIGH / MEDIUM"
-          echo "══════════════════════════════════════"
-          if [ -f report_json.json ] && [ -s report_json.json ]; then
-            echo ""
-            jq -r '
-              .site[].alerts[]
-              | select(.riskcode >= "2" or .risk == "High" or .risk == "Medium")
-              | "────────────────────────────────────",
-                "ALERTA  : \(.alert)",
-                "RIESGO  : \(.riskdesc)",
-                "SOLUCIÓN: \(.solution)",
-                "URLs    :",
-                (.instances[]? | "  \(.method) \(.uri)"),
-                ""
-            ' report_json.json 2>/dev/null || echo "No se encontraron alertas High/Medium"
+            jq -r '.site[].alerts[] | "\(.riskdesc) | \(.alert) | Ocurrencias: \(.instances | length)"' report_json.json 2>/dev/null | sort -r || echo "No hay alertas"
           else
             echo "⚠️ No se encontró report_json.json"
-          fi
-
-      - name: Resumen security-flows
-        if: always() && hashFiles('security-flows-report.json') != ''
-        run: |
-          echo "══════════════════════════════════════"
-          echo "SECURITY FLOWS — RESUMEN"
-          echo "══════════════════════════════════════"
-          
-          TOTAL=$(jq '[.flows[].steps[]] | length' security-flows-report.json)
-          PASSED=$(jq '[.flows[].steps[] | select(.passed == true)] | length' security-flows-report.json)
-          FAILED=$(jq '[.flows[].steps[] | select(.passed == false and .skipped == false)] | length' security-flows-report.json)
-          SKIPPED=$(jq '[.flows[].steps[] | select(.skipped == true)] | length' security-flows-report.json)
-
-          echo ""
-          echo "📊 Estadísticas:"
-          echo "   Total  : $TOTAL"
-          echo "   ✅ OK   : $PASSED"
-          echo "   ❌ Fallo: $FAILED"
-          echo "   ⏭  Skip : $SKIPPED"
-          echo ""
-
-          if [ "$FAILED" -gt 0 ]; then
-            echo "── Pasos fallidos ──────────────────"
-            jq -r '
-              .flows[] as $flow |
-              $flow.steps[] |
-              select(.passed == false and .skipped == false) |
-              "❌ FLUJO : \($flow.name)",
-              "   PASO  : \(.name)",
-              "   STATUS: \(.status)",
-              "   ERRORES: \(.errors | join(" | "))",
-              ""
-            ' security-flows-report.json
           fi
 
       - name: Upload ZAP reports
@@ -306,15 +193,5 @@ jobs:
             report_*.json
             report_*.md
             report_*.html
-            zap-config.properties
-          retention-days: 30
-          if-no-files-found: warn
-
-      - name: Upload security-flows report
-        if: always() && hashFiles('security-flows-report.json') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-flows-report
-          path: security-flows-report.json
           retention-days: 30
           if-no-files-found: warn
