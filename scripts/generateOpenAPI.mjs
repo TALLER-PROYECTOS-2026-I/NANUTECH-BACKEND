@@ -96,6 +96,6 @@ console.log("══════════════════════�
 console.log("✅ OpenAPI generado correctamente");
 console.log("══════════════════════════════════════");
 console.log(`📄 Archivo: ${outputFile}`);
-console.log(`🌐 Server: ${API_URL}`);
+console.log(`🌐 Server: ${API_URL_TESTING}`);
 console.log(`📌 Paths detectados: ${Object.keys(spec.paths || {}).length}`);
 console.log("══════════════════════════════════════");
