@@ -273,4 +273,119 @@ export class AlertaRepository {
       client.release();
     }
   }
+  
+    /**
+   * HU21 - Valida que la jornada pertenezca al conductor y esté EN_PROCESO.
+   *
+   * Esta validación es obligatoria porque la HU21 depende de la HU03:
+   * los botones SOS y Auxilio Mecánico solo deben funcionar cuando el chofer
+   * tiene una jornada activa en proceso.
+   *
+   * @param {string} jornadaId - UUID de la jornada.
+   * @param {string} conductorId - UUID del conductor autenticado.
+   * @returns {Promise<Object|null>} Jornada en proceso o null.
+   */
+  async findJornadaEnProceso(jornadaId, conductorId) {
+    const client = await getClient();
+
+    try {
+      const result = await client.query(
+        `
+          SELECT
+            j.id,
+            j.conductor_id,
+            j.unidad_id,
+            j.estado,
+            un.placa AS unidad_placa
+          FROM jornadas j
+          LEFT JOIN unidades un ON un.id = j.unidad_id
+          WHERE j.id = $1
+            AND j.conductor_id = $2
+            AND j.estado = 'EN_PROCESO'
+          LIMIT 1;
+        `,
+        [jornadaId, conductorId]
+      );
+
+      return result.rows[0] || null;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * HU21 - Inserta una alerta generada desde la app móvil.
+   *
+   * Se usa para:
+   * - SOS PÁNICO.
+   * - Auxilio Mecánico.
+   *
+   * Esta función no reemplaza los endpoints administrativos existentes;
+   * solo agrega la capacidad de registrar nuevas alertas desde el flujo móvil.
+   *
+   * @param {Object} data - Datos normalizados de la alerta.
+   * @returns {Promise<Object|null>} Alerta creada.
+   */
+  async createAlerta(data) {
+    const client = await getClient();
+
+    try {
+      const result = await client.query(
+        `
+          INSERT INTO alertas_jornada (
+            codigo,
+            jornada_id,
+            tipo,
+            estado,
+            severidad,
+            detalle,
+            tipo_falla_mecanica,
+            latitud,
+            longitud,
+            direccion,
+            fecha_hora,
+            bloqueo_sos_activo
+          )
+          VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            COALESCE($11::timestamp, NOW()),
+            $12
+          )
+          RETURNING
+            id,
+            codigo,
+            jornada_id,
+            tipo,
+            estado,
+            severidad,
+            detalle,
+            tipo_falla_mecanica,
+            latitud,
+            longitud,
+            direccion,
+            fecha_hora,
+            bloqueo_sos_activo,
+            created_at;
+        `,
+        [
+          data.codigo,
+          data.jornada_id,
+          data.tipo,
+          data.estado,
+          data.severidad,
+          data.detalle,
+          data.tipo_falla_mecanica,
+          data.latitud,
+          data.longitud,
+          data.direccion,
+          data.fecha_hora,
+          data.bloqueo_sos_activo,
+        ]
+      );
+
+      return result.rows[0] || null;
+    } finally {
+      client.release();
+    }
+  }
 }

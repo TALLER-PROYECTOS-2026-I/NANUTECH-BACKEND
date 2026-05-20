@@ -31,7 +31,12 @@ function parseJsonBody(event) {
  */
 function resolveErrorResponse(error) {
   const statusCode =
-    error.statusCode || (/(requerido|inv[aá]lido|validaci[oó]n)/i.test(error.message) ? 400 : 500);
+    error.statusCode ||
+    (/(requerido|inv[aá]lido|validaci[oó]n|uuid|latitud|longitud)/i.test(
+      error.message
+    )
+      ? 400
+      : 500);
 
   return errorResponse(error.message, statusCode, {
     code: error.code || "ALERTA_ERROR",
@@ -111,6 +116,93 @@ export const getAlertasActivasController = async (event) => {
  * @throws {Error} 404 ALERTA_NOT_FOUND si la alerta no existe
  * @throws {Error} 400 ALERTA_YA_RESUELTA si la alerta ya está resuelta
  */
+
+
+/**
+ * HU21 - Controller para registrar SOS PÁNICO desde la app móvil.
+ *
+ * Este endpoint será consumido por la app cuando el chofer mantenga
+ * presionado el botón SOS por 3 segundos. Si la jornada está EN_PROCESO,
+ * registra la alerta y retorna el mensaje de bloqueo de seguridad.
+ */
+export const registrarSosController = async (event) => {
+  try {
+    const authorizationHeader =
+      event.headers?.Authorization || event.headers?.authorization;
+
+    await getCurrentSession(authorizationHeader);
+
+    const body = parseJsonBody(event);
+    const alertaService = new AlertaService();
+
+    const alerta = await alertaService.registrarSos({
+      jornada_id: body.jornada_id || body.jornadaId,
+      conductor_id: body.conductor_id || body.conductorId,
+      latitud: body.latitud ?? body.lat,
+      longitud: body.longitud ?? body.lng,
+      direccion: body.direccion,
+      detalle: body.detalle,
+      timestamp_local: body.timestamp_local || body.timestampLocal,
+      created_offline: body.created_offline || body.createdOffline || false,
+      event_id_cliente: body.event_id_cliente || body.eventIdCliente,
+    });
+
+    return successResponse(
+      alerta,
+      "Alerta SOS registrada exitosamente.",
+      200
+    );
+  } catch (error) {
+    console.error("Error en registrarSosController:", error);
+    return resolveErrorResponse(error);
+  }
+};
+
+/**
+ * HU21 - Controller para registrar Auxilio Mecánico desde la app móvil.
+ *
+ * Este endpoint será consumido cuando el chofer seleccione una falla
+ * en el modal de Auxilio Mecánico y confirme la solicitud.
+ */
+export const registrarAuxilioController = async (event) => {
+  try {
+    const authorizationHeader =
+      event.headers?.Authorization || event.headers?.authorization;
+
+    await getCurrentSession(authorizationHeader);
+
+    const body = parseJsonBody(event);
+    const alertaService = new AlertaService();
+
+    const alerta = await alertaService.registrarAuxilio({
+      jornada_id: body.jornada_id || body.jornadaId,
+      conductor_id: body.conductor_id || body.conductorId,
+      tipo_falla_mecanica:
+        body.tipo_falla_mecanica || body.tipoFalla || body.tipoFallaMecanica,
+      detalle: body.detalle,
+      latitud: body.latitud ?? body.lat,
+      longitud: body.longitud ?? body.lng,
+      direccion: body.direccion,
+      timestamp_local: body.timestamp_local || body.timestampLocal,
+      created_offline: body.created_offline || body.createdOffline || false,
+      event_id_cliente: body.event_id_cliente || body.eventIdCliente,
+    });
+
+    return successResponse(
+      alerta,
+      "Auxilio Mecánico Solicitado. Tu solicitud ha sido enviada.",
+      200
+    );
+  } catch (error) {
+    console.error("Error en registrarAuxilioController:", error);
+    return resolveErrorResponse(error);
+  }
+};
+
+
+
+
+
 export const resolverAlertaController = async (event) => {
   try {
     const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
