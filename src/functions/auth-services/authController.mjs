@@ -1,6 +1,6 @@
 import { errorResponse, successResponse } from "../../shared/utils/response/response.mjs";
 import * as authService from "./authService.mjs";
-
+import "../../../open_api/auth-api.mjs";
 const parseJsonBody = (body) => {
   if (!body) return {};
 
@@ -19,38 +19,7 @@ const resolveErrorResponse = (error) =>
     code: error.code || "AUTH_ERROR",
   });
 /**
- * @openapi
- * /auth/forgot-password:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Solicitar recuperación de contraseña
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: test@test.com
- *     responses:
- *       200:
- *         description: Correo de recuperación enviado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/SuccessResponse'
- *       400:
- *         description: Email inválido
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ * @see /auth/forgot-password POST
  */
 export const forgotPassword = async (event) => {
   try {
@@ -63,52 +32,7 @@ export const forgotPassword = async (event) => {
   }
 };
 /**
- * @openapi
- * /auth/forgot-password/confirm:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Confirmar nueva contraseña con código
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - code
- *               - newPassword
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: test@test.com
- *               code:
- *                 type: string
- *                 example: "123456"
- *               newPassword:
- *                 type: string
- *                 example: "NuevaPass123"
- *     responses:
- *       200:
- *         description: Contraseña actualizada correctamente
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/SuccessResponse'
- *       401:
- *         description: Código de recuperación inválido
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       404:
- *         description: Usuario no encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ * @see /auth/forgot-password/confirm POST
  */
 export const confirmForgotPassword = async (event) => {
   try {
@@ -125,59 +49,7 @@ export const confirmForgotPassword = async (event) => {
   }
 };
 /**
- * @openapi
- * /auth/login:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Iniciar sesión
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: test@test.com
- *               password:
- *                 type: string
- *                 example: "123456"
- *     responses:
- *       200:
- *         description: Login exitoso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 user:
- *                   $ref: '#/components/schemas/UserProfile'
- *                 session:
- *                   $ref: '#/components/schemas/SessionInfo'
- *                 role:
- *                   type: string
- *                   example: admin
- *                 nextRoute:
- *                   type: string
- *                   example: /dashboard/admin
- *       401:
- *         description: Credenciales inválidas
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       423:
- *         description: Cuenta bloqueada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ * @see /auth/login POST
  */
 export const loginAttempt = async (event) => {
   try {
@@ -189,45 +61,9 @@ export const loginAttempt = async (event) => {
     return resolveErrorResponse(error);
   }
 };
+
 /**
- * @openapi
- * /auth/me:
- *   get:
- *     tags:
- *       - Auth
- *     summary: Obtener sesión activa del usuario
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: Sesión válida
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 user:
- *                   $ref: '#/components/schemas/UserProfile'
- *                 session:
- *                   $ref: '#/components/schemas/SessionInfo'
- *                 role:
- *                   type: string
- *                   example: admin
- *                 nextRoute:
- *                   type: string
- *                   example: /dashboard/admin
- *       401:
- *         description: Token inválido o expirado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       403:
- *         description: Usuario no provisionado o inactivo
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ * @see /auth/me GET
  */
 export const getCurrentSessionController = async (event) => {
   try {

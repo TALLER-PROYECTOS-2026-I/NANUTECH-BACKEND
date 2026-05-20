@@ -72,16 +72,30 @@ const options = {
     },
   },
   // Apunta a todos tus controllers de todas las functions
-  apis: ["./src/functions/**/*Controller.mjs"],
+  apis: [
+    "./src/open_api/**/*.docs.mjs",
+    "./src/functions/**/*.mjs",
+    "./src/functions/**/*Controller.mjs",
+    "./open_api/**/*.mjs",
+  ],
 };
 
 const spec = swaggerJsdoc(options);
 
-const outputDir = "./docs";
+const outputDir = path.resolve("./docs");
+
 if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir, { recursive: true });
 }
 
-fs.writeFileSync(path.join(outputDir, "openapi.json"), JSON.stringify(spec, null, 2));
+const outputFile = path.join(outputDir, "openapi.json");
 
-console.log("✅ openapi.json generado en /docs");
+fs.writeFileSync(outputFile, JSON.stringify(spec, null, 2));
+
+console.log("══════════════════════════════════════");
+console.log("✅ OpenAPI generado correctamente");
+console.log("══════════════════════════════════════");
+console.log(`📄 Archivo: ${outputFile}`);
+console.log(`🌐 Server: ${API_URL}`);
+console.log(`📌 Paths detectados: ${Object.keys(spec.paths || {}).length}`);
+console.log("══════════════════════════════════════");
