@@ -9,6 +9,63 @@ import { Alerta } from "./alertaModel.mjs";
  */
 const ESTADOS_VALIDOS_AUXILIO = new Set(["EN_PROCESO", "RESUELTA"]);
 
+
+/**
+ * HU21 - Tipos de falla permitidos para Auxilio Mecánico.
+ *
+ * Esta lista viene directamente del criterio de aceptación de HU21,
+ * donde el chofer debe seleccionar una falla antes de confirmar
+ * la solicitud de auxilio.
+ */
+const FALLAS_VALIDAS = new Set([
+  "Falla de Motor",
+  "Pinchazo/Llantas",
+  "Fallo en frenos",
+  "Problema eléctrico",
+  "Falta de combustible",
+  "Problema de transmisión",
+  "Otro",
+]);
+
+function isValidUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+function validateRequired(value, field) {
+  if (value === undefined || value === null || value === "") {
+    throw createAlertaError(
+      `El campo ${field} es requerido.`,
+      400,
+      "FIELD_REQUIRED"
+    );
+  }
+}
+
+function validateCoordinates(latitud, longitud) {
+  const lat = Number(latitud);
+  const lng = Number(longitud);
+
+  if (Number.isNaN(lat) || lat < -90 || lat > 90) {
+    throw createAlertaError("La latitud es inválida.", 400, "INVALID_LATITUDE");
+  }
+
+  if (Number.isNaN(lng) || lng < -180 || lng > 180) {
+    throw createAlertaError("La longitud es inválida.", 400, "INVALID_LONGITUDE");
+  }
+
+  return { latitud: lat, longitud: lng };
+}
+
+function buildCodigo(prefix) {
+  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+}
+
+
+
+
+
 /**
  * Construye un error tipado para el dominio de alertas.
  *
@@ -130,4 +187,165 @@ export class AlertaService {
     const updated = await this.repository.actualizarEstado(id, nuevoEstado);
     return Alerta.fromDatabase(updated);
   }
+
+  /**
+   * HU21 - Registra una alerta SOS desde la app móvil.
+   *
+   * Reglas:
+   * - Solo se permite si la jornada está EN_PROCESO.
+   * - Debe guardar coordenadas GPS.
+   * - Debe quedar como PANICO, ACTIVA y CRITICA.
+   * - Activa bloqueo del sistema por seguridad.
+   *
+   * @param {Object} data - Payload enviado por la app.
+   * @returns {Promise<Object>} Alerta creada con mensaje de bloqueo.
+   */
+  async registrarSos(data) {
+    validateRequired(data.jornada_id, "jornada_id");
+    validateRequired(data.conductor_id, "conductor_id");
+    validateRequired(data.latitud, "latitud");
+    validateRequired(data.longitud, "longitud");
+
+    if (!isValidUuid(data.jornada_id)) {
+      throw createAlertaError(
+        "El campo jornada_id debe ser UUID válido.",
+        400,
+        "INVALID_JORNADA_ID"
+      );
+    }
+
+    if (!isValidUuid(data.conductor_id)) {
+      throw createAlertaError(
+        "El campo conductor_id debe ser UUID válido.",
+        400,
+        "INVALID_CONDUCTOR_ID"
+      );
+    }
+
+    const jornada = await this.repository.findJornadaEnProceso(
+      data.jornada_id,
+      data.conductor_id
+    );
+
+    if (!jornada) {
+      throw createAlertaError(
+        "La alerta SOS solo puede registrarse con una jornada en estado EN_PROCESO.",
+        409,
+        "JORNADA_NOT_IN_PROGRESS"
+      );
+    }
+
+    const coords = validateCoordinates(data.latitud, data.longitud);
+
+    const alerta = await this.repository.createAlerta({
+      codigo: data.event_id_cliente || buildCodigo("SOS"),
+      jornada_id: data.jornada_id,
+      tipo: "PANICO",
+      estado: "ACTIVA",
+      severidad: "CRITICA",
+      detalle:
+        data.detalle ||
+        "Alerta SOS generada desde la app móvil del chofer.",
+      tipo_falla_mecanica: null,
+      latitud: coords.latitud,
+      longitud: coords.longitud,
+      direccion: data.direccion || null,
+      fecha_hora: data.timestamp_local || null,
+      bloqueo_sos_activo: true,
+    });
+
+    return {
+      ...alerta,
+      conductor_id: data.conductor_id,
+      unidad_placa: jornada.unidad_placa,
+      sistema_bloqueado: true,
+      mensaje_bloqueo:
+        "¡ALERTA SOS! Ubicación enviada al administrador. Sistema bloqueado por seguridad.",
+    };
+  }
+
+  /**
+   * HU21 - Registra una solicitud de Auxilio Mecánico desde la app móvil.
+   *
+   * Reglas:
+   * - Solo se permite si la jornada está EN_PROCESO.
+   * - Debe registrar tipo de falla.
+   * - Debe guardar coordenadas GPS.
+   * - No bloquea el sistema como el SOS.
+   *
+   * @param {Object} data - Payload enviado por la app.
+   * @returns {Promise<Object>} Alerta de auxilio creada.
+   */
+  async registrarAuxilio(data) {
+    validateRequired(data.jornada_id, "jornada_id");
+    validateRequired(data.conductor_id, "conductor_id");
+    validateRequired(data.tipo_falla_mecanica, "tipo_falla_mecanica");
+    validateRequired(data.latitud, "latitud");
+    validateRequired(data.longitud, "longitud");
+
+    if (!isValidUuid(data.jornada_id)) {
+      throw createAlertaError(
+        "El campo jornada_id debe ser UUID válido.",
+        400,
+        "INVALID_JORNADA_ID"
+      );
+    }
+
+    if (!isValidUuid(data.conductor_id)) {
+      throw createAlertaError(
+        "El campo conductor_id debe ser UUID válido.",
+        400,
+        "INVALID_CONDUCTOR_ID"
+      );
+    }
+
+    if (!FALLAS_VALIDAS.has(data.tipo_falla_mecanica)) {
+      throw createAlertaError(
+        "Tipo de falla inválido.",
+        400,
+        "INVALID_FAILURE_TYPE"
+      );
+    }
+
+    const jornada = await this.repository.findJornadaEnProceso(
+      data.jornada_id,
+      data.conductor_id
+    );
+
+    if (!jornada) {
+      throw createAlertaError(
+        "El auxilio mecánico solo puede registrarse con una jornada en estado EN_PROCESO.",
+        409,
+        "JORNADA_NOT_IN_PROGRESS"
+      );
+    }
+
+    const coords = validateCoordinates(data.latitud, data.longitud);
+
+    const alerta = await this.repository.createAlerta({
+      codigo: data.event_id_cliente || buildCodigo("AUX"),
+      jornada_id: data.jornada_id,
+      tipo: "AUXILIO_MECANICO",
+      estado: "ACTIVA",
+      severidad: "ALTA",
+      detalle:
+        data.detalle ||
+        "Solicitud de auxilio mecánico generada desde la app móvil.",
+      tipo_falla_mecanica: data.tipo_falla_mecanica,
+      latitud: coords.latitud,
+      longitud: coords.longitud,
+      direccion: data.direccion || null,
+      fecha_hora: data.timestamp_local || null,
+      bloqueo_sos_activo: false,
+    });
+
+    return {
+      ...alerta,
+      conductor_id: data.conductor_id,
+      unidad_placa: jornada.unidad_placa,
+      mensaje: "Auxilio Mecánico Solicitado. Tu solicitud ha sido enviada.",
+    };
+  }
+
+
 }

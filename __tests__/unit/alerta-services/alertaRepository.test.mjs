@@ -121,4 +121,85 @@ describe("AlertaRepository", () => {
     expect(result).toBeNull();
     expect(mockRelease).toHaveBeenCalled();
   });
+  test("findJornadaEnProceso valida jornada del conductor en estado EN_PROCESO", async () => {
+  mockQuery.mockResolvedValue({
+    rows: [
+      {
+        id: "cccc0003-0000-0000-0000-000000000003",
+        conductor_id: "22222222-2222-2222-2222-222222222222",
+        unidad_id: "aaaa0001-0000-0000-0000-000000000001",
+        estado: "EN_PROCESO",
+        unidad_placa: "ABC-123",
+      },
+    ],
+  });
+
+  const result = await repository.findJornadaEnProceso(
+    "cccc0003-0000-0000-0000-000000000003",
+    "22222222-2222-2222-2222-222222222222"
+  );
+
+  expect(mockQuery).toHaveBeenCalledWith(
+    expect.stringContaining("j.estado = 'EN_PROCESO'"),
+    [
+      "cccc0003-0000-0000-0000-000000000003",
+      "22222222-2222-2222-2222-222222222222",
+    ]
+  );
+
+  expect(result.estado).toBe("EN_PROCESO");
+  expect(mockRelease).toHaveBeenCalled();
+});
+
+test("createAlerta inserta alerta HU21 correctamente", async () => {
+  mockQuery.mockResolvedValue({
+    rows: [
+      {
+        id: "alert-1",
+        codigo: "sos-test-001",
+        jornada_id: "cccc0003-0000-0000-0000-000000000003",
+        tipo: "PANICO",
+        estado: "ACTIVA",
+        severidad: "CRITICA",
+        detalle: "Alerta SOS generada desde app movil.",
+        tipo_falla_mecanica: null,
+        latitud: -12.0464,
+        longitud: -77.0428,
+        direccion: null,
+        fecha_hora: "2026-05-19T22:05:00.000Z",
+        bloqueo_sos_activo: true,
+      },
+    ],
+  });
+
+  const result = await repository.createAlerta({
+    codigo: "sos-test-001",
+    jornada_id: "cccc0003-0000-0000-0000-000000000003",
+    tipo: "PANICO",
+    estado: "ACTIVA",
+    severidad: "CRITICA",
+    detalle: "Alerta SOS generada desde app movil.",
+    tipo_falla_mecanica: null,
+    latitud: -12.0464,
+    longitud: -77.0428,
+    direccion: null,
+    fecha_hora: "2026-05-19T22:05:00",
+    bloqueo_sos_activo: true,
+  });
+
+  expect(mockQuery).toHaveBeenCalledWith(
+    expect.stringContaining("INSERT INTO alertas_jornada"),
+    expect.arrayContaining([
+      "sos-test-001",
+      "cccc0003-0000-0000-0000-000000000003",
+      "PANICO",
+      "ACTIVA",
+      "CRITICA",
+    ])
+  );
+
+  expect(result.tipo).toBe("PANICO");
+  expect(result.bloqueo_sos_activo).toBe(true);
+  expect(mockRelease).toHaveBeenCalled();
+});
 });

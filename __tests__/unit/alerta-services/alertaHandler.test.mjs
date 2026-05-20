@@ -5,6 +5,8 @@ jest.unstable_mockModule("../../../src/functions/alerta-services/alertaControlle
   getAlertasActivasController: jest.fn().mockResolvedValue({ statusCode: 200, body: "{}" }),
   resolverAlertaController: jest.fn().mockResolvedValue({ statusCode: 200, body: "{}" }),
   actualizarEstadoController: jest.fn().mockResolvedValue({ statusCode: 200, body: "{}" }),
+  registrarSosController: jest.fn().mockResolvedValue({ statusCode: 200, body: "{}" }),
+  registrarAuxilioController: jest.fn().mockResolvedValue({ statusCode: 200, body: "{}" }),
 }));
 
 const { handler } = await import("../../../src/functions/alerta-services/alertaHandler.mjs");
@@ -72,4 +74,26 @@ describe("AlertaHandler", () => {
     expect(body.success).toBe(false);
     expect(body.message).toBe("Ruta no encontrada");
   });
+
+  test("rutea POST /alertas/sos a registrarSosController", async () => {
+  const event = {
+    httpMethod: "POST",
+    resource: "/alertas/sos",
+  };
+
+  await handler(event);
+
+  expect(alertaController.registrarSosController).toHaveBeenCalledWith(event);
+});
+
+test("rutea POST /alertas/auxilio a registrarAuxilioController", async () => {
+  const event = {
+    httpMethod: "POST",
+    resource: "/alertas/auxilio",
+  };
+
+  await handler(event);
+
+  expect(alertaController.registrarAuxilioController).toHaveBeenCalledWith(event);
+});
 });

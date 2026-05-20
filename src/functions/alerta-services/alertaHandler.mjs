@@ -12,6 +12,18 @@ import { errorResponse } from "../../shared/utils/response/response.mjs";
 const ROUTES = {
   "GET /alertas/indicadores": alertaController.getIndicadoresController,
   "GET /alertas/activas": alertaController.getAlertasActivasController,
+
+    // HU21 - Permite que la app móvil del chofer registre una alerta SOS.
+  // Esta ruta se agrega porque la HU21 exige enviar la ubicación al administrador
+  // cuando el chofer mantiene presionado el botón SOS durante 3 segundos.
+  "POST /alertas/sos": alertaController.registrarSosController,
+
+  // HU21 - Permite que la app móvil del chofer solicite auxilio mecánico.
+  // Esta ruta se agrega porque la HU21 exige registrar el tipo de falla
+  // seleccionado desde el modal de Auxilio Mecánico.
+  "POST /alertas/auxilio": alertaController.registrarAuxilioController,
+
+
   "PATCH /alertas/{id}/resolver": alertaController.resolverAlertaController,
   "PATCH /alertas/{id}/estado": alertaController.actualizarEstadoController,
 };

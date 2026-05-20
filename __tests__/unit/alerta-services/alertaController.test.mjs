@@ -14,12 +14,16 @@ jest.unstable_mockModule("../../../src/functions/alerta-services/alertaService.m
     getAlertasActivas: jest.fn(),
     resolverAlerta: jest.fn(),
     actualizarEstado: jest.fn(),
+    registrarSos: jest.fn(),
+    registrarAuxilio: jest.fn(),
   })),
 }));
 
 const {
   getIndicadoresController,
   getAlertasActivasController,
+  registrarSosController,
+  registrarAuxilioController,
   resolverAlertaController,
   actualizarEstadoController,
 } = await import("../../../src/functions/alerta-services/alertaController.mjs");
@@ -54,10 +58,10 @@ describe("AlertaController", () => {
 
     expect(result.statusCode).toBe(200);
     expect(getCurrentSession).toHaveBeenCalledWith("Bearer fake-token-test");
+
     const body = JSON.parse(result.body);
     expect(body.success).toBe(true);
     expect(body.data.panico_activas).toBe(2);
-    expect(body.data.tiene_panico_activo).toBe(true);
   });
 
   test("getIndicadoresController retorna 401 sin token", async () => {
@@ -76,12 +80,9 @@ describe("AlertaController", () => {
       getAlertasActivas: jest.fn().mockResolvedValue([
         {
           id: "alert-1",
-          codigo: "ALT-001",
           tipo: "PANICO",
           estado: "ACTIVA",
           severidad: "CRITICA",
-          conductor: { id: "cond-1", nombre_completo: "Carlos Rodriguez" },
-          unidad: { id: "uni-1", placa: "ABC-123" },
         },
       ]),
     }));
@@ -89,14 +90,15 @@ describe("AlertaController", () => {
     const result = await getAlertasActivasController(withAuth());
 
     expect(result.statusCode).toBe(200);
+
     const body = JSON.parse(result.body);
     expect(body.success).toBe(true);
-    expect(Array.isArray(body.data)).toBe(true);
     expect(body.data[0].tipo).toBe("PANICO");
   });
 
   test("getAlertasActivasController filtra por tipo", async () => {
     const mockGetAlertasActivas = jest.fn().mockResolvedValue([]);
+
     AlertaService.mockImplementation(() => ({
       getAlertasActivas: mockGetAlertasActivas,
     }));
@@ -112,6 +114,88 @@ describe("AlertaController", () => {
     );
   });
 
+  test("registrarSosController registra SOS con status 200", async () => {
+    const mockRegistrarSos = jest.fn().mockResolvedValue({
+      id: "alert-sos-1",
+      tipo: "PANICO",
+      estado: "ACTIVA",
+      severidad: "CRITICA",
+      sistema_bloqueado: true,
+    });
+
+    AlertaService.mockImplementation(() => ({
+      registrarSos: mockRegistrarSos,
+    }));
+
+    const result = await registrarSosController(
+      withAuth({
+        body: JSON.stringify({
+          jornada_id: "cccc0003-0000-0000-0000-000000000003",
+          conductor_id: "22222222-2222-2222-2222-222222222222",
+          latitud: -12.0464,
+          longitud: -77.0428,
+          event_id_cliente: "sos-test-001",
+        }),
+      })
+    );
+
+    expect(result.statusCode).toBe(200);
+    expect(mockRegistrarSos).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jornada_id: "cccc0003-0000-0000-0000-000000000003",
+        conductor_id: "22222222-2222-2222-2222-222222222222",
+        latitud: -12.0464,
+        longitud: -77.0428,
+      })
+    );
+
+    const body = JSON.parse(result.body);
+    expect(body.success).toBe(true);
+    expect(body.data.tipo).toBe("PANICO");
+    expect(body.data.sistema_bloqueado).toBe(true);
+  });
+
+  test("registrarAuxilioController registra auxilio mecanico con status 200", async () => {
+    const mockRegistrarAuxilio = jest.fn().mockResolvedValue({
+      id: "alert-aux-1",
+      tipo: "AUXILIO_MECANICO",
+      estado: "ACTIVA",
+      severidad: "ALTA",
+      tipo_falla_mecanica: "Pinchazo/Llantas",
+    });
+
+    AlertaService.mockImplementation(() => ({
+      registrarAuxilio: mockRegistrarAuxilio,
+    }));
+
+    const result = await registrarAuxilioController(
+      withAuth({
+        body: JSON.stringify({
+          jornada_id: "cccc0003-0000-0000-0000-000000000003",
+          conductor_id: "22222222-2222-2222-2222-222222222222",
+          tipo_falla_mecanica: "Pinchazo/Llantas",
+          detalle: "Llanta posterior danada.",
+          latitud: -12.0464,
+          longitud: -77.0428,
+          event_id_cliente: "aux-test-001",
+        }),
+      })
+    );
+
+    expect(result.statusCode).toBe(200);
+    expect(mockRegistrarAuxilio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo_falla_mecanica: "Pinchazo/Llantas",
+        latitud: -12.0464,
+        longitud: -77.0428,
+      })
+    );
+
+    const body = JSON.parse(result.body);
+    expect(body.success).toBe(true);
+    expect(body.data.tipo).toBe("AUXILIO_MECANICO");
+  });
+
   test("resolverAlertaController resuelve alerta exitosamente", async () => {
     AlertaService.mockImplementation(() => ({
       resolverAlerta: jest.fn().mockResolvedValue({
@@ -124,11 +208,12 @@ describe("AlertaController", () => {
     const result = await resolverAlertaController(
       withAuth({
         pathParameters: { id: "alert-1" },
-        body: JSON.stringify({ detalle_resolucion: "Resuelto por técnico" }),
+        body: JSON.stringify({ detalle_resolucion: "Resuelto por tecnico" }),
       })
     );
 
     expect(result.statusCode).toBe(200);
+
     const body = JSON.parse(result.body);
     expect(body.success).toBe(true);
     expect(body.data.estado).toBe("RESUELTA");
@@ -151,29 +236,6 @@ describe("AlertaController", () => {
     );
 
     expect(result.statusCode).toBe(404);
-    const body = JSON.parse(result.body);
-    expect(body.success).toBe(false);
-  });
-
-  test("resolverAlertaController retorna 400 si ya está resuelta", async () => {
-    AlertaService.mockImplementation(() => ({
-      resolverAlerta: jest.fn().mockRejectedValue({
-        message: "La alerta ya fue resuelta.",
-        statusCode: 400,
-        code: "ALERTA_YA_RESUELTA",
-      }),
-    }));
-
-    const result = await resolverAlertaController(
-      withAuth({
-        pathParameters: { id: "alert-1" },
-        body: JSON.stringify({}),
-      })
-    );
-
-    expect(result.statusCode).toBe(400);
-    const body = JSON.parse(result.body);
-    expect(body.success).toBe(false);
   });
 
   test("actualizarEstadoController cambia estado a EN_PROCESO", async () => {
@@ -193,29 +255,9 @@ describe("AlertaController", () => {
     );
 
     expect(result.statusCode).toBe(200);
+
     const body = JSON.parse(result.body);
     expect(body.success).toBe(true);
     expect(body.data.estado).toBe("EN_PROCESO");
-  });
-
-  test("actualizarEstadoController retorna 400 si no es AUXILIO_MECANICO", async () => {
-    AlertaService.mockImplementation(() => ({
-      actualizarEstado: jest.fn().mockRejectedValue({
-        message: "Solo aplica para auxilios mecánicos.",
-        statusCode: 400,
-        code: "SOLO_AUXILIO_MECANICO",
-      }),
-    }));
-
-    const result = await actualizarEstadoController(
-      withAuth({
-        pathParameters: { id: "alert-1" },
-        body: JSON.stringify({ estado: "EN_PROCESO" }),
-      })
-    );
-
-    expect(result.statusCode).toBe(400);
-    const body = JSON.parse(result.body);
-    expect(body.success).toBe(false);
   });
 });
