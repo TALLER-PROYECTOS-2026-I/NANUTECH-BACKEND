@@ -239,6 +239,8 @@
  *     tags:
  *       - Camiones
  *     summary: Listar todos los camiones
+ *     security:
+ *       - BearerAuth: []  
  *     description: >
  *       Devuelve el listado completo de camiones activos (`activo = TRUE`).
  *       Soporta filtrado por placa (parcial, case-insensitive) y por estado.
@@ -285,6 +287,8 @@
  *     tags:
  *       - Camiones
  *     summary: Obtener camión por ID
+ *     security:
+ *       - BearerAuth: []   
  *     description: >
  *       Retorna el detalle completo de un camión incluyendo métricas GPS.
  *       Acepta UUID (`aaaa0001-...`) o número entero como índice ordinal por placa.
@@ -322,6 +326,8 @@
  *     tags:
  *       - Camiones
  *     summary: Registrar un nuevo camión
+ *     security:
+ *       - BearerAuth: []   
  *     description: >
  *       Crea una nueva unidad de transporte en la tabla `unidades`.
  *       El trigger `tg_unidad_to_camion_ins` sincroniza automáticamente
@@ -402,6 +408,8 @@
  *     tags:
  *       - Camiones
  *     summary: Panel consolidado de monitoreo
+ *     security:
+ *       - BearerAuth: []  
  *     description: >
  *       Retorna un resumen operativo y métricas GPS agregadas de todas las unidades.
  *       Incluye conteo por estado, porcentajes de actividad y el listado completo
@@ -462,6 +470,8 @@
  *     tags:
  *       - Camiones
  *     summary: Exportar camiones en formato CSV
+ *     security:
+ *       - BearerAuth: []   
  *     description: >
  *       Genera y descarga un archivo CSV con la información operativa de los camiones.
  *       Compatible con Excel (UTF-8, coma como separador). Soporta los mismos
