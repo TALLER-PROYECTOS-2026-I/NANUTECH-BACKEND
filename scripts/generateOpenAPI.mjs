@@ -12,7 +12,7 @@ const options = {
     },
     servers: [
       {
-        url: process.env.API_URL_TESTING || "http://localhost:3000",
+        url: process.env.API_URL || "http://localhost:3000",
         description: "Ambiente actual",
       },
     ],
@@ -96,6 +96,6 @@ console.log("══════════════════════�
 console.log("✅ OpenAPI generado correctamente");
 console.log("══════════════════════════════════════");
 console.log(`📄 Archivo: ${outputFile}`);
-console.log(`🌐 Server: ${API_URL_TESTING}`);
+console.log(`🌐 Server: ${process.env.API_URL || "http://localhost:3000"}`);
 console.log(`📌 Paths detectados: ${Object.keys(spec.paths || {}).length}`);
 console.log("══════════════════════════════════════");
