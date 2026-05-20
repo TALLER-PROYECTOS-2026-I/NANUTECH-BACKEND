@@ -7,6 +7,8 @@ jest.unstable_mockModule("../../../src/functions/alerta-services/alertaRepositor
     findById: jest.fn(),
     resolverAlerta: jest.fn(),
     actualizarEstado: jest.fn(),
+    findJornadaEnProceso: jest.fn(),
+    createAlerta: jest.fn(),
   })),
 }));
 
@@ -122,4 +124,89 @@ describe("AlertaService", () => {
     expect(alertaService.repository.actualizarEstado).toHaveBeenCalledWith("alert-1", "EN_PROCESO");
     expect(result.estado).toBe("EN_PROCESO");
   });
+
+  test("registrarSos crea alerta PANICO correctamente", async () => {
+  alertaService.repository.findJornadaEnProceso.mockResolvedValue({
+    id: "cccc0003-0000-0000-0000-000000000003",
+    conductor_id: "22222222-2222-2222-2222-222222222222",
+    unidad_placa: "ABC-123",
+    estado: "EN_PROCESO",
+  });
+
+  alertaService.repository.createAlerta.mockResolvedValue({
+    id: "alert-sos-1",
+    codigo: "sos-test",
+    jornada_id: "cccc0003-0000-0000-0000-000000000003",
+    tipo: "PANICO",
+    estado: "ACTIVA",
+    severidad: "CRITICA",
+    latitud: -12.0464,
+    longitud: -77.0428,
+    bloqueo_sos_activo: true,
+  });
+
+  const result = await alertaService.registrarSos({
+    jornada_id: "cccc0003-0000-0000-0000-000000000003",
+    conductor_id: "22222222-2222-2222-2222-222222222222",
+    latitud: -12.0464,
+    longitud: -77.0428,
+    event_id_cliente: "sos-test",
+  });
+
+  expect(alertaService.repository.createAlerta).toHaveBeenCalledWith(
+    expect.objectContaining({
+      tipo: "PANICO",
+      estado: "ACTIVA",
+      severidad: "CRITICA",
+      bloqueo_sos_activo: true,
+    })
+  );
+
+  expect(result.sistema_bloqueado).toBe(true);
+});
+
+test("registrarAuxilio crea alerta AUXILIO_MECANICO correctamente", async () => {
+  alertaService.repository.findJornadaEnProceso.mockResolvedValue({
+    id: "cccc0003-0000-0000-0000-000000000003",
+    conductor_id: "22222222-2222-2222-2222-222222222222",
+    unidad_placa: "ABC-123",
+    estado: "EN_PROCESO",
+  });
+
+  alertaService.repository.createAlerta.mockResolvedValue({
+    id: "alert-aux-1",
+    codigo: "aux-test",
+    jornada_id: "cccc0003-0000-0000-0000-000000000003",
+    tipo: "AUXILIO_MECANICO",
+    estado: "ACTIVA",
+    severidad: "ALTA",
+    tipo_falla_mecanica: "Pinchazo/Llantas",
+    latitud: -12.0464,
+    longitud: -77.0428,
+    bloqueo_sos_activo: false,
+  });
+
+  const result = await alertaService.registrarAuxilio({
+    jornada_id: "cccc0003-0000-0000-0000-000000000003",
+    conductor_id: "22222222-2222-2222-2222-222222222222",
+    tipo_falla_mecanica: "Pinchazo/Llantas",
+    detalle: "Llanta posterior danada.",
+    latitud: -12.0464,
+    longitud: -77.0428,
+    event_id_cliente: "aux-test",
+  });
+
+  expect(alertaService.repository.createAlerta).toHaveBeenCalledWith(
+    expect.objectContaining({
+      tipo: "AUXILIO_MECANICO",
+      estado: "ACTIVA",
+      severidad: "ALTA",
+      tipo_falla_mecanica: "Pinchazo/Llantas",
+      bloqueo_sos_activo: false,
+    })
+  );
+
+  expect(result.mensaje).toContain("Auxilio");
+});
+
 });
