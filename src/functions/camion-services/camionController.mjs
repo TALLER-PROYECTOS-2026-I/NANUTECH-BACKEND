@@ -1,6 +1,6 @@
 import { CamionService } from "./camionService.mjs";
 import { successResponse, errorResponse } from "../../shared/utils/response/response.mjs";
-import "../../../open_api/camion.docs.mjs";
+
 
 function resolveCamionError(error) {
   const statusCode =
