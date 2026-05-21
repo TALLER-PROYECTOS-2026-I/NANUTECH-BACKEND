@@ -218,7 +218,36 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/functions/alerta-services/alertaHandler.mjs
-          
+  DashboardConductoresFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-dashboard-conductores"
+      CodeUri: .
+      Handler: src/functions/dashboard-conductores-services/dashboardConductoresHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        GetDashboardConductores:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /conductores/dashboard
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: dashboard-conductores
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/dashboard-conductores-services/dashboardConductoresHandler.mjs        
   DashboardGerencialFunction:
     Type: AWS::Serverless::Function
     Properties:
