@@ -1,0 +1,108 @@
+# =============================================================================
+# zap-plan-chofer.yaml — ROL CHOFER
+# Token inyectado via variable de entorno ZAP_TOKEN + job replacer
+# =============================================================================
+
+env:
+  contexts:
+    - name: "CHOFER"
+      urls:
+        - "https://API_URL_TESTING"
+      includePaths:
+        - "https://API_URL_TESTING/auth/login"
+        - "https://API_URL_TESTING/auth/me"
+        - "https://API_URL_TESTING/auth/forgot-password"
+        - "https://API_URL_TESTING/auth/forgot-password/confirm"
+        - "https://API_URL_TESTING/jornadas/actual/.*"
+        - "https://API_URL_TESTING/jornadas/iniciar"
+        - "https://API_URL_TESTING/jornadas/finalizar"
+      excludePaths:
+        - "https://API_URL_TESTING/camiones.*"
+        - "https://API_URL_TESTING/dashboard.*"
+        - "https://API_URL_TESTING/jornadas$"
+        - "https://API_URL_TESTING/jornadas/exportar"
+        - "https://API_URL_TESTING/conductores.*"
+        - "https://API_URL_TESTING/contratos.*"
+        - "https://API_URL_TESTING/unidades.*"
+        - "https://API_URL_TESTING/gps/.*"
+
+  parameters:
+    failOnError: false
+    progressToStdout: true
+
+jobs:
+
+  - type: openapi
+    parameters:
+      apiFile: "/zap/wrk/openapi.yaml"
+      context: "CHOFER"
+      targetUrl: "https://API_URL_TESTING"
+    name: "ImportarOpenAPI"
+
+  - type: requestor
+    parameters:
+      user: ""
+    requests:
+      - url: "https://API_URL_TESTING/auth/me"
+        method: "GET"
+        headers:
+          - "Authorization: Bearer ${ZAP_TOKEN}"
+          - "Content-Type: application/json"
+    name: "VerificarToken-CHOFER"
+
+  - type: replacer
+    parameters:
+      rules:
+        - description: "Inyectar Bearer token CHOFER en todos los requests"
+          matchType: "REQ_HEADER"
+          matchString: "Authorization"
+          matchRegex: false
+          replacement: "Bearer ${ZAP_TOKEN}"
+          initiators: []
+    name: "InjectarToken-CHOFER"
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  # Active scan en endpoints de CHOFER:
+  # XSS en: conductorId (path param UUID), jornada_id, observaciones
+  # SQLi en: conductorId, jornada_id (path y body)
+  # Path traversal en: /jornadas/actual/{conductorId}
+  - type: activeScan
+    parameters:
+      context: "CHOFER"
+      policy: "nanutech-scan-policy"
+      maxRuleDurationInMins: 5
+      maxScanDurationInMins: 10
+      threadPerHost: 2
+      addQueryParam: true
+      defaultPolicy: false
+    name: "ActiveScan-CHOFER"
+
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "reporte-CHOFER"
+      reportTitle: "Nanutech | ROL: CHOFER | Reporte de Seguridad"
+      reportDescription: >
+        Escaneo con credenciales ROL CHOFER.
+        Endpoints: /jornadas/actual/{conductorId}, /jornadas/iniciar,
+        /jornadas/finalizar, /auth/*.
+        Pruebas: XSS en conductorId y campos de jornada (observaciones),
+        SQL Injection en path params y body JSON (jornada_id, km_recorridos),
+        Path Traversal en conductorId, CORS, Headers HTTP.
+      contexts:
+        - "CHOFER"
+    name: "Reporte-HTML-CHOFER"
+
+  - type: report
+    parameters:
+      template: "traditional-json"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "reporte-CHOFER-json"
+      reportTitle: "Nanutech | ROL: CHOFER | JSON CI/CD"
+      contexts:
+        - "CHOFER"
+    name: "Reporte-JSON-CHOFER"
