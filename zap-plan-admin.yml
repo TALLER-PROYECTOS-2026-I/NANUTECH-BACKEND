@@ -54,7 +54,7 @@ jobs:
   # ZAP aprende: endpoints, métodos HTTP, parámetros, schemas de request
   - type: openapi
     parameters:
-      apiFile: "/zap/wrk/openapi.run.yaml"
+      apiFile: "/zap/wrk/openapi.run.yml"
       context: "ADMIN"
       targetUrl: "API_URL_PLACEHOLDER"
     name: "ImportarOpenAPI-ADMIN"
