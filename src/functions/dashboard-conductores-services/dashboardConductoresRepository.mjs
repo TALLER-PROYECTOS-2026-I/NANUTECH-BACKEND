@@ -81,7 +81,7 @@ export class DashboardConductoresRepository {
 
   // LISTADO DE CONDUCTORES
   // CON FILTROS Y BUSQUEDA
-  async findAllConductores({ busqueda, estado, disponibilidad } = {}) {
+  async findAllConductores({ busqueda, estado, disponibilidad, page = 1, limit = 20 } = {}) {
     // Condiciones dinámicas para filtros
     const conditions = ["u.rol = 'CHOFER'"];
     // Parámetros seguros SQL
@@ -97,7 +97,6 @@ export class DashboardConductoresRepository {
         (
           u.nombres ILIKE $${idx}
           OR u.apellidos ILIKE $${idx}
-          OR u.dni ILIKE $${idx}
           OR lc.numero_licencia ILIKE $${idx}
         )
       `);
@@ -118,15 +117,22 @@ export class DashboardConductoresRepository {
     // Construcción dinámica del WHERE
     const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
+    const pageNumber = Number(page) > 0 ? Number(page) : 1;
+    const limitNumber = Number(limit) > 0 ? Number(limit) : 20;
+    const offset = (pageNumber - 1) * limitNumber;
+
+    params.push(limitNumber);
+    const limitIndex = params.length;
+
+    params.push(offset);
+    const offsetIndex = params.length;
+
     const result = await db.query(
       `
       SELECT
         u.id AS id,
         CONCAT(u.nombres, ' ', u.apellidos) AS nombre,
-        u.correo AS email,
-        u.dni,
         lc.numero_licencia AS licencia,
-        u.telefono AS contacto,
 
         CASE
           WHEN c.estado_operacional = 'DESCANSO' THEN 'DESCANSANDO'
@@ -163,11 +169,66 @@ export class DashboardConductoresRepository {
 
       ${whereClause}
 
-      ORDER BY u.nombres ASC, u.apellidos ASC;
+      ORDER BY u.id ASC
+      LIMIT $${limitIndex}
+      OFFSET $${offsetIndex};
       `,
       params
     );
 
     return result.rows;
+  }
+
+  async countConductores({ busqueda, estado, disponibilidad } = {}) {
+    const conditions = ["u.rol = 'CHOFER'"];
+    const params = [];
+
+    if (busqueda) {
+      params.push(`%${busqueda}%`);
+      const idx = params.length;
+
+      conditions.push(`
+        (
+          u.nombres ILIKE $${idx}
+          OR u.apellidos ILIKE $${idx}
+          OR lc.numero_licencia ILIKE $${idx}
+        )
+      `);
+    }
+
+    if (estado && estado !== "TODOS") {
+      params.push(estado === "ACTIVOS");
+      conditions.push(`u.activo = $${params.length}`);
+    }
+
+    if (disponibilidad && disponibilidad !== "TODOS") {
+      params.push(disponibilidad);
+      conditions.push(`c.estado_operacional::TEXT = $${params.length}`);
+    }
+
+    const whereClause = `WHERE ${conditions.join(" AND ")}`;
+
+    const result = await db.query(
+      `
+      SELECT COUNT(*)::INT AS total
+
+      FROM conductores c
+      INNER JOIN usuarios u ON u.id = c.usuario_id
+
+      LEFT JOIN LATERAL (
+        SELECT l.numero_licencia
+        FROM licencias_conducir l
+        WHERE l.conductor_id = c.usuario_id
+          AND l.activa = TRUE
+        ORDER BY l.fecha_vencimiento DESC
+        LIMIT 1
+      ) lc ON TRUE
+
+      ${whereClause};
+      `,
+      params
+    );
+
+    return result.rows[0].total;
   }
 }
