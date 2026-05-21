@@ -40,7 +40,7 @@ jobs:
 
   - type: openapi
     parameters:
-      apiFile: "/zap/wrk/openapi.run.yaml"
+      apiFile: "/zap/wrk/openapi.run.yml"
       context: "GERENTE"
       targetUrl: "API_URL_PLACEHOLDER"
     name: "ImportarOpenAPI-GERENTE"
