@@ -59,7 +59,6 @@ jobs:
       - name: Login ADMIN
         id: admin
         run: |
-          # Sin -f para ver el body aunque el servidor devuelva error HTTP
           HTTP_STATUS=$(curl -s -o /tmp/resp_admin.txt -w "%{http_code}" \
             --max-time 15 \
             -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
@@ -152,24 +151,22 @@ jobs:
         run: mkdir -p reports
 
       - name: Inyectar URL y token en los archivos de configuración
-        # sed reemplaza los dos placeholders en copias de los archivos.
-        # Trabajamos con copias para no modificar los archivos del repo.
         # Usamos @ como delimitador de sed porque la URL contiene /
         run: |
-          cp zap-plan-admin.yaml zap-plan-admin.run.yaml
-          cp openapi.yaml openapi.run.yaml
+          cp zap-plan-admin.yml zap-plan-admin.run.yml
+          cp openapi.yml openapi.run.yml
 
           sed -i "s@API_URL_PLACEHOLDER@${{ secrets.API_URL_TESTING }}@g" \
-            zap-plan-admin.run.yaml openapi.run.yaml
+            zap-plan-admin.run.yml openapi.run.yml
 
           sed -i "s@ZAP_TOKEN_PLACEHOLDER@${{ needs.get-tokens.outputs.token_admin }}@g" \
-            zap-plan-admin.run.yaml
+            zap-plan-admin.run.yml
 
       - name: Verificar YAML válido tras sustitución
         run: |
           python3 -c "
           import yaml, sys
-          for f in ['zap-plan-admin.run.yaml', 'openapi.run.yaml']:
+          for f in ['zap-plan-admin.run.yml', 'openapi.run.yml']:
               try:
                   yaml.safe_load(open(f))
                   print(f'✅ {f} OK')
@@ -182,8 +179,6 @@ jobs:
         run: docker pull ghcr.io/zaproxy/zaproxy:stable
 
       - name: 🔍 ZAP Active Scan ROL ADMIN
-        # El contenedor monta el workspace en /zap/wrk/
-        # Los archivos .run.yaml ya tienen URL y token reales.
         run: |
           docker run --rm \
             --network host \
@@ -200,10 +195,8 @@ jobs:
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
 
               echo '--- Ejecutando plan ADMIN ---'
-              zap.sh -cmd -autorun /zap/wrk/zap-plan-admin.run.yaml
+              zap.sh -cmd -autorun /zap/wrk/zap-plan-admin.run.yml
             "
-        # continue-on-error: true porque ZAP devuelve exit code > 0
-        # cuando encuentra alertas (comportamiento normal)
         continue-on-error: true
 
       - name: Verificar reporte generado
@@ -245,20 +238,20 @@ jobs:
 
       - name: Inyectar URL y token
         run: |
-          cp zap-plan-gerente.yaml zap-plan-gerente.run.yaml
-          cp openapi.yaml openapi.run.yaml
+          cp zap-plan-gerente.yml zap-plan-gerente.run.yml
+          cp openapi.yml openapi.run.yml
 
           sed -i "s@API_URL_PLACEHOLDER@${{ secrets.API_URL_TESTING }}@g" \
-            zap-plan-gerente.run.yaml openapi.run.yaml
+            zap-plan-gerente.run.yml openapi.run.yml
 
           sed -i "s@ZAP_TOKEN_PLACEHOLDER@${{ needs.get-tokens.outputs.token_gerente }}@g" \
-            zap-plan-gerente.run.yaml
+            zap-plan-gerente.run.yml
 
       - name: Verificar YAML válido
         run: |
           python3 -c "
           import yaml, sys
-          for f in ['zap-plan-gerente.run.yaml', 'openapi.run.yaml']:
+          for f in ['zap-plan-gerente.run.yml', 'openapi.run.yml']:
               try:
                   yaml.safe_load(open(f))
                   print(f'✅ {f} OK')
@@ -282,9 +275,19 @@ jobs:
               cp /zap/wrk/nanutech-scan-policy.xml /home/zap/.ZAP/policies/
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
-              zap.sh -cmd -autorun /zap/wrk/zap-plan-gerente.run.yaml
+              zap.sh -cmd -autorun /zap/wrk/zap-plan-gerente.run.yml
             "
         continue-on-error: true
+
+      - name: Verificar reporte generado
+        run: |
+          if ls reports/reporte-GERENTE* 1>/dev/null 2>&1; then
+            echo "✅ Reportes generados:"
+            ls -lh reports/reporte-GERENTE*
+          else
+            echo "⚠️ No se encontraron reportes. Contenido de reports/:"
+            ls -la reports/ || echo "(vacío)"
+          fi
 
       - name: Subir reporte GERENTE
         uses: actions/upload-artifact@v4
@@ -315,20 +318,20 @@ jobs:
 
       - name: Inyectar URL y token
         run: |
-          cp zap-plan-chofer.yaml zap-plan-chofer.run.yaml
-          cp openapi.yaml openapi.run.yaml
+          cp zap-plan-chofer.yml zap-plan-chofer.run.yml
+          cp openapi.yml openapi.run.yml
 
           sed -i "s@API_URL_PLACEHOLDER@${{ secrets.API_URL_TESTING }}@g" \
-            zap-plan-chofer.run.yaml openapi.run.yaml
+            zap-plan-chofer.run.yml openapi.run.yml
 
           sed -i "s@ZAP_TOKEN_PLACEHOLDER@${{ needs.get-tokens.outputs.token_chofer }}@g" \
-            zap-plan-chofer.run.yaml
+            zap-plan-chofer.run.yml
 
       - name: Verificar YAML válido
         run: |
           python3 -c "
           import yaml, sys
-          for f in ['zap-plan-chofer.run.yaml', 'openapi.run.yaml']:
+          for f in ['zap-plan-chofer.run.yml', 'openapi.run.yml']:
               try:
                   yaml.safe_load(open(f))
                   print(f'✅ {f} OK')
@@ -352,9 +355,19 @@ jobs:
               cp /zap/wrk/nanutech-scan-policy.xml /home/zap/.ZAP/policies/
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
-              zap.sh -cmd -autorun /zap/wrk/zap-plan-chofer.run.yaml
+              zap.sh -cmd -autorun /zap/wrk/zap-plan-chofer.run.yml
             "
         continue-on-error: true
+
+      - name: Verificar reporte generado
+        run: |
+          if ls reports/reporte-CHOFER* 1>/dev/null 2>&1; then
+            echo "✅ Reportes generados:"
+            ls -lh reports/reporte-CHOFER*
+          else
+            echo "⚠️ No se encontraron reportes. Contenido de reports/:"
+            ls -la reports/ || echo "(vacío)"
+          fi
 
       - name: Subir reporte CHOFER
         uses: actions/upload-artifact@v4
@@ -366,8 +379,6 @@ jobs:
 
   # =========================================================================
   # JOB 5: BROKEN ACCESS CONTROL CON CURL
-  # Este job es el más confiable: no depende de ZAP ni de Docker.
-  # Prueba directamente con curl cada combinación rol → endpoint.
   # =========================================================================
   access-control-tests:
     name: 🔒 Broken Access Control
