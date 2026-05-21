@@ -1,5 +1,5 @@
 # =============================================================================
-# zap-plan-gerente.yaml — ROL GERENTE
+# zap-plan-gerente.yml — ROL GERENTE
 # Placeholders reemplazados por sed en el workflow antes de correr ZAP:
 #   API_URL_PLACEHOLDER   → URL real del API Gateway
 #   ZAP_TOKEN_PLACEHOLDER → Bearer token del GERENTE
@@ -45,9 +45,10 @@ jobs:
       targetUrl: "API_URL_PLACEHOLDER"
     name: "ImportarOpenAPI-GERENTE"
 
+  # FIX: replacer usa "matchStrings" (lista), no "rules"
   - type: replacer
     parameters:
-      rules:
+      matchStrings:
         - description: "Bearer token ROL GERENTE"
           matchType: "REQ_HEADER"
           matchString: "Authorization"
@@ -61,21 +62,17 @@ jobs:
       maxDuration: 5
     name: "PassiveScan-GERENTE"
 
-  # Active scan en endpoints de GERENTE:
-  # SQLi en: /contratos/{id}, body POST /contratos (codigo, cliente, ruc)
-  # XSS en: codigo, cliente, descripcion, origen, destino, observaciones
-  # CORS en todos los endpoints del contexto GERENTE
+  # FIX: removido policy y defaultPolicy — usa Default Policy de ZAP
   - type: activeScan
     parameters:
       context: "GERENTE"
-      policy: "nanutech-scan-policy"
       maxRuleDurationInMins: 5
       maxScanDurationInMins: 20
       threadPerHost: 2
       addQueryParam: true
-      defaultPolicy: false
     name: "ActiveScan-GERENTE"
 
+  # FIX: "contexts" removido del report (parámetro no reconocido)
   - type: report
     parameters:
       template: "traditional-html"
@@ -84,14 +81,9 @@ jobs:
       reportTitle: "Nanutech | ROL GERENTE | Reporte de Seguridad ZAP"
       reportDescription: >
         Escaneo activo ejecutado con token ROL GERENTE.
-        Endpoints: /dashboard/gerencial, /jornadas (GET,POST,/exportar),
-        /conductores, /contratos (GET,POST,/{id},/indicadores,/vigentes),
-        /unidades/disponibles, /auth/*.
-        Pruebas: SQL Injection en contratos y jornadas, XSS en campos
-        de texto (codigo, cliente, descripcion, origen, destino),
-        CORS, Path Traversal en /{id}, Headers HTTP.
-      contexts:
-        - "GERENTE"
+        Endpoints: /dashboard/gerencial, /jornadas, /conductores,
+        /contratos, /unidades/disponibles, /auth/*.
+        Pruebas: SQL Injection, XSS, CORS, Path Traversal, Headers HTTP.
     name: "ReporteHTML-GERENTE"
 
   - type: report
@@ -100,6 +92,4 @@ jobs:
       reportDir: "/zap/wrk/reports"
       reportFile: "reporte-GERENTE-json"
       reportTitle: "Nanutech | ROL GERENTE | JSON CI/CD"
-      contexts:
-        - "GERENTE"
     name: "ReporteJSON-GERENTE"
