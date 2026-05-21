@@ -59,15 +59,23 @@ jobs:
       - name: Login ADMIN
         id: admin
         run: |
-          RESP=$(curl -sf --max-time 15 \
+          # Sin -f para ver el body aunque el servidor devuelva error HTTP
+          HTTP_STATUS=$(curl -s -o /tmp/resp_admin.txt -w "%{http_code}" \
+            --max-time 15 \
             -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
             -H "Content-Type: application/json" \
             -d '{"email":"admin@nanutech.com","password":"Admin123!"}')
-
+          RESP=$(cat /tmp/resp_admin.txt)
+          echo "HTTP Status ADMIN: $HTTP_STATUS"
+          echo "Respuesta ADMIN: $RESP"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Login ADMIN falló con HTTP $HTTP_STATUS"
+            exit 1
+          fi
           TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
           if [ -z "$TOKEN" ]; then
-            echo "❌ Login ADMIN falló. Respuesta:"
-            echo "$RESP"
+            echo "❌ HTTP 200 pero no se encontró .data.session.accessToken"
+            echo "$RESP" | jq . || echo "$RESP"
             exit 1
           fi
           echo "✅ Token ADMIN obtenido (${#TOKEN} chars)"
@@ -77,34 +85,50 @@ jobs:
       - name: Login GERENTE
         id: gerente
         run: |
-          RESP=$(curl -sf --max-time 15 \
+          HTTP_STATUS=$(curl -s -o /tmp/resp_gerente.txt -w "%{http_code}" \
+            --max-time 15 \
             -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
             -H "Content-Type: application/json" \
             -d '{"email":"gerente@nanutech.com","password":"Admin123!"}')
-
-          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
-          if [ -z "$TOKEN" ]; then
-            echo "❌ Login GERENTE falló. Respuesta:"
-            echo "$RESP"
+          RESP=$(cat /tmp/resp_gerente.txt)
+          echo "HTTP Status GERENTE: $HTTP_STATUS"
+          echo "Respuesta GERENTE: $RESP"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Login GERENTE falló con HTTP $HTTP_STATUS"
             exit 1
           fi
+          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
+          if [ -z "$TOKEN" ]; then
+            echo "❌ HTTP 200 pero no se encontró .data.session.accessToken"
+            echo "$RESP" | jq . || echo "$RESP"
+            exit 1
+          fi
+          echo "✅ Token GERENTE obtenido (${#TOKEN} chars)"
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
       - name: Login CHOFER
         id: chofer
         run: |
-          RESP=$(curl -sf --max-time 15 \
+          HTTP_STATUS=$(curl -s -o /tmp/resp_chofer.txt -w "%{http_code}" \
+            --max-time 15 \
             -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
             -H "Content-Type: application/json" \
             -d '{"email":"chofer@nanutech.com","password":"Admin123!"}')
-
-          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
-          if [ -z "$TOKEN" ]; then
-            echo "❌ Login CHOFER falló. Respuesta:"
-            echo "$RESP"
+          RESP=$(cat /tmp/resp_chofer.txt)
+          echo "HTTP Status CHOFER: $HTTP_STATUS"
+          echo "Respuesta CHOFER: $RESP"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Login CHOFER falló con HTTP $HTTP_STATUS"
             exit 1
           fi
+          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
+          if [ -z "$TOKEN" ]; then
+            echo "❌ HTTP 200 pero no se encontró .data.session.accessToken"
+            echo "$RESP" | jq . || echo "$RESP"
+            exit 1
+          fi
+          echo "✅ Token CHOFER obtenido (${#TOKEN} chars)"
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
