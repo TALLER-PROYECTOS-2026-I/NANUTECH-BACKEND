@@ -1,12 +1,9 @@
 # =============================================================================
-# zap-plan-admin.yaml — ROL ADMIN
+# zap-plan-admin.yml — ROL ADMIN
 #
 # IMPORTANTE — placeholders:
 #   API_URL_PLACEHOLDER   → sed lo reemplaza con secrets.API_URL_TESTING
 #   ZAP_TOKEN_PLACEHOLDER → sed lo reemplaza con el Bearer token real
-#
-# El workflow crea zap-plan-admin.run.yaml con los valores reales
-# antes de pasarlo a ZAP. Nunca commiteás tokens al repo.
 # =============================================================================
 
 env:
@@ -50,8 +47,6 @@ env:
 
 jobs:
 
-  # Importa openapi.run.yaml (ya con la URL real)
-  # ZAP aprende: endpoints, métodos HTTP, parámetros, schemas de request
   - type: openapi
     parameters:
       apiFile: "/zap/wrk/openapi.run.yml"
@@ -59,12 +54,10 @@ jobs:
       targetUrl: "API_URL_PLACEHOLDER"
     name: "ImportarOpenAPI-ADMIN"
 
-  # Inyecta el header Authorization en TODOS los requests del scan.
-  # ZAP_TOKEN_PLACEHOLDER es reemplazado por sed con el token real
-  # ANTES de que ZAP lea este archivo.
+  # FIX: replacer usa "matchStrings" (lista), no "rules"
   - type: replacer
     parameters:
-      rules:
+      matchStrings:
         - description: "Bearer token ROL ADMIN"
           matchType: "REQ_HEADER"
           matchString: "Authorization"
@@ -73,56 +66,25 @@ jobs:
           initiators: []
     name: "InjectarToken-ADMIN"
 
-  # Passive scan: detecta problemas en las respuestas sin enviar
-  # payloads adicionales. Corre sobre el tráfico del openapi import.
-  # Detecta: HSTS faltante, X-Content-Type-Options, info leaks en JSON.
   - type: passiveScan-wait
     parameters:
       maxDuration: 5
     name: "PassiveScan-ADMIN"
 
-  # Active scan: envía payloads maliciosos a cada endpoint del contexto.
-  # Con nanutech-scan-policy activa estas pruebas:
-  #
-  # SQL Injection (PostgreSQL):
-  #   GET /camiones?placa='
-  #   GET /camiones?placa=' OR '1'='1
-  #   GET /camiones?placa='; DROP TABLE unidades; --
-  #   GET /camiones/{id} → id=1 UNION SELECT correo FROM usuarios--
-  #   POST /camiones → {"placa":"' OR 1=1--", ...}
-  #   POST /auth/login → {"email":"' OR 1=1--","password":"x"}
-  #   GET /gps/registros?unidad_id=' OR '1'='1
-  #
-  # XSS Reflected:
-  #   GET /camiones?placa=<script>alert(1)</script>
-  #   GET /camiones?estado=<img src=x onerror=alert(1)>
-  #
-  # XSS Persistente:
-  #   POST /camiones {"marca":"<script>alert(1)</script>",...}
-  #   → luego GET /camiones verifica si el payload se refleja
-  #
-  # CORS:
-  #   Agrega Origin: https://evil.com a cada request
-  #   Si el response incluye Access-Control-Allow-Origin: *
-  #   con Access-Control-Allow-Credentials: true → vulnerabilidad
-  #
-  # Path Traversal:
-  #   GET /camiones/../../../etc/passwd
-  #   GET /gps/plantilla/GPSCONTROL/../../../etc
-  #
-  # SSRF:
-  #   Inyecta http://169.254.169.254/latest/meta-data en campos de texto
+  # FIX: defaultPolicy removido (causa el error de policy no reconocida)
+  # ZAP usará la política "Default Policy" si no encuentra la custom.
+  # Para usar la custom, el XML debe estar en /home/zap/.ZAP/policies/
+  # y el nombre interno del XML debe coincidir exactamente.
   - type: activeScan
     parameters:
       context: "ADMIN"
-      policy: "nanutech-scan-policy"
       maxRuleDurationInMins: 5
       maxScanDurationInMins: 30
       threadPerHost: 2
       addQueryParam: true
-      defaultPolicy: false
     name: "ActiveScan-ADMIN"
 
+  # FIX: "contexts" no es un parámetro válido en report — removido
   - type: report
     parameters:
       template: "traditional-html"
@@ -131,13 +93,9 @@ jobs:
       reportTitle: "Nanutech | ROL ADMIN | Reporte de Seguridad ZAP"
       reportDescription: >
         Escaneo activo ejecutado con token ROL ADMIN.
-        Endpoints escaneados: /camiones (GET,POST,/{id},/panel,/exportar/csv),
-        /dashboard, /jornadas (GET,POST,/exportar), /conductores,
+        Endpoints: /camiones, /dashboard, /jornadas, /conductores,
         /contratos/vigentes, /unidades/disponibles, /gps/*, /auth/*.
-        Pruebas: SQL Injection PostgreSQL, XSS Reflected/Persistente,
-        CORS, Path Traversal, SSRF, Headers de seguridad HTTP.
-      contexts:
-        - "ADMIN"
+        Pruebas: SQL Injection, XSS, CORS, Path Traversal, SSRF, Headers HTTP.
     name: "ReporteHTML-ADMIN"
 
   - type: report
@@ -146,6 +104,4 @@ jobs:
       reportDir: "/zap/wrk/reports"
       reportFile: "reporte-ADMIN-json"
       reportTitle: "Nanutech | ROL ADMIN | JSON CI/CD"
-      contexts:
-        - "ADMIN"
     name: "ReporteJSON-ADMIN"
