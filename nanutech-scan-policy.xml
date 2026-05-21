@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  nanutech-scan-policy.xml
+  Política de escaneo activo para Nanutech Backend API.
+
+  Cómo se usa:
+    Los 3 zap-plan-*.yaml referencian esta política por nombre.
+    ZAP la carga automáticamente cuando la encuentra en el directorio de trabajo.
+
+  Reglas activas (OWASP Top 10 para REST API sobre HTTPS + PostgreSQL):
+    A01 - Broken Access Control     → detectado por access-control-tests.sh
+    A03 - Injection                 → SQL Injection (PostgreSQL), XSS, Command Injection
+    A05 - Security Misconfiguration → CORS, Headers HTTP
+    A06 - Vulnerable Components     → info leaks de versiones
+-->
+<policy>
+  <name>nanutech-scan-policy</name>
+  <defaultStrength>HIGH</defaultStrength>
+  <defaultThreshold>LOW</defaultThreshold>
+
+  <!-- SQL Injection - activo con strength HIGH para más payloads -->
+  <scanner><id>40018</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>40019</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>40020</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>40021</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <!-- PostgreSQL específico - tu BD -->
+  <scanner><id>40022</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <!-- SQL Injection via timing (SLEEP, pg_sleep) -->
+  <scanner><id>90018</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+
+  <!-- XSS Reflected y Persistente -->
+  <scanner><id>40012</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>40014</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>40016</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>40017</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+
+  <!-- CORS misconfiguration -->
+  <scanner><id>40040</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+
+  <!-- Path Traversal y Remote File Inclusion -->
+  <scanner><id>6</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>7</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+
+  <!-- SSRF -->
+  <scanner><id>40009</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+
+  <!-- Remote OS Command Injection y Server Side Code Injection -->
+  <scanner><id>90020</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>90019</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+
+  <!-- CRLF Injection y Parameter Tampering -->
+  <scanner><id>40003</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>40008</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+
+  <!-- Headers de seguridad (passive scan los detecta también) -->
+  <scanner><id>10035</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>10021</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>10038</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>10036</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+  <scanner><id>10037</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+
+  <!-- Info disclosure -->
+  <scanner><id>10094</id><enabled>true</enabled><strength>HIGH</strength><threshold>LOW</threshold></scanner>
+
+  <!-- Desactivadas: no aplican a REST API stateless sobre AWS Lambda -->
+  <scanner><id>20012</id><enabled>false</enabled></scanner>  <!-- Anti-CSRF -->
+  <scanner><id>40013</id><enabled>false</enabled></scanner>  <!-- Session Fixation -->
+  <scanner><id>40032</id><enabled>false</enabled></scanner>  <!-- .htaccess -->
+  <scanner><id>10012</id><enabled>false</enabled></scanner>  <!-- Password Autocomplete -->
+  <scanner><id>10104</id><enabled>false</enabled></scanner>  <!-- User Agent Fuzzer -->
+  <scanner><id>10020</id><enabled>false</enabled></scanner>  <!-- X-Frame-Options -->
+  <scanner><id>10010</id><enabled>false</enabled></scanner>  <!-- Cookie HttpOnly -->
+  <scanner><id>10011</id><enabled>false</enabled></scanner>  <!-- Cookie Secure -->
+</policy>
