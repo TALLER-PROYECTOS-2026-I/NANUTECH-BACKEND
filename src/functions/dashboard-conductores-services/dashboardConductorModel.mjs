@@ -3,20 +3,14 @@ export class DashboardConductor {
   constructor(
     id,
     nombre,
-    email,
-    dni,
     licencia,
-    contacto,
     estadoOperacional,
     camionAsignado,
     estado
   ) {
     this.id = id;
     this.nombre = nombre;
-    this.email = email;
-    this.dni = dni;
     this.licencia = licencia;
-    this.contacto = contacto;
     this.estadoOperacional = estadoOperacional;
     this.camionAsignado = camionAsignado;
     this.estado = estado;
@@ -28,10 +22,7 @@ export class DashboardConductor {
     return new DashboardConductor(
       row.id,
       row.nombre,
-      row.email,
-      row.dni,
       row.licencia,
-      row.contacto,
       row.estado_operacional,
       row.camion_asignado,
       row.estado
