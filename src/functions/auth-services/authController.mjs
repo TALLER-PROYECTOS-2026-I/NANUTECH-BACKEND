@@ -1,6 +1,5 @@
 import { errorResponse, successResponse } from "../../shared/utils/response/response.mjs";
 import * as authService from "./authService.mjs";
-import "../../../open_api/auth-api.mjs";
 const parseJsonBody = (body) => {
   if (!body) return {};
 
