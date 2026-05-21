@@ -1,30 +1,32 @@
 # =============================================================================
 # zap-plan-chofer.yaml — ROL CHOFER
-# Token inyectado via variable de entorno ZAP_TOKEN + job replacer
+# Placeholders reemplazados por sed en el workflow antes de correr ZAP:
+#   API_URL_PLACEHOLDER   → URL real del API Gateway
+#   ZAP_TOKEN_PLACEHOLDER → Bearer token del CHOFER
 # =============================================================================
 
 env:
   contexts:
     - name: "CHOFER"
       urls:
-        - "https://API_URL_TESTING"
+        - "API_URL_PLACEHOLDER"
       includePaths:
-        - "https://API_URL_TESTING/auth/login"
-        - "https://API_URL_TESTING/auth/me"
-        - "https://API_URL_TESTING/auth/forgot-password"
-        - "https://API_URL_TESTING/auth/forgot-password/confirm"
-        - "https://API_URL_TESTING/jornadas/actual/.*"
-        - "https://API_URL_TESTING/jornadas/iniciar"
-        - "https://API_URL_TESTING/jornadas/finalizar"
+        - "API_URL_PLACEHOLDER/auth/login"
+        - "API_URL_PLACEHOLDER/auth/me"
+        - "API_URL_PLACEHOLDER/auth/forgot-password"
+        - "API_URL_PLACEHOLDER/auth/forgot-password/confirm"
+        - "API_URL_PLACEHOLDER/jornadas/actual/.*"
+        - "API_URL_PLACEHOLDER/jornadas/iniciar"
+        - "API_URL_PLACEHOLDER/jornadas/finalizar"
       excludePaths:
-        - "https://API_URL_TESTING/camiones.*"
-        - "https://API_URL_TESTING/dashboard.*"
-        - "https://API_URL_TESTING/jornadas$"
-        - "https://API_URL_TESTING/jornadas/exportar"
-        - "https://API_URL_TESTING/conductores.*"
-        - "https://API_URL_TESTING/contratos.*"
-        - "https://API_URL_TESTING/unidades.*"
-        - "https://API_URL_TESTING/gps/.*"
+        - "API_URL_PLACEHOLDER/camiones.*"
+        - "API_URL_PLACEHOLDER/dashboard.*"
+        - "API_URL_PLACEHOLDER/jornadas$"
+        - "API_URL_PLACEHOLDER/jornadas/exportar"
+        - "API_URL_PLACEHOLDER/conductores.*"
+        - "API_URL_PLACEHOLDER/contratos.*"
+        - "API_URL_PLACEHOLDER/unidades.*"
+        - "API_URL_PLACEHOLDER/gps/.*"
 
   parameters:
     failOnError: false
@@ -34,41 +36,32 @@ jobs:
 
   - type: openapi
     parameters:
-      apiFile: "/zap/wrk/openapi.yaml"
+      apiFile: "/zap/wrk/openapi.run.yaml"
       context: "CHOFER"
-      targetUrl: "https://API_URL_TESTING"
-    name: "ImportarOpenAPI"
-
-  - type: requestor
-    parameters:
-      user: ""
-    requests:
-      - url: "https://API_URL_TESTING/auth/me"
-        method: "GET"
-        headers:
-          - "Authorization: Bearer ${ZAP_TOKEN}"
-          - "Content-Type: application/json"
-    name: "VerificarToken-CHOFER"
+      targetUrl: "API_URL_PLACEHOLDER"
+    name: "ImportarOpenAPI-CHOFER"
 
   - type: replacer
     parameters:
       rules:
-        - description: "Inyectar Bearer token CHOFER en todos los requests"
+        - description: "Bearer token ROL CHOFER"
           matchType: "REQ_HEADER"
           matchString: "Authorization"
           matchRegex: false
-          replacement: "Bearer ${ZAP_TOKEN}"
+          replacement: "Bearer ZAP_TOKEN_PLACEHOLDER"
           initiators: []
     name: "InjectarToken-CHOFER"
 
   - type: passiveScan-wait
     parameters:
       maxDuration: 5
+    name: "PassiveScan-CHOFER"
 
   # Active scan en endpoints de CHOFER:
-  # XSS en: conductorId (path param UUID), jornada_id, observaciones
-  # SQLi en: conductorId, jornada_id (path y body)
+  # SQLi en: conductorId (path param), jornada_id (body)
+  # XSS en: observaciones (campo de texto en finalizar jornada)
   # Path traversal en: /jornadas/actual/{conductorId}
+  #   ZAP prueba: /jornadas/actual/../../../etc/passwd
   - type: activeScan
     parameters:
       context: "CHOFER"
@@ -85,24 +78,24 @@ jobs:
       template: "traditional-html"
       reportDir: "/zap/wrk/reports"
       reportFile: "reporte-CHOFER"
-      reportTitle: "Nanutech | ROL: CHOFER | Reporte de Seguridad"
+      reportTitle: "Nanutech | ROL CHOFER | Reporte de Seguridad ZAP"
       reportDescription: >
-        Escaneo con credenciales ROL CHOFER.
+        Escaneo activo ejecutado con token ROL CHOFER.
         Endpoints: /jornadas/actual/{conductorId}, /jornadas/iniciar,
         /jornadas/finalizar, /auth/*.
-        Pruebas: XSS en conductorId y campos de jornada (observaciones),
-        SQL Injection en path params y body JSON (jornada_id, km_recorridos),
-        Path Traversal en conductorId, CORS, Headers HTTP.
+        Pruebas: SQL Injection en conductorId y jornada_id,
+        XSS en observaciones, Path Traversal en conductorId,
+        CORS, Headers HTTP.
       contexts:
         - "CHOFER"
-    name: "Reporte-HTML-CHOFER"
+    name: "ReporteHTML-CHOFER"
 
   - type: report
     parameters:
       template: "traditional-json"
       reportDir: "/zap/wrk/reports"
       reportFile: "reporte-CHOFER-json"
-      reportTitle: "Nanutech | ROL: CHOFER | JSON CI/CD"
+      reportTitle: "Nanutech | ROL CHOFER | JSON CI/CD"
       contexts:
         - "CHOFER"
-    name: "Reporte-JSON-CHOFER"
+    name: "ReporteJSON-CHOFER"
