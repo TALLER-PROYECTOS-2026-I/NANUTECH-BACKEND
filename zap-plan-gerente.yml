@@ -1,0 +1,114 @@
+# =============================================================================
+# zap-plan-gerente.yaml — ROL GERENTE
+# Token inyectado via variable de entorno ZAP_TOKEN + job replacer
+# =============================================================================
+
+env:
+  contexts:
+    - name: "GERENTE"
+      urls:
+        - "https://API_URL_TESTING"
+      includePaths:
+        - "https://API_URL_TESTING/auth/login"
+        - "https://API_URL_TESTING/auth/me"
+        - "https://API_URL_TESTING/auth/forgot-password"
+        - "https://API_URL_TESTING/auth/forgot-password/confirm"
+        - "https://API_URL_TESTING/dashboard/gerencial"
+        - "https://API_URL_TESTING/jornadas"
+        - "https://API_URL_TESTING/jornadas/exportar"
+        - "https://API_URL_TESTING/conductores"
+        - "https://API_URL_TESTING/contratos"
+        - "https://API_URL_TESTING/contratos/.*"
+        - "https://API_URL_TESTING/contratos/vigentes"
+        - "https://API_URL_TESTING/contratos/indicadores"
+        - "https://API_URL_TESTING/unidades/disponibles"
+      excludePaths:
+        - "https://API_URL_TESTING/camiones.*"
+        - "https://API_URL_TESTING/dashboard$"
+        - "https://API_URL_TESTING/gps/.*"
+        - "https://API_URL_TESTING/jornadas/actual/.*"
+        - "https://API_URL_TESTING/jornadas/iniciar"
+        - "https://API_URL_TESTING/jornadas/finalizar"
+
+  parameters:
+    failOnError: false
+    progressToStdout: true
+
+jobs:
+
+  - type: openapi
+    parameters:
+      apiFile: "/zap/wrk/openapi.yaml"
+      context: "GERENTE"
+      targetUrl: "https://API_URL_TESTING"
+    name: "ImportarOpenAPI"
+
+  - type: requestor
+    parameters:
+      user: ""
+    requests:
+      - url: "https://API_URL_TESTING/auth/me"
+        method: "GET"
+        headers:
+          - "Authorization: Bearer ${ZAP_TOKEN}"
+          - "Content-Type: application/json"
+    name: "VerificarToken-GERENTE"
+
+  - type: replacer
+    parameters:
+      rules:
+        - description: "Inyectar Bearer token GERENTE en todos los requests"
+          matchType: "REQ_HEADER"
+          matchString: "Authorization"
+          matchRegex: false
+          replacement: "Bearer ${ZAP_TOKEN}"
+          initiators: []
+    name: "InjectarToken-GERENTE"
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  # Active scan en endpoints de GERENTE:
+  # XSS en campos: codigo, cliente, descripcion (contratos)
+  #                origen, destino, observaciones (jornadas)
+  # SQLi en: /contratos/{id} path param, body JSON de contratos
+  # CORS en todos los endpoints del contexto
+  - type: activeScan
+    parameters:
+      context: "GERENTE"
+      policy: "nanutech-scan-policy"
+      maxRuleDurationInMins: 5
+      maxScanDurationInMins: 20
+      threadPerHost: 2
+      addQueryParam: true
+      defaultPolicy: false
+    name: "ActiveScan-GERENTE"
+
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "reporte-GERENTE"
+      reportTitle: "Nanutech | ROL: GERENTE | Reporte de Seguridad"
+      reportDescription: >
+        Escaneo con credenciales ROL GERENTE.
+        Endpoints: /dashboard/gerencial, /jornadas (GET,POST,/exportar),
+        /conductores, /contratos (GET,POST,/{id},/indicadores,/vigentes),
+        /unidades/disponibles, /auth/*.
+        Pruebas: SQL Injection en parámetros de contratos, XSS en campos
+        de texto (codigo, cliente, descripcion, origen, destino),
+        CORS, Path Traversal, Headers HTTP.
+      contexts:
+        - "GERENTE"
+    name: "Reporte-HTML-GERENTE"
+
+  - type: report
+    parameters:
+      template: "traditional-json"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "reporte-GERENTE-json"
+      reportTitle: "Nanutech | ROL: GERENTE | JSON CI/CD"
+      contexts:
+        - "GERENTE"
+    name: "Reporte-JSON-GERENTE"
