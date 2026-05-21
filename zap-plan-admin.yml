@@ -1,0 +1,190 @@
+# =============================================================================
+# zap-plan-admin.yaml — ROL ADMIN
+#
+# Cómo recibe el token:
+#   El workflow pasa ZAP_TOKEN como variable de entorno al contenedor Docker.
+#   El job "requestor" de ZAP Automation Framework lee ${ZAP_TOKEN} y lo
+#   agrega como header Authorization: Bearer <token> en TODOS los requests
+#   que ZAP envíe durante el scan.
+#
+# Colócalo en la raíz de tu repositorio.
+# =============================================================================
+
+env:
+  contexts:
+    - name: "ADMIN"
+      urls:
+        - "https://API_URL_TESTING"
+      includePaths:
+        - "https://API_URL_TESTING/auth/login"
+        - "https://API_URL_TESTING/auth/me"
+        - "https://API_URL_TESTING/auth/forgot-password"
+        - "https://API_URL_TESTING/auth/forgot-password/confirm"
+        - "https://API_URL_TESTING/camiones"
+        - "https://API_URL_TESTING/camiones/.*"
+        - "https://API_URL_TESTING/camiones/panel"
+        - "https://API_URL_TESTING/camiones/exportar/csv"
+        - "https://API_URL_TESTING/dashboard"
+        - "https://API_URL_TESTING/jornadas"
+        - "https://API_URL_TESTING/jornadas/exportar"
+        - "https://API_URL_TESTING/conductores"
+        - "https://API_URL_TESTING/contratos/vigentes"
+        - "https://API_URL_TESTING/unidades/disponibles"
+        - "https://API_URL_TESTING/gps/proveedores"
+        - "https://API_URL_TESTING/gps/plantilla"
+        - "https://API_URL_TESTING/gps/plantilla/.*"
+        - "https://API_URL_TESTING/gps/validar"
+        - "https://API_URL_TESTING/gps/importar"
+        - "https://API_URL_TESTING/gps/resumen"
+        - "https://API_URL_TESTING/gps/registros"
+      excludePaths:
+        - "https://API_URL_TESTING/contratos$"
+        - "https://API_URL_TESTING/contratos/indicadores"
+        - "https://API_URL_TESTING/dashboard/gerencial"
+        - "https://API_URL_TESTING/jornadas/actual/.*"
+        - "https://API_URL_TESTING/jornadas/iniciar"
+        - "https://API_URL_TESTING/jornadas/finalizar"
+
+  parameters:
+    failOnError: false
+    progressToStdout: true
+
+jobs:
+
+  # -------------------------------------------------------------------
+  # PASO 1: Importar OpenAPI
+  # ZAP aprende todos los endpoints, parámetros y schemas.
+  # Esto es lo que permite que ZAP sepa exactamente qué datos enviar
+  # en cada request (placa, marca, anio, etc.).
+  # -------------------------------------------------------------------
+  - type: openapi
+    parameters:
+      apiFile: "/zap/wrk/openapi.yaml"
+      context: "ADMIN"
+      targetUrl: "https://API_URL_TESTING"
+    name: "ImportarOpenAPI"
+
+  # -------------------------------------------------------------------
+  # PASO 2: Requestor — inyecta el token en los requests de prueba
+  #
+  # requestor envía requests HTTP específicos antes del scan.
+  # Aquí lo usamos para verificar que el token funciona
+  # y para que ZAP registre la sesión autenticada.
+  #
+  # ${ZAP_TOKEN} viene de la variable de entorno del contenedor Docker
+  # que el workflow pasa al correr: -e ZAP_TOKEN="Bearer ..."
+  # -------------------------------------------------------------------
+  - type: requestor
+    parameters:
+      user: ""
+    requests:
+      - url: "https://API_URL_TESTING/auth/me"
+        method: "GET"
+        headers:
+          - "Authorization: Bearer ${ZAP_TOKEN}"
+          - "Content-Type: application/json"
+    name: "VerificarToken-ADMIN"
+
+  # -------------------------------------------------------------------
+  # PASO 3: Script para inyectar el header en TODOS los requests
+  #
+  # Usamos un "replacer" job que indica a ZAP que reemplace
+  # (o agregue) el header Authorization en cada request del scan.
+  # Esta es la forma correcta de autenticar todos los requests
+  # en Automation Framework sin usar scripts JS.
+  # -------------------------------------------------------------------
+  - type: replacer
+    parameters:
+      rules:
+        - description: "Inyectar Bearer token ADMIN en todos los requests"
+          matchType: "REQ_HEADER"
+          matchString: "Authorization"
+          matchRegex: false
+          replacement: "Bearer ${ZAP_TOKEN}"
+          initiators: []    # vacío = aplica a todos los requests
+    name: "InjectarToken-ADMIN"
+
+  # -------------------------------------------------------------------
+  # PASO 4: Passive Scan
+  # Analiza respuestas sin enviar requests adicionales.
+  # Detecta: headers de seguridad faltantes, info disclosure en JSON,
+  # cookies inseguras, tokens expuestos en responses.
+  # -------------------------------------------------------------------
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+    name: "PassiveScan"
+
+  # -------------------------------------------------------------------
+  # PASO 5: Active Scan
+  # Envía payloads maliciosos a cada endpoint del contexto ADMIN.
+  #
+  # Pruebas que ejecuta con la política nanutech-scan-policy:
+  #   SQL Injection:
+  #     GET /camiones?placa=' OR '1'='1
+  #     GET /camiones?placa='; DROP TABLE unidades; --
+  #     GET /camiones/{id} con id = 1 UNION SELECT correo,password FROM usuarios
+  #     POST /camiones body: {"placa":"' OR 1=1--","marca":"test",...}
+  #     POST /auth/login body: {"email":"' OR 1=1--","password":"x"}
+  #
+  #   XSS Reflected:
+  #     GET /camiones?placa=<script>alert(1)</script>
+  #     GET /camiones?estado=<img src=x onerror=alert(document.cookie)>
+  #
+  #   XSS Persistente:
+  #     POST /camiones {"marca":"<script>alert(1)</script>",...}
+  #     Luego GET /camiones → verifica si el payload se refleja
+  #
+  #   CORS:
+  #     Agrega header Origin: https://evil.com a cada request
+  #     Verifica si el response incluye Access-Control-Allow-Origin: *
+  #     con Access-Control-Allow-Credentials: true
+  #
+  #   Path Traversal:
+  #     GET /camiones/../../../etc/passwd
+  #     GET /gps/plantilla/../../../../etc/passwd
+  #
+  #   SSRF:
+  #     Inyecta URLs internas (169.254.169.254) en campos de texto
+  # -------------------------------------------------------------------
+  - type: activeScan
+    parameters:
+      context: "ADMIN"
+      policy: "nanutech-scan-policy"
+      maxRuleDurationInMins: 5
+      maxScanDurationInMins: 30
+      threadPerHost: 2
+      addQueryParam: true
+      defaultPolicy: false
+    name: "ActiveScan-ADMIN"
+
+  # -------------------------------------------------------------------
+  # PASO 6: Reporte HTML
+  # Agrupado por: URL → tipo de alerta → instancias → evidencia
+  # -------------------------------------------------------------------
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "reporte-ADMIN"
+      reportTitle: "Nanutech | ROL: ADMIN | Reporte de Seguridad"
+      reportDescription: >
+        Escaneo con credenciales ROL ADMIN.
+        Endpoints: /camiones (GET,POST,/{id},/panel,/exportar/csv),
+        /dashboard, /jornadas (GET,POST,/exportar), /conductores,
+        /contratos/vigentes, /unidades/disponibles, /gps/*, /auth/*.
+        Pruebas: SQL Injection (PostgreSQL), XSS Reflected/Persistente,
+        CORS misconfiguration, Path Traversal, SSRF, Headers HTTP.
+      contexts:
+        - "ADMIN"
+    name: "Reporte-HTML-ADMIN"
+
+  - type: report
+    parameters:
+      template: "traditional-json"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "reporte-ADMIN-json"
+      reportTitle: "Nanutech | ROL: ADMIN | JSON CI/CD"
+      contexts:
+        - "ADMIN"
+    name: "Reporte-JSON-ADMIN"
