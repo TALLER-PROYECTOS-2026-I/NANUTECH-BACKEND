@@ -1,34 +1,36 @@
 # =============================================================================
 # zap-plan-gerente.yaml — ROL GERENTE
-# Token inyectado via variable de entorno ZAP_TOKEN + job replacer
+# Placeholders reemplazados por sed en el workflow antes de correr ZAP:
+#   API_URL_PLACEHOLDER   → URL real del API Gateway
+#   ZAP_TOKEN_PLACEHOLDER → Bearer token del GERENTE
 # =============================================================================
 
 env:
   contexts:
     - name: "GERENTE"
       urls:
-        - "https://API_URL_TESTING"
+        - "API_URL_PLACEHOLDER"
       includePaths:
-        - "https://API_URL_TESTING/auth/login"
-        - "https://API_URL_TESTING/auth/me"
-        - "https://API_URL_TESTING/auth/forgot-password"
-        - "https://API_URL_TESTING/auth/forgot-password/confirm"
-        - "https://API_URL_TESTING/dashboard/gerencial"
-        - "https://API_URL_TESTING/jornadas"
-        - "https://API_URL_TESTING/jornadas/exportar"
-        - "https://API_URL_TESTING/conductores"
-        - "https://API_URL_TESTING/contratos"
-        - "https://API_URL_TESTING/contratos/.*"
-        - "https://API_URL_TESTING/contratos/vigentes"
-        - "https://API_URL_TESTING/contratos/indicadores"
-        - "https://API_URL_TESTING/unidades/disponibles"
+        - "API_URL_PLACEHOLDER/auth/login"
+        - "API_URL_PLACEHOLDER/auth/me"
+        - "API_URL_PLACEHOLDER/auth/forgot-password"
+        - "API_URL_PLACEHOLDER/auth/forgot-password/confirm"
+        - "API_URL_PLACEHOLDER/dashboard/gerencial"
+        - "API_URL_PLACEHOLDER/jornadas"
+        - "API_URL_PLACEHOLDER/jornadas/exportar"
+        - "API_URL_PLACEHOLDER/conductores"
+        - "API_URL_PLACEHOLDER/contratos"
+        - "API_URL_PLACEHOLDER/contratos/.*"
+        - "API_URL_PLACEHOLDER/contratos/vigentes"
+        - "API_URL_PLACEHOLDER/contratos/indicadores"
+        - "API_URL_PLACEHOLDER/unidades/disponibles"
       excludePaths:
-        - "https://API_URL_TESTING/camiones.*"
-        - "https://API_URL_TESTING/dashboard$"
-        - "https://API_URL_TESTING/gps/.*"
-        - "https://API_URL_TESTING/jornadas/actual/.*"
-        - "https://API_URL_TESTING/jornadas/iniciar"
-        - "https://API_URL_TESTING/jornadas/finalizar"
+        - "API_URL_PLACEHOLDER/camiones.*"
+        - "API_URL_PLACEHOLDER/dashboard$"
+        - "API_URL_PLACEHOLDER/gps/.*"
+        - "API_URL_PLACEHOLDER/jornadas/actual/.*"
+        - "API_URL_PLACEHOLDER/jornadas/iniciar"
+        - "API_URL_PLACEHOLDER/jornadas/finalizar"
 
   parameters:
     failOnError: false
@@ -38,42 +40,31 @@ jobs:
 
   - type: openapi
     parameters:
-      apiFile: "/zap/wrk/openapi.yaml"
+      apiFile: "/zap/wrk/openapi.run.yaml"
       context: "GERENTE"
-      targetUrl: "https://API_URL_TESTING"
-    name: "ImportarOpenAPI"
-
-  - type: requestor
-    parameters:
-      user: ""
-    requests:
-      - url: "https://API_URL_TESTING/auth/me"
-        method: "GET"
-        headers:
-          - "Authorization: Bearer ${ZAP_TOKEN}"
-          - "Content-Type: application/json"
-    name: "VerificarToken-GERENTE"
+      targetUrl: "API_URL_PLACEHOLDER"
+    name: "ImportarOpenAPI-GERENTE"
 
   - type: replacer
     parameters:
       rules:
-        - description: "Inyectar Bearer token GERENTE en todos los requests"
+        - description: "Bearer token ROL GERENTE"
           matchType: "REQ_HEADER"
           matchString: "Authorization"
           matchRegex: false
-          replacement: "Bearer ${ZAP_TOKEN}"
+          replacement: "Bearer ZAP_TOKEN_PLACEHOLDER"
           initiators: []
     name: "InjectarToken-GERENTE"
 
   - type: passiveScan-wait
     parameters:
       maxDuration: 5
+    name: "PassiveScan-GERENTE"
 
   # Active scan en endpoints de GERENTE:
-  # XSS en campos: codigo, cliente, descripcion (contratos)
-  #                origen, destino, observaciones (jornadas)
-  # SQLi en: /contratos/{id} path param, body JSON de contratos
-  # CORS en todos los endpoints del contexto
+  # SQLi en: /contratos/{id}, body POST /contratos (codigo, cliente, ruc)
+  # XSS en: codigo, cliente, descripcion, origen, destino, observaciones
+  # CORS en todos los endpoints del contexto GERENTE
   - type: activeScan
     parameters:
       context: "GERENTE"
@@ -90,25 +81,25 @@ jobs:
       template: "traditional-html"
       reportDir: "/zap/wrk/reports"
       reportFile: "reporte-GERENTE"
-      reportTitle: "Nanutech | ROL: GERENTE | Reporte de Seguridad"
+      reportTitle: "Nanutech | ROL GERENTE | Reporte de Seguridad ZAP"
       reportDescription: >
-        Escaneo con credenciales ROL GERENTE.
+        Escaneo activo ejecutado con token ROL GERENTE.
         Endpoints: /dashboard/gerencial, /jornadas (GET,POST,/exportar),
         /conductores, /contratos (GET,POST,/{id},/indicadores,/vigentes),
         /unidades/disponibles, /auth/*.
-        Pruebas: SQL Injection en parámetros de contratos, XSS en campos
+        Pruebas: SQL Injection en contratos y jornadas, XSS en campos
         de texto (codigo, cliente, descripcion, origen, destino),
-        CORS, Path Traversal, Headers HTTP.
+        CORS, Path Traversal en /{id}, Headers HTTP.
       contexts:
         - "GERENTE"
-    name: "Reporte-HTML-GERENTE"
+    name: "ReporteHTML-GERENTE"
 
   - type: report
     parameters:
       template: "traditional-json"
       reportDir: "/zap/wrk/reports"
       reportFile: "reporte-GERENTE-json"
-      reportTitle: "Nanutech | ROL: GERENTE | JSON CI/CD"
+      reportTitle: "Nanutech | ROL GERENTE | JSON CI/CD"
       contexts:
         - "GERENTE"
-    name: "Reporte-JSON-GERENTE"
+    name: "ReporteJSON-GERENTE"
