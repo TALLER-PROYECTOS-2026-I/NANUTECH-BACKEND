@@ -1,0 +1,45 @@
+# ZAP Rules - .github/zap-rules.tsv
+# Formato: ID TAB ACCION TAB DESCRIPCION
+# FAIL  = falla el build
+# WARN  = reporta pero no falla
+# IGNORE = falso positivo conocido para REST API sobre AWS Lambda
+
+# ── FAIL: vulnerabilidades que deben bloquear el build ──────────────────
+40018	FAIL	SQL Injection
+40022	FAIL	SQL Injection - PostgreSQL
+40012	FAIL	Cross Site Scripting (Reflected)
+40014	FAIL	Cross Site Scripting (Persistent)
+40016	FAIL	Cross Site Scripting (Persistent) - Prime
+40017	FAIL	Cross Site Scripting (Persistent) - Spider
+40040	FAIL	CORS Misconfiguration
+6	FAIL	Path Traversal
+7	FAIL	Remote File Inclusion
+40009	FAIL	Server Side Request Forgery
+90020	FAIL	Remote OS Command Injection
+90019	FAIL	Server Side Code Injection
+90018	FAIL	SQL Injection - Time Based
+
+# ── WARN: reportar pero no bloquear ─────────────────────────────────────
+10035	WARN	Strict Transport Security header missing
+10021	WARN	X-Content-Type-Options header missing
+10038	WARN	Content Security Policy header missing
+10036	WARN	Server leaks version info
+10037	WARN	X-Powered-By header
+40019	WARN	SQL Injection - MySQL
+40020	WARN	SQL Injection - Hypersonic SQL
+40021	WARN	SQL Injection - Oracle
+40003	WARN	CRLF Injection
+10094	WARN	Base64 disclosure
+
+# ── IGNORE: falsos positivos para esta arquitectura ─────────────────────
+20012	IGNORE	Anti-CSRF tokens missing
+40013	IGNORE	Session Fixation
+40032	IGNORE	.htaccess Information Disclosure
+10012	IGNORE	Password Autocomplete
+10027	IGNORE	Information disclosure - suspicious comments
+10045	IGNORE	Source Code Disclosure
+10020	IGNORE	X-Frame-Options header missing
+10010	IGNORE	Cookie No HttpOnly Flag
+10011	IGNORE	Cookie Without Secure Flag
+10104	IGNORE	User Agent Fuzzer
+90022	IGNORE	Application Error Disclosure
