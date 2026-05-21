@@ -5,7 +5,6 @@
 #   API_URL_PLACEHOLDER   → sed lo reemplaza con secrets.API_URL_TESTING
 #   ZAP_TOKEN_PLACEHOLDER → sed lo reemplaza con el Bearer token real
 # =============================================================================
-
 env:
   contexts:
     - name: "ADMIN"
@@ -40,13 +39,11 @@ env:
         - "API_URL_PLACEHOLDER/jornadas/actual/.*"
         - "API_URL_PLACEHOLDER/jornadas/iniciar"
         - "API_URL_PLACEHOLDER/jornadas/finalizar"
-
   parameters:
     failOnError: false
     progressToStdout: true
 
 jobs:
-
   - type: openapi
     parameters:
       apiFile: "/zap/wrk/openapi.run.yml"
@@ -54,10 +51,13 @@ jobs:
       targetUrl: "API_URL_PLACEHOLDER"
     name: "ImportarOpenAPI-ADMIN"
 
-  # FIX: replacer usa "matchStrings" (lista), no "rules"
+  # FIX: el parámetro correcto es "rules" (lista), NO "matchStrings"
+  # Con "matchStrings" ZAP ignora el bloque completo → token nunca se inyecta
+  # → todas las requests van sin Authorization → 401 en todos los endpoints
+  # → activeScan no tiene URLs válidas → "The operation was canceled"
   - type: replacer
     parameters:
-      matchStrings:
+      rules:
         - description: "Bearer token ROL ADMIN"
           matchType: "REQ_HEADER"
           matchString: "Authorization"
@@ -71,10 +71,6 @@ jobs:
       maxDuration: 5
     name: "PassiveScan-ADMIN"
 
-  # FIX: defaultPolicy removido (causa el error de policy no reconocida)
-  # ZAP usará la política "Default Policy" si no encuentra la custom.
-  # Para usar la custom, el XML debe estar en /home/zap/.ZAP/policies/
-  # y el nombre interno del XML debe coincidir exactamente.
   - type: activeScan
     parameters:
       context: "ADMIN"
@@ -84,7 +80,6 @@ jobs:
       addQueryParam: true
     name: "ActiveScan-ADMIN"
 
-  # FIX: "contexts" no es un parámetro válido en report — removido
   - type: report
     parameters:
       template: "traditional-html"
