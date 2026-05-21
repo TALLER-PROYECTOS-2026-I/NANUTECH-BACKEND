@@ -151,7 +151,6 @@ jobs:
         run: mkdir -p reports
 
       - name: Inyectar URL y token en los archivos de configuración
-        # Usamos @ como delimitador de sed porque la URL contiene /
         run: |
           cp zap-plan-admin.yml zap-plan-admin.run.yml
           cp openapi.yml openapi.run.yml
@@ -190,9 +189,11 @@ jobs:
               mkdir -p /home/zap/.ZAP/policies
               cp /zap/wrk/nanutech-scan-policy.xml /home/zap/.ZAP/policies/
 
-              echo '--- Instalando addons necesarios ---'
+              echo '--- Instalando y actualizando addons ---'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
+              zap.sh -cmd -addoninstall replacer       2>/dev/null || true
+              zap.sh -cmd -addonupdate                 2>/dev/null || true
 
               echo '--- Ejecutando plan ADMIN ---'
               zap.sh -cmd -autorun /zap/wrk/zap-plan-admin.run.yml
@@ -273,8 +274,13 @@ jobs:
               set -e
               mkdir -p /home/zap/.ZAP/policies
               cp /zap/wrk/nanutech-scan-policy.xml /home/zap/.ZAP/policies/
+
+              echo '--- Instalando y actualizando addons ---'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
+              zap.sh -cmd -addoninstall replacer       2>/dev/null || true
+              zap.sh -cmd -addonupdate                 2>/dev/null || true
+
               zap.sh -cmd -autorun /zap/wrk/zap-plan-gerente.run.yml
             "
         continue-on-error: true
@@ -353,8 +359,13 @@ jobs:
               set -e
               mkdir -p /home/zap/.ZAP/policies
               cp /zap/wrk/nanutech-scan-policy.xml /home/zap/.ZAP/policies/
+
+              echo '--- Instalando y actualizando addons ---'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
+              zap.sh -cmd -addoninstall replacer       2>/dev/null || true
+              zap.sh -cmd -addonupdate                 2>/dev/null || true
+
               zap.sh -cmd -autorun /zap/wrk/zap-plan-chofer.run.yml
             "
         continue-on-error: true
