@@ -9,9 +9,10 @@ name: 🔐 Nanutech Security Scan - OWASP ZAP
 #   ├── workflows/security.yml          ← este archivo
 #   └── scripts/
 #       ├── access-control-tests.sh     ← script bash de broken access control
-#       └── generate-report.py          ← generador de reporte HTML dinámico
+#       ├── generate-report.py          ← generador de reporte HTML dinámico
+#       └── zap_translations.py         ← diccionario de traducciones ZAP al español
 #   security-owasp/
-#   ├── openapi.yml                     ← spec completa con todos los endpoints
+#   ├── openapi.yml                     ← spec completa con todos los endpoints (41 paths, 45 ops)
 #   ├── zap-plan-admin.yml
 #   ├── zap-plan-gerente.yml
 #   └── zap-plan-chofer.yml
@@ -25,6 +26,9 @@ name: 🔐 Nanutech Security Scan - OWASP ZAP
 #   generate-report.py lee los JSON reales de ZAP (reporte-ADMIN-json.json,
 #   reporte-GERENTE-json.json, reporte-CHOFER-json.json) y el JSON de
 #   access-control-report.json para construir el index.html con hallazgos reales.
+#   zap_translations.py provee traducciones al español de 50+ hallazgos ZAP.
+#   PYTHONPATH=".github/scripts" permite que generate-report.py importe
+#   zap_translations.py sin necesidad de copiar archivos adicionales.
 # =============================================================================
 
 on:
@@ -432,7 +436,7 @@ jobs:
 
       - name: 🔑 Login 3 roles + Ejecutar pruebas de control de acceso
         run: |
-          # ── Función de login reutilizable ──────────────────────────────────
+          # ── Función de login reutilizable ───────────────────────────────────
           login() {
             local EMAIL="$1" LABEL="$2"
             local RESP TOKEN
@@ -451,18 +455,18 @@ jobs:
             printf '%s' "$TOKEN" > "/tmp/token_${LABEL}.txt"
           }
 
-          # ── Login de los 3 roles ──────────────────────────────────────────
+          # ── Login de los 3 roles ─────────────────────────────────────────
           login "admin@nanutech.com"   "ADMIN"
           login "gerente@nanutech.com" "GERENTE"
           login "chofer@nanutech.com"  "CHOFER"
 
-          # ── Exportar tokens como variables de entorno para el script ──────
+          # ── Exportar tokens como variables de entorno para el script ─────
           TOKEN_ADMIN=$(cat /tmp/token_ADMIN.txt)
           TOKEN_GERENTE=$(cat /tmp/token_GERENTE.txt)
           TOKEN_CHOFER=$(cat /tmp/token_CHOFER.txt)
           export TOKEN_ADMIN TOKEN_GERENTE TOKEN_CHOFER
 
-          # ── Ejecutar script completo de access control ─────────────────────
+          # ── Ejecutar script completo de access control ────────────────────
           chmod +x .github/scripts/access-control-tests.sh
           bash .github/scripts/access-control-tests.sh
         env:
@@ -481,9 +485,12 @@ jobs:
   # JOB 5: PUBLICAR EN GITHUB PAGES
   # Corre siempre aunque algún scan haya fallado o sido skipped.
   # Lee los JSON reales de ZAP y el JSON de access control para generar
-  # el index.html dinámico con hallazgos reales (sin hardcoding).
+  # el index.html dinámico con hallazgos reales y traducciones al español.
   # URL: https://<org>.github.io/<repo>/
   # Requiere: Settings → Pages → Branch: gh-pages → / (root)
+  #
+  # PYTHONPATH=".github/scripts" permite que generate-report.py importe
+  # zap_translations.py del mismo directorio sin copias adicionales.
   # ===========================================================================
   publish-report:
     name: 📄 Publicar en GitHub Pages
@@ -512,7 +519,7 @@ jobs:
         run: |
           mkdir -p gh-pages-site
 
-          # ── Copiar reportes ZAP por rol (HTML + JSON) ─────────────────────
+          # ── Copiar reportes ZAP por rol (HTML + JSON) ──────────────────────
           for rol in ADMIN GERENTE CHOFER; do
             SRC="all-reports/reporte-${rol}"
             DEST="gh-pages-site/${rol,,}"
@@ -528,7 +535,7 @@ jobs:
             fi
           done
 
-          # ── Copiar y leer reporte de access control ───────────────────────
+          # ── Copiar y leer reporte de access control ────────────────────────
           AC_JSON="all-reports/reporte-access-control/access-control-report.json"
           if [ -f "$AC_JSON" ]; then
             cp "$AC_JSON" gh-pages-site/access-control-report.json
@@ -543,7 +550,7 @@ jobs:
             TOTAL=0; PASS_N=0; FAIL=0; CRIT=0; MENOR=0
           fi
 
-          # ── Badge según resultado ─────────────────────────────────────────
+          # ── Badge según resultado ──────────────────────────────────────────
           if [ "$CRIT" -gt 0 ]; then
             BADGE_TEXT="VULNERABLE"; BADGE_COLOR="e05d44"; BADGE_BD="#f85149"
           elif [ "$FAIL" -gt 0 ]; then
@@ -555,10 +562,11 @@ jobs:
           FECHA=$(date -u +"%Y-%m-%d %H:%M UTC")
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          # ── Ejecutar generate-report.py con rutas a los JSON de ZAP ──────
-          # ZAP_*_JSON apuntan a donde se copiaron los reportes JSON de cada rol.
-          # generate-report.py los lee dinámicamente; si no existen muestra
-          # el estado vacío en lugar de los hallazgos hardcodeados anteriores.
+          # ── Ejecutar generate-report.py ────────────────────────────────────
+          # PYTHONPATH=".github/scripts" → Python encuentra zap_translations.py
+          # en el mismo directorio que generate-report.py sin copias adicionales.
+          # Los hallazgos ZAP se muestran en español usando el diccionario de
+          # traducciones (50+ hallazgos cubiertos, badge ES/EN por hallazgo).
           TOTAL=$TOTAL PASS_N=$PASS_N FAIL=$FAIL CRIT=$CRIT MENOR=$MENOR \
           BADGE_TEXT=$BADGE_TEXT BADGE_COLOR=$BADGE_COLOR BADGE_BD=$BADGE_BD \
           FECHA="$FECHA" RUN_URL="$RUN_URL" \
@@ -568,6 +576,7 @@ jobs:
           ZAP_GERENTE_JSON="gh-pages-site/gerente/reporte-GERENTE-json.json" \
           ZAP_CHOFER_JSON="gh-pages-site/chofer/reporte-CHOFER-json.json" \
           OUT="gh-pages-site/index.html" \
+          PYTHONPATH=".github/scripts" \
           python3 .github/scripts/generate-report.py
 
       - name: Verificar sitio generado
@@ -629,7 +638,7 @@ jobs:
 
             echo "### 🔒 Access Control: $PASS/$TOTAL pasadas — $FAIL fallidas ($CRIT críticos, $MENOR warnings)" >> $GITHUB_STEP_SUMMARY
 
-            # ── Tabla de críticos ──────────────────────────────────────────
+            # ── Tabla de críticos ────────────────────────────────────────────
             CRITICOS=$(jq -r '
               .resultados | to_entries[] | .key as $rol | .value[] |
               select(.resultado == "FAIL_CRITICO") |
@@ -647,7 +656,7 @@ jobs:
               echo "✅ No se detectó Broken Access Control" >> $GITHUB_STEP_SUMMARY
             fi
 
-            # ── Tabla de warnings ──────────────────────────────────────────
+            # ── Tabla de warnings ────────────────────────────────────────────
             WARNS=$(jq -r '
               .resultados | to_entries[] | .key as $rol | .value[] |
               select(.resultado == "FAIL_MENOR") |
@@ -667,10 +676,10 @@ jobs:
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📁 Artifacts generados" >> $GITHUB_STEP_SUMMARY
-          echo "- \`reporte-ADMIN\` → HTML + JSON ZAP (leído dinámicamente por generate-report.py)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`reporte-ADMIN\` → HTML + JSON ZAP (leído dinámicamente, hallazgos en ES)" >> $GITHUB_STEP_SUMMARY
           echo "- \`reporte-GERENTE\` → HTML + JSON ZAP" >> $GITHUB_STEP_SUMMARY
           echo "- \`reporte-CHOFER\` → HTML + JSON ZAP" >> $GITHUB_STEP_SUMMARY
           echo "- \`reporte-access-control\` → JSON matriz rol×endpoint (~115 pruebas)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🌐 Reporte publicado" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 Reporte publicado en GitHub Pages" >> $GITHUB_STEP_SUMMARY
           echo "Ver reporte completo en [GitHub Pages](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
