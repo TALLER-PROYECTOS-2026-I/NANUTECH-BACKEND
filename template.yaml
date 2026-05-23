@@ -96,7 +96,7 @@ Resources:
       Name: !Sub "nanutech-api-${StageName}"
       StageName: !Ref StageName
       Cors:
-        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
         AllowOrigin: !Sub "'${FrontendUrl}'"
       TracingEnabled: true
@@ -104,6 +104,11 @@ Resources:
         Environment: !Ref StageName
         Proyecto: Nanutech-Backend
 
+  # ===========================================================================
+  # CAMIONES — solo ADMIN
+  # GET /camiones, GET /camiones/{id}, POST /camiones,
+  # GET /camiones/panel, GET /camiones/exportar/csv
+  # ===========================================================================
   CamionFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -158,6 +163,16 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/functions/camion-services/camionHandler.mjs
+
+  # ===========================================================================
+  # ALERTAS — ADMIN y CHOFER
+  # GET /alertas/indicadores    → ADMIN
+  # GET /alertas/activas        → ADMIN
+  # POST /alertas/sos           → CHOFER
+  # POST /alertas/auxilio       → CHOFER
+  # PATCH /alertas/{id}/resolver → ADMIN
+  # PATCH /alertas/{id}/estado  → ADMIN
+  # ===========================================================================
   AlertaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -218,40 +233,56 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/functions/alerta-services/alertaHandler.mjs
+
+  # ===========================================================================
+  # DASHBOARD CONDUCTORES — solo ADMIN
+  # GET /conductores/dashboard/resumen
+  # GET /conductores/dashboard/listado
+  #
+  # FIX: se agrega RestApiId: !Ref NanutechApi que faltaba en el original,
+  # por eso estos endpoints devolvían 403 — no estaban en el API Gateway correcto.
+  # ===========================================================================
   DashboardConductoresFunction:
-      Type: AWS::Serverless::Function
-      Properties:
-        FunctionName: !Sub "${StageName}-dashboard-conductores"
-        CodeUri: .
-        Handler: src/functions/dashboard-conductores-services/dashboardConductoresHandler.handler
-        Policies:
-          - AWSLambdaBasicExecutionRole
-          - VPCAccessPolicy: {}
-        Environment:
-          Variables:
-            LOG_LEVEL: "debug"
-        Events:
-          GetDashboardConductoresResumen:
-            Type: Api
-            Properties:
-              Path: /conductores/dashboard/resumen
-              Method: GET
-          GetDashboardConductoresListado:
-            Type: Api
-            Properties:
-              Path: /conductores/dashboard/listado
-              Method: GET
-        Tags:
-          Environment: !Ref StageName
-          Servicio: dashboard-conductores
-      Metadata:
-        BuildMethod: esbuild
-        BuildProperties:
-          Minify: false
-          Target: es2022
-          Sourcemap: true
-          EntryPoints:
-            - src/functions/dashboard-conductores-services/dashboardConductoresHandler.mjs      
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-dashboard-conductores"
+      CodeUri: .
+      Handler: src/functions/dashboard-conductores-services/dashboardConductoresHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        GetDashboardConductoresResumen:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi  # ← FALTABA ESTO en el original
+            Path: /conductores/dashboard/resumen
+            Method: GET
+        GetDashboardConductoresListado:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi  # ← FALTABA ESTO en el original
+            Path: /conductores/dashboard/listado
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: dashboard-conductores
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/dashboard-conductores-services/dashboardConductoresHandler.mjs
+
+  # ===========================================================================
+  # DASHBOARD GERENCIAL — GERENTE (y ADMIN según código)
+  # GET /dashboard/gerencial
+  # ===========================================================================
   DashboardGerencialFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -283,8 +314,13 @@ Resources:
       BuildProperties:
         Minify: false
         Target: es2022
-        EntryPoints: 
+        EntryPoints:
           - src/functions/dashboard-gerencial-services/dashboardGerencialHandler.mjs
+
+  # ===========================================================================
+  # DASHBOARD ADMIN — solo ADMIN
+  # GET /dashboard
+  # ===========================================================================
   DashboardFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -316,6 +352,18 @@ Resources:
         EntryPoints:
           - src/functions/dashboard-services/dashboardHandler.mjs
 
+  # ===========================================================================
+  # JORNADAS — ADMIN, GERENTE y CHOFER
+  # POST /jornadas                              → ADMIN, GERENTE
+  # GET  /jornadas                              → ADMIN, GERENTE
+  # GET  /jornadas/exportar                     → ADMIN, GERENTE
+  # GET  /jornadas/actual/{conductorId}         → CHOFER
+  # POST /jornadas/iniciar                      → CHOFER
+  # POST /jornadas/finalizar                    → CHOFER
+  # GET  /jornadas/historial-gerencial          → ADMIN, GERENTE (NUEVO)
+  # GET  /jornadas/historial-gerencial/metrics  → ADMIN, GERENTE (NUEVO)
+  # GET  /jornadas/alerta/{jornadaId}           → ADMIN, GERENTE (NUEVO)
+  # ===========================================================================
   JornadaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -335,17 +383,23 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /jornadas
             Method: POST
-        GetCurrentJornada:
-          Type: Api
-          Properties:
-            RestApiId: !Ref NanutechApi
-            Path: /jornadas/actual/{conductorId}
-            Method: GET
         GetAllJornadas:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
             Path: /jornadas
+            Method: GET
+        ExportJornadas:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/exportar
+            Method: GET
+        GetCurrentJornada:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/actual/{conductorId}
             Method: GET
         StartTurn:
           Type: Api
@@ -359,11 +413,24 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /jornadas/finalizar
             Method: POST
-        ExportJornadas:
+        # ── NUEVOS ────────────────────────────────────────────────────────
+        GetHistorialGerencial:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
-            Path: /jornadas/exportar
+            Path: /jornadas/historial-gerencial
+            Method: GET
+        GetHistorialGerencialMetrics:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/historial-gerencial/metrics
+            Method: GET
+        GetAlertaDetail:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/alerta/{jornadaId}
             Method: GET
       Tags:
         Environment: !Ref StageName
@@ -377,6 +444,16 @@ Resources:
         EntryPoints:
           - src/functions/jornada-services/jornadaHandler.mjs
 
+  # ===========================================================================
+  # GPS — solo ADMIN
+  # GET  /gps/proveedores
+  # GET  /gps/plantilla
+  # GET  /gps/plantilla/{proveedor}
+  # POST /gps/validar
+  # POST /gps/importar
+  # GET  /gps/resumen
+  # GET  /gps/registros
+  # ===========================================================================
   GpsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -445,6 +522,11 @@ Resources:
         EntryPoints:
           - src/functions/gps-services/gpsHandler.mjs
 
+  # ===========================================================================
+  # CONDUCTORES — ADMIN y GERENTE
+  # GET /conductores
+  # GET /conductores/{id}/estadisticas
+  # ===========================================================================
   ConductorFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -482,6 +564,16 @@ Resources:
         EntryPoints:
           - src/functions/conductor-services/conductorHandler.mjs
 
+  # ===========================================================================
+  # CONTRATOS — GERENTE (vigentes también ADMIN)
+  # GET  /contratos/indicadores   → GERENTE
+  # GET  /contratos/vigentes      → ADMIN, GERENTE
+  # GET  /contratos/{id}          → GERENTE
+  # GET  /contratos               → GERENTE
+  # POST /contratos               → GERENTE
+  # PUT  /contratos/{id}          → GERENTE (NUEVO)
+  # PUT  /contratos/{id}/unidades → GERENTE (NUEVO)
+  # ===========================================================================
   ContratoFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -525,6 +617,19 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /contratos
             Method: POST
+        # ── NUEVOS ────────────────────────────────────────────────────────
+        UpdateContrato:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /contratos/{id}
+            Method: PUT
+        AssignUnidades:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /contratos/{id}/unidades
+            Method: PUT
       Tags:
         Environment: !Ref StageName
         Servicio: contrato
@@ -537,6 +642,10 @@ Resources:
         EntryPoints:
           - src/functions/contrato-services/contratoHandler.mjs
 
+  # ===========================================================================
+  # UNIDADES — ADMIN y GERENTE
+  # GET /unidades/disponibles
+  # ===========================================================================
   UnidadFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -568,6 +677,13 @@ Resources:
         EntryPoints:
           - src/functions/unidad-services/unidadHandler.mjs
 
+  # ===========================================================================
+  # AUTH — público y autenticado
+  # POST /auth/login
+  # POST /auth/forgot-password
+  # POST /auth/forgot-password/confirm
+  # GET  /auth/me
+  # ===========================================================================
   AuthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -626,6 +742,9 @@ Resources:
         EntryPoints:
           - src/functions/auth-services/authHandler.mjs
 
+  # ===========================================================================
+  # MIGRATOR — interno, sin API Gateway
+  # ===========================================================================
   MigratorFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -666,39 +785,51 @@ Outputs:
   ApiEndpoint:
     Description: "URL del endpoint de API Gateway"
     Value: !Sub "https://${NanutechApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}"
-  
+
   DashboardFunctionArn:
     Description: "ARN de la función Dashboard"
     Value: !GetAtt DashboardFunction.Arn
-  
+
+  DashboardGerencialFunctionArn:
+    Description: "ARN de la función Dashboard Gerencial"
+    Value: !GetAtt DashboardGerencialFunction.Arn
+
+  DashboardConductoresFunctionArn:
+    Description: "ARN de la función Dashboard Conductores"
+    Value: !GetAtt DashboardConductoresFunction.Arn
+
   JornadaFunctionArn:
     Description: "ARN de la función Jornada"
     Value: !GetAtt JornadaFunction.Arn
-  
+
+  AlertaFunctionArn:
+    Description: "ARN de la función Alerta"
+    Value: !GetAtt AlertaFunction.Arn
+
   ConductorFunctionArn:
     Description: "ARN de la función Conductor"
     Value: !GetAtt ConductorFunction.Arn
-  
+
   ContratoFunctionArn:
     Description: "ARN de la función Contrato"
     Value: !GetAtt ContratoFunction.Arn
-  
+
   UnidadFunctionArn:
     Description: "ARN de la función Unidad"
     Value: !GetAtt UnidadFunction.Arn
-  
+
   AuthFunctionArn:
     Description: "ARN de la función Auth"
     Value: !GetAtt AuthFunction.Arn
-  
+
   CamionFunctionArn:
     Description: "ARN de la función Camión"
     Value: !GetAtt CamionFunction.Arn
-  
+
   MigratorFunctionArn:
     Description: "ARN de la función Migrator"
     Value: !GetAtt MigratorFunction.Arn
-  
+
   GpsFunctionArn:
     Description: "ARN de la función GPS"
     Value: !GetAtt GpsFunction.Arn
