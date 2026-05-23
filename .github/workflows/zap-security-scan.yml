@@ -120,7 +120,8 @@ jobs:
               echo '════════════════════════════════════════'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
-              zap.sh -cmd -addoninstall replacer       2>/dev/null || true
+              zap.sh -cmd -addoninstall graaljs        2>/dev/null || true
+              zap.sh -cmd -addoninstall scripts        2>/dev/null || true
               zap.sh -cmd -addonupdate                 2>/dev/null || true
 
               echo ''
@@ -262,7 +263,8 @@ jobs:
               echo '════════════════════════════════════════'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
-              zap.sh -cmd -addoninstall replacer       2>/dev/null || true
+              zap.sh -cmd -addoninstall graaljs        2>/dev/null || true
+              zap.sh -cmd -addoninstall scripts        2>/dev/null || true
               zap.sh -cmd -addonupdate                 2>/dev/null || true
 
               echo ''
@@ -396,7 +398,8 @@ jobs:
               echo '════════════════════════════════════════'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
-              zap.sh -cmd -addoninstall replacer       2>/dev/null || true
+              zap.sh -cmd -addoninstall graaljs        2>/dev/null || true
+              zap.sh -cmd -addoninstall scripts        2>/dev/null || true
               zap.sh -cmd -addonupdate                 2>/dev/null || true
 
               echo ''
