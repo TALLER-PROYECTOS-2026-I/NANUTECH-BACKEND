@@ -1,11 +1,11 @@
 {
-  "generado_en": "2026-05-23T22:35:43Z",
+  "generado_en": "2026-05-23T22:51:17Z",
   "resumen": {
     "total_pruebas": 141,
-    "pasadas": 80,
-    "fallidas": 61,
+    "pasadas": 78,
+    "fallidas": 63,
     "fail_critico": 37,
-    "fail_menor": 24
+    "fail_menor": 26
   },
   "resultados": {
     "PUBLICO": [
@@ -25,10 +25,10 @@
         "method": "POST",
         "endpoint": "/auth/forgot-password",
         "expected": "PUBLIC",
-        "http_status": "200",
-        "resultado": "PASS",
-        "nota": "",
-        "detalle": "",
+        "http_status": "502",
+        "resultado": "FAIL_MENOR",
+        "nota": "Endpoint público devolvió 502 (esperaba 2xx/400/404)",
+        "detalle": "Roles con acceso: TODOS",
         "roles_permitidos": "TODOS"
       },
       {
@@ -36,9 +36,9 @@
         "method": "POST",
         "endpoint": "/auth/forgot-password/confirm",
         "expected": "PUBLIC",
-        "http_status": "401",
+        "http_status": "502",
         "resultado": "FAIL_MENOR",
-        "nota": "Endpoint público devolvió 401 (esperaba 2xx/400/404)",
+        "nota": "Endpoint público devolvió 502 (esperaba 2xx/400/404)",
         "detalle": "Roles con acceso: TODOS",
         "roles_permitidos": "TODOS"
       }
@@ -357,10 +357,10 @@
         "method": "POST",
         "endpoint": "/jornadas",
         "expected": "200",
-        "http_status": "200",
-        "resultado": "PASS",
-        "nota": "",
-        "detalle": "",
+        "http_status": "400",
+        "resultado": "FAIL_MENOR",
+        "nota": "Rol ADMIN debía tener acceso pero recibió 400",
+        "detalle": "Roles autorizados: ADMIN, GERENTE",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {

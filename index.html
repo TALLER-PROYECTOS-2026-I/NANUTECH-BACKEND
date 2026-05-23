@@ -1,4 +1,1692 @@
 <!DOCTYPE html>
-<html><head><meta http-equiv="refresh" content="0; url=reports/latest/index.html"></head>
-<body>Redirigiendo...</body>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nanutech — Security Report</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1117;color:#c9d1d9;min-height:100vh;font-size:14px}
+    a{color:#58a6ff;text-decoration:none} a:hover{text-decoration:underline}
+    header{background:#161b22;border-bottom:2px solid #f85149;padding:18px 40px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    header h1{font-size:1.3rem;color:#f0f6fc;font-weight:600}
+    .repo{color:#8b949e;font-size:12px;margin-left:8px}
+    .badge{background:#e05d44;color:#fff;padding:5px 14px;border-radius:20px;font-size:0.75rem;font-weight:700;letter-spacing:1.5px;margin-left:auto}
+    nav{background:#161b22;border-bottom:1px solid #30363d;padding:0 40px;display:flex;gap:0;overflow-x:auto}
+    nav a{color:#8b949e;padding:12px 16px;font-size:13px;border-bottom:2px solid transparent;display:block;white-space:nowrap}
+    nav a:hover{color:#f0f6fc;border-bottom-color:#58a6ff;text-decoration:none}
+    .container{max-width:1300px;margin:0 auto;padding:28px 24px}
+    .meta{color:#8b949e;font-size:12px;margin-bottom:24px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+    .meta strong{color:#c9d1d9}
+    section{margin-bottom:40px}
+    section > h2{font-size:1rem;color:#f0f6fc;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:8px}
+    .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:20px}
+    .grid-5{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
+    .metric{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;text-align:center}
+    .metric .num{font-size:2.2rem;font-weight:700;display:block;margin-bottom:6px;line-height:1}
+    .metric .lbl{font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px}
+    .metric.alert-critico{border-color:#f85149;background:#f8514912}
+    .metric.alert-pass{border-color:#3fb950;background:#3fb95012}
+    .metric.alert-high{border-color:#f85149;background:#f8514908}
+    .metric.alert-medium{border-color:#e3b341;background:#e3b34108}
+    .num.pass{color:#3fb950} .num.fail{color:#f85149} .num.warn{color:#e3b341} .num.info{color:#58a6ff} .num.gray{color:#8b949e}
+    .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;margin-bottom:16px;overflow-x:auto}
+    .card-title{font-size:13px;color:#f0f6fc;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{background:#21262d;color:#8b949e;padding:9px 12px;text-align:left;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #30363d;white-space:nowrap}
+    td{padding:9px 12px;border-bottom:1px solid #21262d;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr.row-critico{background:#f8514906}
+    tr.row-menor{background:#e3b34106}
+    tr.row-pass{background:transparent}
+    tr:hover td{background:#21262d}
+    tr.hidden{display:none}
+    code{background:#21262d;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:12px;color:#79c0ff}
+    .tag-critico{background:#f8514933;color:#f85149;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap}
+    .tag-menor{background:#e3b34133;color:#e3b341;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap}
+    .tag-pass{background:#3fb95033;color:#3fb950;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap}
+    .tag-exp-200{background:#58a6ff22;color:#58a6ff;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;border:1px solid #58a6ff44}
+    .tag-exp-403{background:#f8514922;color:#f85149;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;border:1px solid #f8514944}
+    .tag-exp-pub{background:#8b949e22;color:#8b949e;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;border:1px solid #8b949e44}
+    .tag-rol{background:#21262d;color:#c9d1d9;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;border:1px solid #30363d}
+    .method{background:#58a6ff22;color:#58a6ff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:700;font-family:monospace}
+    .roles-ok{color:#8b949e;font-size:12px}
+    .pass{color:#3fb950} .fail{color:#f85149} .warn{color:#e3b341}
+    /* Role badges */
+    .role-badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+    .role-admin{background:#58a6ff22;color:#58a6ff;border:1px solid #58a6ff44}
+    .role-gerente{background:#a371f722;color:#a371f7;border:1px solid #a371f744}
+    .role-chofer{background:#3fb95022;color:#3fb950;border:1px solid #3fb95044}
+    .role-anonimo{background:#e3b34122;color:#e3b341;border:1px solid #e3b34144}
+    .role-publico{background:#8b949e22;color:#8b949e;border:1px solid #8b949e44}
+    /* Tabs */
+    .tab-buttons{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+    .tab-btn{padding:7px 14px;border-radius:6px;border:1px solid #30363d;background:#21262d;color:#8b949e;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;display:flex;align-items:center;gap:6px}
+    .tab-btn.active{background:#161b22;border-color:#58a6ff;color:#f0f6fc}
+    .tab-btn:hover:not(.active){background:#30363d;color:#c9d1d9}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    /* Dots de estado en tabs */
+    .dot{display:inline-block;width:8px;height:8px;border-radius:50%}
+    .dot-crit{background:#f85149}
+    .dot-warn{background:#e3b341}
+    .dot-pass{background:#3fb950}
+    /* Rol summary cards */
+    .rol-summary{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+    .rol-stat{background:#21262d;border:1px solid #30363d;border-radius:6px;padding:10px 16px;text-align:center;min-width:80px}
+    .stat-pass{border-color:#3fb95044}
+    .stat-crit{border-color:#f8514944}
+    .stat-warn{border-color:#e3b34144}
+    .stat-num{display:block;font-size:1.5rem;font-weight:700;color:#f0f6fc;line-height:1}
+    .stat-lbl{display:block;font-size:10px;color:#8b949e;margin-top:4px;text-transform:uppercase}
+    /* Filter bar */
+    .filter-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+    .filter-btn{padding:5px 12px;border-radius:5px;border:1px solid #30363d;background:#21262d;color:#8b949e;cursor:pointer;font-size:12px;transition:all 0.15s}
+    .filter-btn.active{background:#58a6ff22;border-color:#58a6ff;color:#58a6ff}
+    .filter-btn.btn-crit.active{background:#f8514922;border-color:#f85149;color:#f85149}
+    .filter-btn.btn-warn.active{background:#e3b34122;border-color:#e3b341;color:#e3b341}
+    .filter-btn:hover:not(.active){background:#30363d;color:#c9d1d9}
+    /* ZAP section */
+    .zap-links{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    .zap-link{display:inline-block;padding:6px 12px;background:#21262d;border:1px solid #30363d;border-radius:5px;color:#58a6ff;font-size:12px;transition:background 0.15s}
+    .zap-link:hover{background:#30363d;text-decoration:none}
+    .hallazgos-table td:first-child span{display:inline-block;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600}
+    .riesgo-high{background:#f8514933;color:#f85149}
+    .riesgo-medium{background:#e3b34133;color:#e3b341}
+    .riesgo-low{background:#3fb95022;color:#3fb950}
+    .riesgo-info{background:#58a6ff22;color:#58a6ff}
+    .empty-state{text-align:center;padding:40px;color:#8b949e}
+    .empty-state .icon{font-size:2.5rem;display:block;margin-bottom:10px}
+    footer{text-align:center;padding:20px;color:#8b949e;font-size:12px;border-top:1px solid #21262d;margin-top:40px}
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🔐 Nanutech Security Report</h1>
+  <span class="repo">TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND</span>
+  <span class="badge">VULNERABLE</span>
+</header>
+
+<nav>
+  <a href="#resumen">📊 Resumen</a>
+  <a href="#access-control">🔒 Access Control</a>
+  <a href="#zap-scans">🛡️ ZAP Scans</a>
+</nav>
+
+<div class="container">
+
+  <div class="meta">
+    <span>Generado: <strong>2026-05-23 23:00 UTC</strong></span>
+    <span>·</span>
+    <span>Escaneo AC: <strong>2026-05-23T22:51:17Z</strong></span>
+    <span>·</span>
+    <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26345656613" target="_blank">Ver workflow en GitHub Actions →</a>
+  </div>
+
+  <!-- ═══ RESUMEN ══════════════════════════════════════════════════════════ -->
+  <section id="resumen">
+    <h2>📊 Resumen ejecutivo</h2>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">🔒 Broken Access Control (OWASP A01)</div>
+      <div class="grid-4">
+        <div class="metric alert-critico">
+          <span class="num fail">37</span>
+          <span class="lbl">🚨 Críticos</span>
+        </div>
+        <div class="metric">
+          <span class="num warn">26</span>
+          <span class="lbl">⚠️ Warnings</span>
+        </div>
+        <div class="metric alert-pass">
+          <span class="num pass">78</span>
+          <span class="lbl">✅ Pasadas</span>
+        </div>
+        <div class="metric">
+          <span class="num info">141</span>
+          <span class="lbl">Total pruebas</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🛡️ Hallazgos ZAP Active Scan (todos los roles)</div>
+      <div class="grid-5">
+        <div class="metric alert-high">
+          <span class="num fail">1</span>
+          <span class="lbl">🔴 High</span>
+        </div>
+        <div class="metric alert-medium">
+          <span class="num warn">4</span>
+          <span class="lbl">🟠 Medium</span>
+        </div>
+        <div class="metric">
+          <span class="num pass">2</span>
+          <span class="lbl">🟡 Low</span>
+        </div>
+        <div class="metric">
+          <span class="num info">5</span>
+          <span class="lbl">🔵 Info</span>
+        </div>
+        <div class="metric">
+          <span class="num gray">12</span>
+          <span class="lbl">Únicos</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen compacto por rol -->
+    <div class="card">
+      <div class="card-title">Resultado por rol — Access Control</div>
+      <table>
+        <thead><tr>
+          <th>Rol</th><th>Total pruebas</th><th>Pasadas</th>
+          <th>Críticos</th><th>Warnings</th><th>Estado</th>
+        </tr></thead>
+        <tbody><tr><td><span class="role-badge role-admin">ADMIN</span></td><td>42</td><td class="pass">25</td><td class="fail">4</td><td class="warn">13</td><td class="fail">🚨</td></tr>
+<tr><td><span class="role-badge role-gerente">GERENTE</span></td><td>42</td><td class="pass">24</td><td class="fail">11</td><td class="warn">7</td><td class="fail">🚨</td></tr>
+<tr><td><span class="role-badge role-chofer">CHOFER</span></td><td>42</td><td class="pass">20</td><td class="fail">18</td><td class="warn">4</td><td class="fail">🚨</td></tr>
+<tr><td><span class="role-badge role-anonimo">ANONIMO</span></td><td>12</td><td class="pass">8</td><td class="fail">4</td><td class="warn">0</td><td class="fail">🚨</td></tr>
+<tr><td><span class="role-badge role-publico">PUBLICO</span></td><td>3</td><td class="pass">1</td><td class="fail">0</td><td class="warn">2</td><td class="warn">⚠️</td></tr>
+</tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ ACCESS CONTROL CON TABS POR ROL ═════════════════════════════════ -->
+  <section id="access-control">
+    <h2>🔒 Broken Access Control — OWASP A01</h2>
+    <p style="color:#8b949e;font-size:13px;margin-bottom:16px">
+      Selecciona un rol para ver el detalle completo de todas sus pruebas —
+      tanto las que pasaron como las que fallaron. Usa los filtros dentro de
+      cada tab para ver solo los críticos, warnings o pasadas.
+    </p>
+
+    <div class="tab-buttons">
+      <button class="tab-btn active" onclick="showACTab('ADMIN',this)">
+      <span class="role-badge role-admin">ADMIN</span>&nbsp;42 pruebas&nbsp;<span class="dot dot-crit"></span>
+    </button>
+<button class="tab-btn " onclick="showACTab('GERENTE',this)">
+      <span class="role-badge role-gerente">GERENTE</span>&nbsp;42 pruebas&nbsp;<span class="dot dot-crit"></span>
+    </button>
+<button class="tab-btn " onclick="showACTab('CHOFER',this)">
+      <span class="role-badge role-chofer">CHOFER</span>&nbsp;42 pruebas&nbsp;<span class="dot dot-crit"></span>
+    </button>
+<button class="tab-btn " onclick="showACTab('ANONIMO',this)">
+      <span class="role-badge role-anonimo">ANONIMO</span>&nbsp;12 pruebas&nbsp;<span class="dot dot-crit"></span>
+    </button>
+<button class="tab-btn " onclick="showACTab('PUBLICO',this)">
+      <span class="role-badge role-publico">PUBLICO</span>&nbsp;3 pruebas&nbsp;<span class="dot dot-warn"></span>
+    </button>
+
+    </div>
+
+    <div id="ac-tab-ADMIN" class="tab-content active">
+      <div class="card">
+    <div class="rol-summary">
+      <div class="rol-stat stat-total"><span class="stat-num">42</span><span class="stat-lbl">Total</span></div>
+      <div class="rol-stat stat-pass"><span class="stat-num">25</span><span class="stat-lbl">✅ Pasadas</span></div>
+      <div class="rol-stat stat-crit"><span class="stat-num">4</span><span class="stat-lbl">🚨 Críticos</span></div>
+      <div class="rol-stat stat-warn"><span class="stat-num">13</span><span class="stat-lbl">⚠️ Warnings</span></div>
+    </div>
+    <div class="filter-bar" id="filter-ADMIN">
+      <button class="filter-btn active" onclick="filterAC('ADMIN','ALL',this)">Todos (42)</button>
+      <button class="filter-btn" onclick="filterAC('ADMIN','PASS',this)">✅ Pasadas (25)</button>
+      <button class="filter-btn btn-crit" onclick="filterAC('ADMIN','FAIL_CRITICO',this)">🚨 Críticos (4)</button>
+      <button class="filter-btn btn-warn" onclick="filterAC('ADMIN','FAIL_MENOR',this)">⚠️ Warnings (13)</button>
+    </div><table id="ac-table-ADMIN">
+      <thead><tr>
+        <th style="width:40px">Estado</th>
+        <th>Método</th>
+        <th>Endpoint</th>
+        <th>Esperado</th>
+        <th>HTTP Real</th>
+        <th>Descripción</th>
+        <th>Roles autorizados</th>
+      </tr></thead>
+      <tbody><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/auth/me</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE, CHOFER</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/camiones</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 400<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones/aaaa0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones/panel</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones/exportar/csv</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/dashboard</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/dashboard/gerencial</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores/22222222-2222-2222-2222-222222222222/estadisticas</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores/dashboard/resumen</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores/dashboard/listado</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: ADMIN recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/contratos</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos/bbbb0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: ADMIN recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos/indicadores</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: ADMIN recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos/vigentes</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">PUT</span></td>
+          <td><code style="font-size:11px">/contratos/bbbb0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">PUT</span></td>
+          <td><code style="font-size:11px">/contratos/bbbb0001-0000-0000-0000-000000000001/unidades</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/unidades/disponibles</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/proveedores</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/plantilla</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 400<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/plantilla/GPSCONTROL</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/gps/validar</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/gps/importar</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 201</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/resumen</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/registros</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/jornadas</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 400<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/exportar</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/actual/22222222-2222-2222-2222-222222222222</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: ADMIN recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: CHOFER</span></td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/jornadas/iniciar</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Recibió 400 (aceptable como rechazo)</td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/jornadas/finalizar</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Recibió 400 (aceptable como rechazo)</td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/historial-gerencial</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/historial-gerencial/metrics</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/alerta/cccc0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/alertas/indicadores</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/alertas/activas</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/alertas/sos</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/alertas/auxilio</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">PATCH</span></td>
+          <td><code style="font-size:11px">/alertas/dddd0001-0000-0000-0000-000000000001/resolver</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">PATCH</span></td>
+          <td><code style="font-size:11px">/alertas/dddd0001-0000-0000-0000-000000000001/estado</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol ADMIN debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr></tbody>
+    </table></div>
+    </div>
+<div id="ac-tab-GERENTE" class="tab-content ">
+      <div class="card">
+    <div class="rol-summary">
+      <div class="rol-stat stat-total"><span class="stat-num">42</span><span class="stat-lbl">Total</span></div>
+      <div class="rol-stat stat-pass"><span class="stat-num">24</span><span class="stat-lbl">✅ Pasadas</span></div>
+      <div class="rol-stat stat-crit"><span class="stat-num">11</span><span class="stat-lbl">🚨 Críticos</span></div>
+      <div class="rol-stat stat-warn"><span class="stat-num">7</span><span class="stat-lbl">⚠️ Warnings</span></div>
+    </div>
+    <div class="filter-bar" id="filter-GERENTE">
+      <button class="filter-btn active" onclick="filterAC('GERENTE','ALL',this)">Todos (42)</button>
+      <button class="filter-btn" onclick="filterAC('GERENTE','PASS',this)">✅ Pasadas (24)</button>
+      <button class="filter-btn btn-crit" onclick="filterAC('GERENTE','FAIL_CRITICO',this)">🚨 Críticos (11)</button>
+      <button class="filter-btn btn-warn" onclick="filterAC('GERENTE','FAIL_MENOR',this)">⚠️ Warnings (7)</button>
+    </div><table id="ac-table-GERENTE">
+      <thead><tr>
+        <th style="width:40px">Estado</th>
+        <th>Método</th>
+        <th>Endpoint</th>
+        <th>Esperado</th>
+        <th>HTTP Real</th>
+        <th>Descripción</th>
+        <th>Roles autorizados</th>
+      </tr></thead>
+      <tbody><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/auth/me</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE, CHOFER</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: GERENTE recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/camiones</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Recibió 400 (aceptable como rechazo)</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones/aaaa0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: GERENTE recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones/panel</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: GERENTE recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones/exportar/csv</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: GERENTE recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/dashboard</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/dashboard/gerencial</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores/22222222-2222-2222-2222-222222222222/estadisticas</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol GERENTE debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores/dashboard/resumen</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores/dashboard/listado</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/contratos</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos/bbbb0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos/indicadores</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos/vigentes</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">PUT</span></td>
+          <td><code style="font-size:11px">/contratos/bbbb0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol GERENTE debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">PUT</span></td>
+          <td><code style="font-size:11px">/contratos/bbbb0001-0000-0000-0000-000000000001/unidades</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol GERENTE debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/unidades/disponibles</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/proveedores</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: GERENTE recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/plantilla</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Recibió 400 (aceptable como rechazo)</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/plantilla/GPSCONTROL</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: GERENTE recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/gps/validar</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: GERENTE recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/gps/importar</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 201</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: GERENTE recibió 201 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/resumen</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: GERENTE recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/registros</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: GERENTE recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/jornadas</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol GERENTE debía tener acceso pero recibió 400<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/exportar</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/actual/22222222-2222-2222-2222-222222222222</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: GERENTE recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: CHOFER</span></td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/jornadas/iniciar</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Recibió 400 (aceptable como rechazo)</td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/jornadas/finalizar</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Recibió 400 (aceptable como rechazo)</td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/historial-gerencial</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol GERENTE debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/historial-gerencial/metrics</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol GERENTE debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/alerta/cccc0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol GERENTE debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/alertas/indicadores</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/alertas/activas</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/alertas/sos</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/alertas/auxilio</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">PATCH</span></td>
+          <td><code style="font-size:11px">/alertas/dddd0001-0000-0000-0000-000000000001/resolver</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">PATCH</span></td>
+          <td><code style="font-size:11px">/alertas/dddd0001-0000-0000-0000-000000000001/estado</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr></tbody>
+    </table></div>
+    </div>
+<div id="ac-tab-CHOFER" class="tab-content ">
+      <div class="card">
+    <div class="rol-summary">
+      <div class="rol-stat stat-total"><span class="stat-num">42</span><span class="stat-lbl">Total</span></div>
+      <div class="rol-stat stat-pass"><span class="stat-num">20</span><span class="stat-lbl">✅ Pasadas</span></div>
+      <div class="rol-stat stat-crit"><span class="stat-num">18</span><span class="stat-lbl">🚨 Críticos</span></div>
+      <div class="rol-stat stat-warn"><span class="stat-num">4</span><span class="stat-lbl">⚠️ Warnings</span></div>
+    </div>
+    <div class="filter-bar" id="filter-CHOFER">
+      <button class="filter-btn active" onclick="filterAC('CHOFER','ALL',this)">Todos (42)</button>
+      <button class="filter-btn" onclick="filterAC('CHOFER','PASS',this)">✅ Pasadas (20)</button>
+      <button class="filter-btn btn-crit" onclick="filterAC('CHOFER','FAIL_CRITICO',this)">🚨 Críticos (18)</button>
+      <button class="filter-btn btn-warn" onclick="filterAC('CHOFER','FAIL_MENOR',this)">⚠️ Warnings (4)</button>
+    </div><table id="ac-table-CHOFER">
+      <thead><tr>
+        <th style="width:40px">Estado</th>
+        <th>Método</th>
+        <th>Endpoint</th>
+        <th>Esperado</th>
+        <th>HTTP Real</th>
+        <th>Descripción</th>
+        <th>Roles autorizados</th>
+      </tr></thead>
+      <tbody><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/auth/me</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE, CHOFER</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/camiones</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Recibió 400 (aceptable como rechazo)</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones/aaaa0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones/panel</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones/exportar/csv</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/dashboard</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/dashboard/gerencial</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores/22222222-2222-2222-2222-222222222222/estadisticas</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores/dashboard/resumen</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores/dashboard/listado</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/contratos</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos/bbbb0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos/indicadores</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos/vigentes</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">PUT</span></td>
+          <td><code style="font-size:11px">/contratos/bbbb0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">PUT</span></td>
+          <td><code style="font-size:11px">/contratos/bbbb0001-0000-0000-0000-000000000001/unidades</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/unidades/disponibles</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/proveedores</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/plantilla</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Recibió 400 (aceptable como rechazo)</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/plantilla/GPSCONTROL</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/gps/validar</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/gps/importar</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 201</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 201 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/resumen</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/registros</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/jornadas</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Recibió 400 (aceptable como rechazo)</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/exportar</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: CHOFER recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/actual/22222222-2222-2222-2222-222222222222</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/jornadas/iniciar</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol CHOFER debía tener acceso pero recibió 400<br><span style="color:#8b949e;font-size:11px">Roles autorizados: CHOFER</span></td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/jornadas/finalizar</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 400</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol CHOFER debía tener acceso pero recibió 400<br><span style="color:#8b949e;font-size:11px">Roles autorizados: CHOFER</span></td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/historial-gerencial</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/historial-gerencial/metrics</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/alerta/cccc0001-0000-0000-0000-000000000001</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/alertas/indicadores</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/alertas/activas</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/alertas/sos</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol CHOFER debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: CHOFER</span></td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/alertas/auxilio</code></td>
+          <td><span class="tag-exp-200">Debe → 2xx</span></td>
+          <td><span class="tag-menor">⚠️ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Rol CHOFER debía tener acceso pero recibió 403<br><span style="color:#8b949e;font-size:11px">Roles autorizados: CHOFER</span></td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">PATCH</span></td>
+          <td><code style="font-size:11px">/alertas/dddd0001-0000-0000-0000-000000000001/resolver</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">PATCH</span></td>
+          <td><code style="font-size:11px">/alertas/dddd0001-0000-0000-0000-000000000001/estado</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr></tbody>
+    </table></div>
+    </div>
+<div id="ac-tab-ANONIMO" class="tab-content ">
+      <div class="card">
+    <div class="rol-summary">
+      <div class="rol-stat stat-total"><span class="stat-num">12</span><span class="stat-lbl">Total</span></div>
+      <div class="rol-stat stat-pass"><span class="stat-num">8</span><span class="stat-lbl">✅ Pasadas</span></div>
+      <div class="rol-stat stat-crit"><span class="stat-num">4</span><span class="stat-lbl">🚨 Críticos</span></div>
+      <div class="rol-stat stat-warn"><span class="stat-num">0</span><span class="stat-lbl">⚠️ Warnings</span></div>
+    </div>
+    <div class="filter-bar" id="filter-ANONIMO">
+      <button class="filter-btn active" onclick="filterAC('ANONIMO','ALL',this)">Todos (12)</button>
+      <button class="filter-btn" onclick="filterAC('ANONIMO','PASS',this)">✅ Pasadas (8)</button>
+      <button class="filter-btn btn-crit" onclick="filterAC('ANONIMO','FAIL_CRITICO',this)">🚨 Críticos (4)</button>
+      <button class="filter-btn btn-warn" onclick="filterAC('ANONIMO','FAIL_MENOR',this)">⚠️ Warnings (0)</button>
+    </div><table id="ac-table-ANONIMO">
+      <thead><tr>
+        <th style="width:40px">Estado</th>
+        <th>Método</th>
+        <th>Endpoint</th>
+        <th>Esperado</th>
+        <th>HTTP Real</th>
+        <th>Descripción</th>
+        <th>Roles autorizados</th>
+      </tr></thead>
+      <tbody><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/auth/me</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 401</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE, CHOFER</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/camiones</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: ANONIMO recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/dashboard</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 500</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Recibió 500 (aceptable como rechazo)</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/dashboard/gerencial</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 401</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/conductores</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: ANONIMO recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/contratos</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 500</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Recibió 500 (aceptable como rechazo)</td>
+          <td style="font-size:11px;color:#8b949e">GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/unidades/disponibles</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: ANONIMO recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN, GERENTE</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-critico" data-resultado="FAIL_CRITICO">
+          <td style="text-align:center;font-size:16px">🚨</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/gps/proveedores</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-critico">🚨 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Broken Access Control: ANONIMO recibió 200 — acceso indebido<br><span style="color:#8b949e;font-size:11px">Solo deberían acceder: ADMIN</span></td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 401</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN, GERENTE</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/jornadas/actual/22222222-2222-2222-2222-222222222222</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 401</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">GET</span></td>
+          <td><code style="font-size:11px">/alertas/indicadores</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">ADMIN</td>
+        </tr><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/alertas/sos</code></td>
+          <td><span class="tag-exp-403">Debe → 401/403</span></td>
+          <td><span class="tag-pass">✅ 403</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">CHOFER</td>
+        </tr></tbody>
+    </table></div>
+    </div>
+<div id="ac-tab-PUBLICO" class="tab-content ">
+      <div class="card">
+    <div class="rol-summary">
+      <div class="rol-stat stat-total"><span class="stat-num">3</span><span class="stat-lbl">Total</span></div>
+      <div class="rol-stat stat-pass"><span class="stat-num">1</span><span class="stat-lbl">✅ Pasadas</span></div>
+      <div class="rol-stat stat-crit"><span class="stat-num">0</span><span class="stat-lbl">🚨 Críticos</span></div>
+      <div class="rol-stat stat-warn"><span class="stat-num">2</span><span class="stat-lbl">⚠️ Warnings</span></div>
+    </div>
+    <div class="filter-bar" id="filter-PUBLICO">
+      <button class="filter-btn active" onclick="filterAC('PUBLICO','ALL',this)">Todos (3)</button>
+      <button class="filter-btn" onclick="filterAC('PUBLICO','PASS',this)">✅ Pasadas (1)</button>
+      <button class="filter-btn btn-crit" onclick="filterAC('PUBLICO','FAIL_CRITICO',this)">🚨 Críticos (0)</button>
+      <button class="filter-btn btn-warn" onclick="filterAC('PUBLICO','FAIL_MENOR',this)">⚠️ Warnings (2)</button>
+    </div><table id="ac-table-PUBLICO">
+      <thead><tr>
+        <th style="width:40px">Estado</th>
+        <th>Método</th>
+        <th>Endpoint</th>
+        <th>Esperado</th>
+        <th>HTTP Real</th>
+        <th>Descripción</th>
+        <th>Roles autorizados</th>
+      </tr></thead>
+      <tbody><tr class="row-pass" data-resultado="PASS">
+          <td style="text-align:center;font-size:16px">✅</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/auth/login</code></td>
+          <td><span class="tag-exp-pub">Público</span></td>
+          <td><span class="tag-pass">✅ 200</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Acceso correcto según la política de roles.</td>
+          <td style="font-size:11px;color:#8b949e">TODOS</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/auth/forgot-password</code></td>
+          <td><span class="tag-exp-pub">Público</span></td>
+          <td><span class="tag-menor">⚠️ 502</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Endpoint público devolvió 502 (esperaba 2xx/400/404)<br><span style="color:#8b949e;font-size:11px">Roles con acceso: TODOS</span></td>
+          <td style="font-size:11px;color:#8b949e">TODOS</td>
+        </tr><tr class="row-menor" data-resultado="FAIL_MENOR">
+          <td style="text-align:center;font-size:16px">⚠️</td>
+          <td><span class="method">POST</span></td>
+          <td><code style="font-size:11px">/auth/forgot-password/confirm</code></td>
+          <td><span class="tag-exp-pub">Público</span></td>
+          <td><span class="tag-menor">⚠️ 502</span></td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">Endpoint público devolvió 502 (esperaba 2xx/400/404)<br><span style="color:#8b949e;font-size:11px">Roles con acceso: TODOS</span></td>
+          <td style="font-size:11px;color:#8b949e">TODOS</td>
+        </tr></tbody>
+    </table></div>
+    </div>
+
+  </section>
+
+  <!-- ═══ ZAP SCANS CON TABS POR ROL ══════════════════════════════════════ -->
+  <section id="zap-scans">
+    <h2>🛡️ Hallazgos ZAP Active Scan por rol</h2>
+    <p style="color:#8b949e;font-size:13px;margin-bottom:20px">
+      Vulnerabilidades técnicas detectadas por OWASP ZAP.
+      Incluye: SQL Injection · XSS · CORS · Path Traversal · SSRF ·
+      Security Headers · Integer Overflow.
+      Los hallazgos se leen directamente de los reportes JSON generados por ZAP.
+    </p>
+
+    <div class="tab-buttons">
+      <button class="tab-btn active" onclick="showZAPTab('zadmin',this)">
+        <span class="role-badge role-admin">ADMIN</span>&nbsp;0 hallazgos
+      </button>
+      <button class="tab-btn" onclick="showZAPTab('zgerente',this)">
+        <span class="role-badge role-gerente">GERENTE</span>&nbsp;0 hallazgos
+      </button>
+      <button class="tab-btn" onclick="showZAPTab('zchofer',this)">
+        <span class="role-badge role-chofer">CHOFER</span>&nbsp;12 hallazgos
+      </button>
+    </div>
+
+    <div id="tab-zadmin" class="tab-content active">
+      <div class="card">
+        <div class="card-title">
+          <span class="role-badge role-admin">ADMIN</span>
+          /camiones/*, /dashboard, /conductores/*, /contratos/vigentes,
+          /unidades/disponibles, /gps/*, /jornadas/*, /alertas/*, /auth/*
+        </div>
+        <div class="zap-links">
+          <a class="zap-link" href="admin/reporte-ADMIN.html">📋 Reporte HTML completo</a>
+          <a class="zap-link" href="admin/reporte-ADMIN-json.json">📄 JSON raw</a>
+        </div>
+        <div class="empty-state">
+          <span class="icon">✅</span>
+          <p>No se encontraron hallazgos en el escaneo ZAP para ROL ADMIN,
+             o el reporte aún no está disponible.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-zgerente" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <span class="role-badge role-gerente">GERENTE</span>
+          /dashboard/gerencial, /conductores, /contratos/*, /unidades/disponibles,
+          /jornadas/*, /auth/*
+        </div>
+        <div class="zap-links">
+          <a class="zap-link" href="gerente/reporte-GERENTE.html">📋 Reporte HTML completo</a>
+          <a class="zap-link" href="gerente/reporte-GERENTE-json.json">📄 JSON raw</a>
+        </div>
+        <div class="empty-state">
+          <span class="icon">✅</span>
+          <p>No se encontraron hallazgos en el escaneo ZAP para ROL GERENTE,
+             o el reporte aún no está disponible.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-zchofer" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <span class="role-badge role-chofer">CHOFER</span>
+          /jornadas/actual/{conductorId}, /jornadas/iniciar,
+          /jornadas/finalizar, /alertas/sos, /alertas/auxilio, /auth/*
+        </div>
+        <div class="zap-links">
+          <a class="zap-link" href="chofer/reporte-CHOFER.html">📋 Reporte HTML completo</a>
+          <a class="zap-link" href="chofer/reporte-CHOFER-json.json">📄 JSON raw</a>
+        </div>
+        <table class="hallazgos-table">
+      <thead><tr>
+        <th>Riesgo</th><th>Vulnerabilidad</th><th>CWE</th>
+        <th>Endpoints afectados</th><th>Acción recomendada</th>
+      </tr></thead>
+      <tbody><tr>
+          <td><span class="riesgo-high">🔴 High</span></td>
+          <td><strong>Source Code Disclosure - File Inclusion</strong></td>
+          <td><code>CWE-541</code></td>
+          <td><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login</code></td>
+          <td style="font-size:12px;color:#8b949e">Assume all input is malicious. Use an "accept known good" input validation strategy, i.e., use an allow list of acceptable inputs that strictly conform to specifications. Reject any input that does no...</td>
+        </tr><tr>
+          <td><span class="riesgo-medium">🟠 Medium</span></td>
+          <td><strong>CORS Misconfiguration</strong></td>
+          <td><code>CWE-942</code></td>
+          <td><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/finalizar</code></td>
+          <td style="font-size:12px;color:#8b949e">If a web resource contains sensitive information, the origin should be properly specified in the Access-Control-Allow-Origin header. Only trusted websites needing this resource should be specified in ...</td>
+        </tr><tr>
+          <td><span class="riesgo-medium">🟠 Medium</span></td>
+          <td><strong>Cross-Domain Misconfiguration</strong></td>
+          <td><code>CWE-264</code></td>
+          <td><code>GET https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/me</code><br><code>GET https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/actual/22222222-2222-2222-2222-222222222222</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password</code><br><span style="color:#8b949e;font-size:11px">+2 más</span></td>
+          <td style="font-size:12px;color:#8b949e">Ensure that sensitive data is not available in an unauthenticated manner (using IP address white-listing, for instance). Configure the "Access-Control-Allow-Origin" HTTP header to a more restrictive s...</td>
+        </tr><tr>
+          <td><span class="riesgo-medium">🟠 Medium</span></td>
+          <td><strong>Integer Overflow Error</strong></td>
+          <td><code>CWE-190</code></td>
+          <td><code>GET https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/actual/22222222-2222-2222-2222-222222222222</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/finalizar</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/iniciar</code></td>
+          <td style="font-size:12px;color:#8b949e">In order to prevent overflows and divide by 0 (zero) errors in the application, please rewrite the backend program, checking if the values of integers being processed are within the application's allo...</td>
+        </tr><tr>
+          <td><span class="riesgo-medium">🟠 Medium</span></td>
+          <td><strong>Proxy Disclosure</strong></td>
+          <td><code>CWE-204</code></td>
+          <td><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/auxilio</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/sos</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password</code></td>
+          <td style="font-size:12px;color:#8b949e">Disable the 'TRACE' method on the proxy servers, as well as the origin web/application server. Disable the 'OPTIONS' method on the proxy servers, as well as the origin web/application server, if it is...</td>
+        </tr><tr>
+          <td><span class="riesgo-low">🟡 Low</span></td>
+          <td><strong>Strict-Transport-Security Header Not Set</strong></td>
+          <td><code>CWE-319</code></td>
+          <td><code>GET https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/me</code><br><code>GET https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/actual/22222222-2222-2222-2222-222222222222</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password</code><br><span style="color:#8b949e;font-size:11px">+2 más</span></td>
+          <td style="font-size:12px;color:#8b949e">Ensure that your web server, application server, load balancer, etc. is configured to enforce Strict-Transport-Security.</td>
+        </tr><tr>
+          <td><span class="riesgo-low">🟡 Low</span></td>
+          <td><strong>X-Content-Type-Options Header Missing</strong></td>
+          <td><code>CWE-693</code></td>
+          <td><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login</code></td>
+          <td style="font-size:12px;color:#8b949e">Ensure that the application/web server sets the Content-Type header appropriately, and that it sets the X-Content-Type-Options header to 'nosniff' for all web pages. If possible, ensure that the end u...</td>
+        </tr><tr>
+          <td><span class="riesgo-info">🔵 Info</span></td>
+          <td><strong>Authentication Request Identified</strong></td>
+          <td><code>CWE--1</code></td>
+          <td><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login</code></td>
+          <td style="font-size:12px;color:#8b949e">This is an informational alert rather than a vulnerability and so there is nothing to fix.</td>
+        </tr><tr>
+          <td><span class="riesgo-info">🔵 Info</span></td>
+          <td><strong>Non-Storable Content</strong></td>
+          <td><code>CWE-524</code></td>
+          <td><code>GET https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/me</code><br><code>GET https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/actual/22222222-2222-2222-2222-222222222222</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/sos</code><br><span style="color:#8b949e;font-size:11px">+2 más</span></td>
+          <td style="font-size:12px;color:#8b949e">The content may be marked as storable by ensuring that the following conditions are satisfied: The request method must be understood by the cache and defined as being cacheable ("GET", "HEAD", and "PO...</td>
+        </tr><tr>
+          <td><span class="riesgo-info">🔵 Info</span></td>
+          <td><strong>Session Management Response Identified</strong></td>
+          <td><code>CWE--1</code></td>
+          <td><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login</code></td>
+          <td style="font-size:12px;color:#8b949e">This is an informational alert rather than a vulnerability and so there is nothing to fix.</td>
+        </tr><tr>
+          <td><span class="riesgo-info">🔵 Info</span></td>
+          <td><strong>Storable and Cacheable Content</strong></td>
+          <td><code>CWE-524</code></td>
+          <td><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login</code></td>
+          <td style="font-size:12px;color:#8b949e">Validate that the response does not contain sensitive, personal or user-specific information. If it does, consider the use of the following HTTP response headers, to limit, or prevent the content bein...</td>
+        </tr><tr>
+          <td><span class="riesgo-info">🔵 Info</span></td>
+          <td><strong>User Agent Fuzzer</strong></td>
+          <td><code>CWE-0</code></td>
+          <td><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/auxilio</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/auxilio</code><br><code>POST https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/sos</code></td>
+          <td style="font-size:12px;color:#8b949e">Ver reporte completo.</td>
+        </tr></tbody>
+    </table>
+      </div>
+    </div>
+
+  </section>
+
+</div>
+
+<footer>
+  Nanutech Security Scan &nbsp;·&nbsp; OWASP ZAP &nbsp;·&nbsp;
+  Generado automáticamente con
+  <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26345656613" target="_blank">GitHub Actions</a>
+</footer>
+
+<script>
+  // ── Tabs de ZAP ────────────────────────────────────────────────────────
+  function showZAPTab(id, btn) {
+    document.querySelectorAll('[id^="tab-z"]').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.closest('.tab-buttons').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // ── Tabs de Access Control ─────────────────────────────────────────────
+  function showACTab(rol, btn) {
+    document.querySelectorAll('[id^="ac-tab-"]').forEach(el => el.classList.remove('active'));
+    document.getElementById('ac-tab-' + rol).classList.add('active');
+    btn.closest('.tab-buttons').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // ── Filtro dentro de cada tab de Access Control ────────────────────────
+  function filterAC(rol, tipo, btn) {
+    const table = document.getElementById('ac-table-' + rol);
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+      if (tipo === 'ALL') {
+        row.classList.remove('hidden');
+      } else {
+        const r = row.getAttribute('data-resultado');
+        if (r === tipo) {
+          row.classList.remove('hidden');
+        } else {
+          row.classList.add('hidden');
+        }
+      }
+    });
+    const bar = document.getElementById('filter-' + rol);
+    if (bar) {
+      bar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  }
+</script>
+
+</body>
 </html>
