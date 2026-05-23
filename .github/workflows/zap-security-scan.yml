@@ -477,17 +477,16 @@ jobs:
       - name: Crear carpeta de reportes
         run: mkdir -p security-owasp/reports
 
-      - name: 🔑 Login y obtener tokens (3 roles)
+      - name: 🔑 Login + Ejecutar pruebas de control de acceso
         run: |
-          get_token() {
-            local EMAIL="$1"
-            local LABEL="$2"
-            local RESP
+          # ── Login 3 roles ──────────────────────────────────────────────────
+          login() {
+            local EMAIL="$1" LABEL="$2"
+            local RESP TOKEN
             RESP=$(curl -s --max-time 15 \
-              -X POST "$API_URL_TESTING/auth/login" \
+              -X POST "$API_URL/auth/login" \
               -H "Content-Type: application/json" \
               -d "{\"email\":\"${EMAIL}\",\"password\":\"Admin123!\"}")
-            local TOKEN
             TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
             if [ -z "$TOKEN" ]; then
               echo "❌ No se pudo obtener token para $LABEL"
@@ -495,25 +494,21 @@ jobs:
               exit 1
             fi
             echo "✅ Token $LABEL obtenido (${#TOKEN} chars)"
-            echo "$TOKEN"
+            # Un archivo por token — evita problemas de quoting con JWT
+            printf '%s' "$TOKEN" > "/tmp/token_${LABEL}.txt"
           }
 
-          T_ADMIN=$(get_token "admin@nanutech.com" "ADMIN")
-          T_GERENTE=$(get_token "gerente@nanutech.com" "GERENTE")
-          T_CHOFER=$(get_token "chofer@nanutech.com" "CHOFER")
+          login "admin@nanutech.com"   "ADMIN"
+          login "gerente@nanutech.com" "GERENTE"
+          login "chofer@nanutech.com"  "CHOFER"
 
-          # Guardar en archivo — evita el bloqueo de outputs de GitHub Actions
-          printf "TOKEN_ADMIN=%s\nTOKEN_GERENTE=%s\nTOKEN_CHOFER=%s\n" \
-            "$T_ADMIN" "$T_GERENTE" "$T_CHOFER" > /tmp/tokens.env
-          echo "✅ Tokens guardados"
-        env:
-          API_URL_TESTING: ${{ secrets.API_URL_TESTING }}
+          # ── Exportar leyendo desde archivos individuales ───────────────────
+          TOKEN_ADMIN=$(cat /tmp/token_ADMIN.txt)
+          TOKEN_GERENTE=$(cat /tmp/token_GERENTE.txt)
+          TOKEN_CHOFER=$(cat /tmp/token_CHOFER.txt)
+          export TOKEN_ADMIN TOKEN_GERENTE TOKEN_CHOFER
 
-      - name: Ejecutar pruebas de control de acceso
-        run: |
-          set -a
-          source /tmp/tokens.env
-          set +a
+          # ── Ejecutar pruebas ───────────────────────────────────────────────
           chmod +x .github/scripts/access-control-tests.sh
           bash .github/scripts/access-control-tests.sh
         env:
