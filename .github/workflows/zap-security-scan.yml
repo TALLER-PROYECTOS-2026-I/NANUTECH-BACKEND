@@ -53,7 +53,7 @@ permissions:
 jobs:
 
   # ===========================================================================
-  # JOB 1: LOGIN CON LOS 3 ROLES → obtener tokens
+  # JOB 1: LOGIN CON LOS 3 ROLES → obtener token
   # ===========================================================================
   get-tokens:
     name: 🔑 Login (3 roles)
