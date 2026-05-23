@@ -4,11 +4,20 @@
 #   API_URL_PLACEHOLDER   → URL real del API Gateway
 #   ZAP_TOKEN_PLACEHOLDER → Bearer token del ADMIN
 #
-# FIX TOKEN: el addon replacer de ZAP stable no acepta configuración via YAML.
-# Solución: se inyecta el Authorization header directamente en el contexto
-# usando httpSessionTokens + authentication header nativo de ZAP.
-# El token se pone en el openapi.run.yml como server variable y en el
-# header de autenticación del contexto.
+# ENDPOINTS ADMIN (según documentación oficial + código fuente):
+#   AUTH     : /auth/login, /auth/me, /auth/forgot-password, /auth/forgot-password/confirm
+#   CAMIONES : /camiones, /camiones/{id}, /camiones/panel, /camiones/exportar/csv
+#   DASHBOARD: /dashboard
+#   CONDUCTORES: /conductores, /conductores/{id}/estadisticas,
+#                /conductores/dashboard/resumen, /conductores/dashboard/listado
+#   CONTRATOS: /contratos/vigentes
+#   UNIDADES : /unidades/disponibles
+#   GPS      : /gps/proveedores, /gps/plantilla, /gps/plantilla/{proveedor},
+#              /gps/validar, /gps/importar, /gps/resumen, /gps/registros
+#   JORNADAS : /jornadas, /jornadas/exportar, /jornadas/historial-gerencial,
+#              /jornadas/historial-gerencial/metrics, /jornadas/alerta/{jornadaId}
+#   ALERTAS  : /alertas/indicadores, /alertas/activas,
+#              /alertas/{id}/resolver, /alertas/{id}/estado
 # =============================================================================
 env:
   contexts:
@@ -16,20 +25,28 @@ env:
       urls:
         - "API_URL_PLACEHOLDER"
       includePaths:
+        # AUTH — públicos y autenticados
         - "API_URL_PLACEHOLDER/auth/login"
         - "API_URL_PLACEHOLDER/auth/me"
         - "API_URL_PLACEHOLDER/auth/forgot-password"
         - "API_URL_PLACEHOLDER/auth/forgot-password/confirm"
+        # CAMIONES — solo ADMIN
         - "API_URL_PLACEHOLDER/camiones"
-        - "API_URL_PLACEHOLDER/camiones/.*"
         - "API_URL_PLACEHOLDER/camiones/panel"
         - "API_URL_PLACEHOLDER/camiones/exportar/csv"
+        - "API_URL_PLACEHOLDER/camiones/.*"
+        # DASHBOARD ADMIN
         - "API_URL_PLACEHOLDER/dashboard"
-        - "API_URL_PLACEHOLDER/jornadas"
-        - "API_URL_PLACEHOLDER/jornadas/exportar"
+        # CONDUCTORES — ADMIN y GERENTE, dashboard solo ADMIN
         - "API_URL_PLACEHOLDER/conductores"
+        - "API_URL_PLACEHOLDER/conductores/dashboard/resumen"
+        - "API_URL_PLACEHOLDER/conductores/dashboard/listado"
+        - "API_URL_PLACEHOLDER/conductores/.*/estadisticas"
+        # CONTRATOS — solo vigentes para ADMIN
         - "API_URL_PLACEHOLDER/contratos/vigentes"
+        # UNIDADES
         - "API_URL_PLACEHOLDER/unidades/disponibles"
+        # GPS — todo solo ADMIN
         - "API_URL_PLACEHOLDER/gps/proveedores"
         - "API_URL_PLACEHOLDER/gps/plantilla"
         - "API_URL_PLACEHOLDER/gps/plantilla/.*"
@@ -37,13 +54,29 @@ env:
         - "API_URL_PLACEHOLDER/gps/importar"
         - "API_URL_PLACEHOLDER/gps/resumen"
         - "API_URL_PLACEHOLDER/gps/registros"
+        # JORNADAS — ADMIN y GERENTE
+        - "API_URL_PLACEHOLDER/jornadas"
+        - "API_URL_PLACEHOLDER/jornadas/exportar"
+        - "API_URL_PLACEHOLDER/jornadas/historial-gerencial"
+        - "API_URL_PLACEHOLDER/jornadas/historial-gerencial/metrics"
+        - "API_URL_PLACEHOLDER/jornadas/alerta/.*"
+        # ALERTAS — panel solo ADMIN
+        - "API_URL_PLACEHOLDER/alertas/indicadores"
+        - "API_URL_PLACEHOLDER/alertas/activas"
+        - "API_URL_PLACEHOLDER/alertas/.*/resolver"
+        - "API_URL_PLACEHOLDER/alertas/.*/estado"
       excludePaths:
+        # GERENTE exclusivo
+        - "API_URL_PLACEHOLDER/dashboard/gerencial"
         - "API_URL_PLACEHOLDER/contratos$"
         - "API_URL_PLACEHOLDER/contratos/indicadores"
-        - "API_URL_PLACEHOLDER/dashboard/gerencial"
+        - "API_URL_PLACEHOLDER/contratos/[^v].*"
+        # CHOFER exclusivo
         - "API_URL_PLACEHOLDER/jornadas/actual/.*"
         - "API_URL_PLACEHOLDER/jornadas/iniciar"
         - "API_URL_PLACEHOLDER/jornadas/finalizar"
+        - "API_URL_PLACEHOLDER/alertas/sos"
+        - "API_URL_PLACEHOLDER/alertas/auxilio"
   parameters:
     failOnError: false
     progressToStdout: true
@@ -56,7 +89,6 @@ jobs:
       targetUrl: "API_URL_PLACEHOLDER"
     name: "ImportarOpenAPI-ADMIN"
 
-  # Inyección de token via script inline — compatible con todas las versiones
   - type: script
     parameters:
       action: "add"
@@ -82,7 +114,7 @@ jobs:
     parameters:
       context: "ADMIN"
       maxRuleDurationInMins: 5
-      maxScanDurationInMins: 30
+      maxScanDurationInMins: 45
       threadPerHost: 2
       addQueryParam: true
     name: "ActiveScan-ADMIN"
@@ -95,9 +127,11 @@ jobs:
       reportTitle: "Nanutech | ROL ADMIN | Reporte de Seguridad ZAP"
       reportDescription: >
         Escaneo activo con token ROL ADMIN.
-        Endpoints: /camiones, /dashboard, /jornadas, /conductores,
-        /contratos/vigentes, /unidades/disponibles, /gps/*, /auth/*.
-        Pruebas: SQL Injection, XSS, CORS, Path Traversal, SSRF, Headers HTTP.
+        Endpoints: /camiones/*, /dashboard, /conductores/*, /contratos/vigentes,
+        /unidades/disponibles, /gps/*, /jornadas/*, /alertas/indicadores,
+        /alertas/activas, /alertas/{id}/resolver, /alertas/{id}/estado, /auth/*.
+        Pruebas: SQL Injection, XSS, CORS, Path Traversal, SSRF,
+        Security Headers, Integer Overflow.
     name: "ReporteHTML-ADMIN"
 
   - type: report
