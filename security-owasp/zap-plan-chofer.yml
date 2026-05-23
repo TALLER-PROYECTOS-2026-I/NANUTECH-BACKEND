@@ -3,6 +3,15 @@
 # Placeholders reemplazados por sed antes de correr ZAP:
 #   API_URL_PLACEHOLDER   → URL real del API Gateway
 #   ZAP_TOKEN_PLACEHOLDER → Bearer token del CHOFER
+#
+# ENDPOINTS CHOFER (según documentación oficial + código fuente):
+#   AUTH    : /auth/login, /auth/me, /auth/forgot-password, /auth/forgot-password/confirm
+#   JORNADAS: /jornadas/actual/{conductorId}, /jornadas/iniciar, /jornadas/finalizar
+#   ALERTAS : /alertas/sos, /alertas/auxilio
+#
+# NOTA IMPORTANTE — Integer Overflow (CWE-190):
+#   ZAP detectó que conductorId con 44+ dígitos causa HTTP 500.
+#   Los ejemplos zap_overflow en openapi.yml activan esta prueba automáticamente.
 # =============================================================================
 env:
   contexts:
@@ -10,22 +19,35 @@ env:
       urls:
         - "API_URL_PLACEHOLDER"
       includePaths:
+        # AUTH — públicos y autenticados
         - "API_URL_PLACEHOLDER/auth/login"
         - "API_URL_PLACEHOLDER/auth/me"
         - "API_URL_PLACEHOLDER/auth/forgot-password"
         - "API_URL_PLACEHOLDER/auth/forgot-password/confirm"
+        # JORNADAS — solo CHOFER
         - "API_URL_PLACEHOLDER/jornadas/actual/.*"
         - "API_URL_PLACEHOLDER/jornadas/iniciar"
         - "API_URL_PLACEHOLDER/jornadas/finalizar"
+        # ALERTAS MÓVIL — solo CHOFER
+        - "API_URL_PLACEHOLDER/alertas/sos"
+        - "API_URL_PLACEHOLDER/alertas/auxilio"
       excludePaths:
+        # ADMIN exclusivo
         - "API_URL_PLACEHOLDER/camiones.*"
         - "API_URL_PLACEHOLDER/dashboard.*"
+        - "API_URL_PLACEHOLDER/gps/.*"
+        - "API_URL_PLACEHOLDER/conductores.*"
+        - "API_URL_PLACEHOLDER/alertas/indicadores"
+        - "API_URL_PLACEHOLDER/alertas/activas"
+        - "API_URL_PLACEHOLDER/alertas/.*/resolver"
+        - "API_URL_PLACEHOLDER/alertas/.*/estado"
+        # ADMIN y GERENTE
         - "API_URL_PLACEHOLDER/jornadas$"
         - "API_URL_PLACEHOLDER/jornadas/exportar"
-        - "API_URL_PLACEHOLDER/conductores.*"
+        - "API_URL_PLACEHOLDER/jornadas/historial-gerencial.*"
+        - "API_URL_PLACEHOLDER/jornadas/alerta/.*"
         - "API_URL_PLACEHOLDER/contratos.*"
         - "API_URL_PLACEHOLDER/unidades.*"
-        - "API_URL_PLACEHOLDER/gps/.*"
   parameters:
     failOnError: false
     progressToStdout: true
@@ -63,7 +85,7 @@ jobs:
     parameters:
       context: "CHOFER"
       maxRuleDurationInMins: 5
-      maxScanDurationInMins: 10
+      maxScanDurationInMins: 15
       threadPerHost: 2
       addQueryParam: true
     name: "ActiveScan-CHOFER"
@@ -77,10 +99,11 @@ jobs:
       reportDescription: >
         Escaneo activo con token ROL CHOFER.
         Endpoints: /jornadas/actual/{conductorId}, /jornadas/iniciar,
-        /jornadas/finalizar, /auth/*.
+        /jornadas/finalizar, /alertas/sos, /alertas/auxilio, /auth/*.
         Pruebas: SQL Injection en conductorId y jornada_id,
-        XSS en observaciones, Path Traversal en conductorId,
-        CORS, Headers HTTP.
+        XSS en campos observaciones y direccion,
+        Integer Overflow en conductorId (CWE-190),
+        Path Traversal en conductorId, CORS, Security Headers.
     name: "ReporteHTML-CHOFER"
 
   - type: report
