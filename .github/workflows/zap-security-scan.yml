@@ -691,7 +691,7 @@ jobs:
             jq -r '
               .resultados | to_entries[] | .value[] |
               select(.resultado == "FAIL_CRITICO") |
-              "<tr><td><strong>\(.rol)</strong></td><td>\(.method)</td><td><code>\(.endpoint)</code></td><td><span class="tag-critico">\(.http_status)</span></td><td>\(.roles_permitidos)</td></tr>"
+              "<tr><td><strong>" + .rol + "</strong></td><td>" + .method + "</td><td><code>" + .endpoint + "</code></td><td><span class=\'tag-critico\'>" + .http_status + "</span></td><td>" + .roles_permitidos + "</td></tr>"
             ' "$AC_JSON" >> gh-pages-site/index.html
             echo '</tbody></table>' >> gh-pages-site/index.html
           else
