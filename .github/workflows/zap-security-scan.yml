@@ -8,10 +8,10 @@ name: 🔐 Nanutech Security Scan - OWASP ZAP
 #   .github/
 #   ├── workflows/security.yml          ← este archivo
 #   └── scripts/
-#       ├── access-control-tests.sh
-#       └── generate-report.py
+#       ├── access-control-tests.sh     ← script bash de broken access control
+#       └── generate-report.py          ← generador de reporte HTML dinámico
 #   security-owasp/
-#   ├── openapi.yml
+#   ├── openapi.yml                     ← spec completa con todos los endpoints
 #   ├── zap-plan-admin.yml
 #   ├── zap-plan-gerente.yml
 #   └── zap-plan-chofer.yml
@@ -20,6 +20,11 @@ name: 🔐 Nanutech Security Scan - OWASP ZAP
 #   Cada job hace su propio login y guarda el token en /tmp/token_ROL.txt
 #   El token se inyecta en el plan ZAP via sed sobre ZAP_TOKEN_PLACEHOLDER
 #   El script httpsender de ZAP lo agrega en cada request del active scan
+#
+# REPORTE DINÁMICO:
+#   generate-report.py lee los JSON reales de ZAP (reporte-ADMIN-json.json,
+#   reporte-GERENTE-json.json, reporte-CHOFER-json.json) y el JSON de
+#   access-control-report.json para construir el index.html con hallazgos reales.
 # =============================================================================
 
 on:
@@ -47,7 +52,8 @@ jobs:
 
   # ===========================================================================
   # JOB 1: ESCANEO ROL ADMIN
-  # Login propio → token en /tmp → sed → ZAP con httpsender script
+  # Login → token en /tmp/token_admin.txt → sed → ZAP con httpsender script
+  # Genera: reporte-ADMIN.html y reporte-ADMIN-json.json
   # ===========================================================================
   scan-admin:
     name: 🛡️ ZAP Scan ROL ADMIN
@@ -138,15 +144,22 @@ jobs:
           echo "── Reportes generados ──"
           ls -lh security-owasp/reports/ || echo "(vacío)"
           echo ""
-          echo "── Endpoints importados ──"
+          echo "── Endpoints importados desde openapi.yml ──"
           python3 -c "
           import yaml
           spec = yaml.safe_load(open('security-owasp/openapi.run.yml'))
           base = spec.get('servers', [{}])[0].get('url', '')
           paths = list(spec.get('paths', {}).keys())
           print(f'Base URL: {base}')
-          print(f'Total endpoints: {len(paths)}')
-          for p in sorted(paths): print(f'  → {base}{p}')
+          print(f'Total paths: {len(paths)}')
+          total_ops = sum(
+              len([m for m in spec['paths'][p].keys() if m in ['get','post','put','patch','delete']])
+              for p in paths
+          )
+          print(f'Total operaciones: {total_ops}')
+          for p in sorted(paths):
+              methods = [m.upper() for m in spec['paths'][p].keys() if m in ['get','post','put','patch','delete']]
+              print(f'  → {\" \".join(methods):20} {base}{p}')
           " 2>/dev/null || true
 
       - name: Subir reporte ADMIN
@@ -159,6 +172,8 @@ jobs:
 
   # ===========================================================================
   # JOB 2: ESCANEO ROL GERENTE
+  # Login → token en /tmp/token_gerente.txt → sed → ZAP
+  # Genera: reporte-GERENTE.html y reporte-GERENTE-json.json
   # ===========================================================================
   scan-gerente:
     name: 🛡️ ZAP Scan ROL GERENTE
@@ -249,15 +264,22 @@ jobs:
           echo "── Reportes generados ──"
           ls -lh security-owasp/reports/ || echo "(vacío)"
           echo ""
-          echo "── Endpoints importados ──"
+          echo "── Endpoints importados desde openapi.yml ──"
           python3 -c "
           import yaml
           spec = yaml.safe_load(open('security-owasp/openapi.run.yml'))
           base = spec.get('servers', [{}])[0].get('url', '')
           paths = list(spec.get('paths', {}).keys())
           print(f'Base URL: {base}')
-          print(f'Total endpoints: {len(paths)}')
-          for p in sorted(paths): print(f'  → {base}{p}')
+          print(f'Total paths: {len(paths)}')
+          total_ops = sum(
+              len([m for m in spec['paths'][p].keys() if m in ['get','post','put','patch','delete']])
+              for p in paths
+          )
+          print(f'Total operaciones: {total_ops}')
+          for p in sorted(paths):
+              methods = [m.upper() for m in spec['paths'][p].keys() if m in ['get','post','put','patch','delete']]
+              print(f'  → {\" \".join(methods):20} {base}{p}')
           " 2>/dev/null || true
 
       - name: Subir reporte GERENTE
@@ -270,6 +292,8 @@ jobs:
 
   # ===========================================================================
   # JOB 3: ESCANEO ROL CHOFER
+  # Login → token en /tmp/token_chofer.txt → sed → ZAP
+  # Genera: reporte-CHOFER.html y reporte-CHOFER-json.json
   # ===========================================================================
   scan-chofer:
     name: 🛡️ ZAP Scan ROL CHOFER
@@ -360,15 +384,22 @@ jobs:
           echo "── Reportes generados ──"
           ls -lh security-owasp/reports/ || echo "(vacío)"
           echo ""
-          echo "── Endpoints importados ──"
+          echo "── Endpoints importados desde openapi.yml ──"
           python3 -c "
           import yaml
           spec = yaml.safe_load(open('security-owasp/openapi.run.yml'))
           base = spec.get('servers', [{}])[0].get('url', '')
           paths = list(spec.get('paths', {}).keys())
           print(f'Base URL: {base}')
-          print(f'Total endpoints: {len(paths)}')
-          for p in sorted(paths): print(f'  → {base}{p}')
+          print(f'Total paths: {len(paths)}')
+          total_ops = sum(
+              len([m for m in spec['paths'][p].keys() if m in ['get','post','put','patch','delete']])
+              for p in paths
+          )
+          print(f'Total operaciones: {total_ops}')
+          for p in sorted(paths):
+              methods = [m.upper() for m in spec['paths'][p].keys() if m in ['get','post','put','patch','delete']]
+              print(f'  → {\" \".join(methods):20} {base}{p}')
           " 2>/dev/null || true
 
       - name: Subir reporte CHOFER
@@ -381,7 +412,9 @@ jobs:
 
   # ===========================================================================
   # JOB 4: BROKEN ACCESS CONTROL
-  # Login propio para los 3 roles, guarda tokens en archivos individuales
+  # Login propio para los 3 roles → tokens en /tmp/token_ADMIN.txt etc.
+  # Ejecuta access-control-tests.sh que prueba ~115 combinaciones rol×endpoint
+  # Genera: access-control-report.json
   # ===========================================================================
   access-control-tests:
     name: 🔒 Broken Access Control
@@ -397,8 +430,9 @@ jobs:
       - name: Crear carpeta de reportes
         run: mkdir -p security-owasp/reports
 
-      - name: 🔑 Login + Ejecutar pruebas de control de acceso
+      - name: 🔑 Login 3 roles + Ejecutar pruebas de control de acceso
         run: |
+          # ── Función de login reutilizable ──────────────────────────────────
           login() {
             local EMAIL="$1" LABEL="$2"
             local RESP TOKEN
@@ -413,18 +447,22 @@ jobs:
               exit 1
             fi
             echo "✅ Token $LABEL obtenido (${#TOKEN} chars)"
+            # Guarda en archivo para persistencia entre pasos si fuera necesario
             printf '%s' "$TOKEN" > "/tmp/token_${LABEL}.txt"
           }
 
+          # ── Login de los 3 roles ──────────────────────────────────────────
           login "admin@nanutech.com"   "ADMIN"
           login "gerente@nanutech.com" "GERENTE"
           login "chofer@nanutech.com"  "CHOFER"
 
+          # ── Exportar tokens como variables de entorno para el script ──────
           TOKEN_ADMIN=$(cat /tmp/token_ADMIN.txt)
           TOKEN_GERENTE=$(cat /tmp/token_GERENTE.txt)
           TOKEN_CHOFER=$(cat /tmp/token_CHOFER.txt)
           export TOKEN_ADMIN TOKEN_GERENTE TOKEN_CHOFER
 
+          # ── Ejecutar script completo de access control ─────────────────────
           chmod +x .github/scripts/access-control-tests.sh
           bash .github/scripts/access-control-tests.sh
         env:
@@ -441,7 +479,9 @@ jobs:
 
   # ===========================================================================
   # JOB 5: PUBLICAR EN GITHUB PAGES
-  # Corre siempre, aunque algún scan haya fallado o sido skipped
+  # Corre siempre aunque algún scan haya fallado o sido skipped.
+  # Lee los JSON reales de ZAP y el JSON de access control para generar
+  # el index.html dinámico con hallazgos reales (sin hardcoding).
   # URL: https://<org>.github.io/<repo>/
   # Requiere: Settings → Pages → Branch: gh-pages → / (root)
   # ===========================================================================
@@ -455,7 +495,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Descargar reportes ZAP
+      - name: Descargar todos los reportes ZAP (ADMIN, GERENTE, CHOFER)
         uses: actions/download-artifact@v4
         with:
           path: all-reports
@@ -472,15 +512,23 @@ jobs:
         run: |
           mkdir -p gh-pages-site
 
+          # ── Copiar reportes ZAP por rol (HTML + JSON) ─────────────────────
           for rol in ADMIN GERENTE CHOFER; do
             SRC="all-reports/reporte-${rol}"
+            DEST="gh-pages-site/${rol,,}"
             if [ -d "$SRC" ]; then
-              mkdir -p "gh-pages-site/${rol,,}"
-              cp "$SRC"/*.html "gh-pages-site/${rol,,}/" 2>/dev/null || true
-              cp "$SRC"/*.json "gh-pages-site/${rol,,}/" 2>/dev/null || true
+              mkdir -p "$DEST"
+              cp "$SRC"/*.html "$DEST/" 2>/dev/null || true
+              cp "$SRC"/*.json "$DEST/" 2>/dev/null || true
+              echo "✅ Reportes $rol copiados a $DEST"
+              ls -lh "$DEST/" || true
+            else
+              echo "⚠️  No se encontró carpeta de reporte para $rol"
+              mkdir -p "$DEST"
             fi
           done
 
+          # ── Copiar y leer reporte de access control ───────────────────────
           AC_JSON="all-reports/reporte-access-control/access-control-report.json"
           if [ -f "$AC_JSON" ]; then
             cp "$AC_JSON" gh-pages-site/access-control-report.json
@@ -489,10 +537,13 @@ jobs:
             FAIL=$(jq    '.resumen.fallidas'      "$AC_JSON")
             CRIT=$(jq    '.resumen.fail_critico'  "$AC_JSON")
             MENOR=$(jq   '.resumen.fail_menor'    "$AC_JSON")
+            echo "✅ Access control: $PASS_N/$TOTAL pasadas, $CRIT críticos, $MENOR warnings"
           else
+            echo "⚠️  No se encontró access-control-report.json"
             TOTAL=0; PASS_N=0; FAIL=0; CRIT=0; MENOR=0
           fi
 
+          # ── Badge según resultado ─────────────────────────────────────────
           if [ "$CRIT" -gt 0 ]; then
             BADGE_TEXT="VULNERABLE"; BADGE_COLOR="e05d44"; BADGE_BD="#f85149"
           elif [ "$FAIL" -gt 0 ]; then
@@ -504,11 +555,18 @@ jobs:
           FECHA=$(date -u +"%Y-%m-%d %H:%M UTC")
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
+          # ── Ejecutar generate-report.py con rutas a los JSON de ZAP ──────
+          # ZAP_*_JSON apuntan a donde se copiaron los reportes JSON de cada rol.
+          # generate-report.py los lee dinámicamente; si no existen muestra
+          # el estado vacío en lugar de los hallazgos hardcodeados anteriores.
           TOTAL=$TOTAL PASS_N=$PASS_N FAIL=$FAIL CRIT=$CRIT MENOR=$MENOR \
           BADGE_TEXT=$BADGE_TEXT BADGE_COLOR=$BADGE_COLOR BADGE_BD=$BADGE_BD \
           FECHA="$FECHA" RUN_URL="$RUN_URL" \
           REPO="${{ github.repository }}" \
           AC_JSON="gh-pages-site/access-control-report.json" \
+          ZAP_ADMIN_JSON="gh-pages-site/admin/reporte-ADMIN-json.json" \
+          ZAP_GERENTE_JSON="gh-pages-site/gerente/reporte-GERENTE-json.json" \
+          ZAP_CHOFER_JSON="gh-pages-site/chofer/reporte-CHOFER-json.json" \
           OUT="gh-pages-site/index.html" \
           python3 .github/scripts/generate-report.py
 
@@ -516,8 +574,9 @@ jobs:
         run: |
           echo "── Archivos en gh-pages-site/ ──"
           find gh-pages-site -type f | sort
-          echo "── Líneas en index.html ──"
-          wc -l gh-pages-site/index.html 2>/dev/null || echo "no generado"
+          echo ""
+          echo "── Tamaño index.html ──"
+          wc -l gh-pages-site/index.html 2>/dev/null || echo "❌ index.html no generado"
 
       - name: Publicar en rama gh-pages
         uses: peaceiris/actions-gh-pages@v4
@@ -530,6 +589,8 @@ jobs:
 
   # ===========================================================================
   # JOB 6: RESUMEN FINAL EN GITHUB UI
+  # Muestra tabla de resultados directamente en la UI de GitHub Actions.
+  # Lee el access-control-report.json para mostrar críticos y warnings.
   # ===========================================================================
   summary:
     name: 📊 Resumen
@@ -564,13 +625,15 @@ jobs:
             PASS=$(jq  '.resumen.pasadas'       "$JSON")
             FAIL=$(jq  '.resumen.fallidas'       "$JSON")
             CRIT=$(jq  '.resumen.fail_critico'   "$JSON")
+            MENOR=$(jq '.resumen.fail_menor'     "$JSON")
 
-            echo "### 🔒 Access Control: $PASS/$TOTAL pasadas — $FAIL fallidas ($CRIT críticos)" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔒 Access Control: $PASS/$TOTAL pasadas — $FAIL fallidas ($CRIT críticos, $MENOR warnings)" >> $GITHUB_STEP_SUMMARY
 
+            # ── Tabla de críticos ──────────────────────────────────────────
             CRITICOS=$(jq -r '
               .resultados | to_entries[] | .key as $rol | .value[] |
               select(.resultado == "FAIL_CRITICO") |
-              "| \($rol) | \(.method) \(.endpoint) | \(.http_status) | 🚨 Recibió \(.http_status), debía ser 403 |"
+              "| \($rol) | \(.method) \(.endpoint) | \(.http_status) | 🚨 Acceso indebido — debía ser 401/403 |"
             ' "$JSON" 2>/dev/null || echo "")
 
             if [ -n "$CRITICOS" ]; then
@@ -580,9 +643,11 @@ jobs:
               echo "|-----|----------|-----------|---------|" >> $GITHUB_STEP_SUMMARY
               echo "$CRITICOS" >> $GITHUB_STEP_SUMMARY
             else
+              echo "" >> $GITHUB_STEP_SUMMARY
               echo "✅ No se detectó Broken Access Control" >> $GITHUB_STEP_SUMMARY
             fi
 
+            # ── Tabla de warnings ──────────────────────────────────────────
             WARNS=$(jq -r '
               .resultados | to_entries[] | .key as $rol | .value[] |
               select(.resultado == "FAIL_MENOR") |
@@ -591,7 +656,7 @@ jobs:
 
             if [ -n "$WARNS" ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "### ⚠️ Warnings" >> $GITHUB_STEP_SUMMARY
+              echo "### ⚠️ Warnings (rol autorizado con acceso denegado o error de BD)" >> $GITHUB_STEP_SUMMARY
               echo "| Rol | Endpoint | HTTP Real | Nota |" >> $GITHUB_STEP_SUMMARY
               echo "|-----|----------|-----------|------|" >> $GITHUB_STEP_SUMMARY
               echo "$WARNS" >> $GITHUB_STEP_SUMMARY
@@ -601,8 +666,11 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📁 Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- \`reporte-ADMIN\` → HTML + JSON ZAP" >> $GITHUB_STEP_SUMMARY
+          echo "### 📁 Artifacts generados" >> $GITHUB_STEP_SUMMARY
+          echo "- \`reporte-ADMIN\` → HTML + JSON ZAP (leído dinámicamente por generate-report.py)" >> $GITHUB_STEP_SUMMARY
           echo "- \`reporte-GERENTE\` → HTML + JSON ZAP" >> $GITHUB_STEP_SUMMARY
           echo "- \`reporte-CHOFER\` → HTML + JSON ZAP" >> $GITHUB_STEP_SUMMARY
-          echo "- \`reporte-access-control\` → JSON matriz rol×endpoint" >> $GITHUB_STEP_SUMMARY
+          echo "- \`reporte-access-control\` → JSON matriz rol×endpoint (~115 pruebas)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 Reporte publicado" >> $GITHUB_STEP_SUMMARY
+          echo "Ver reporte completo en [GitHub Pages](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY

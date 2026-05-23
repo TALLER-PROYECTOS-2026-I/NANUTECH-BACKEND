@@ -3,6 +3,17 @@
 # Placeholders reemplazados por sed antes de correr ZAP:
 #   API_URL_PLACEHOLDER   → URL real del API Gateway
 #   ZAP_TOKEN_PLACEHOLDER → Bearer token del GERENTE
+#
+# ENDPOINTS GERENTE (según documentación oficial + código fuente):
+#   AUTH      : /auth/login, /auth/me, /auth/forgot-password, /auth/forgot-password/confirm
+#   DASHBOARD : /dashboard/gerencial
+#   CONDUCTORES: /conductores, /conductores/{id}/estadisticas
+#   CONTRATOS : /contratos, /contratos/{id}, /contratos/indicadores,
+#               /contratos/vigentes, PUT /contratos/{id}, PUT /contratos/{id}/unidades
+#   UNIDADES  : /unidades/disponibles
+#   JORNADAS  : /jornadas, /jornadas/exportar, /jornadas/historial-gerencial,
+#               /jornadas/historial-gerencial/metrics, /jornadas/alerta/{jornadaId}
+#               POST /jornadas
 # =============================================================================
 env:
   contexts:
@@ -10,23 +21,37 @@ env:
       urls:
         - "API_URL_PLACEHOLDER"
       includePaths:
+        # AUTH — públicos y autenticados
         - "API_URL_PLACEHOLDER/auth/login"
         - "API_URL_PLACEHOLDER/auth/me"
         - "API_URL_PLACEHOLDER/auth/forgot-password"
         - "API_URL_PLACEHOLDER/auth/forgot-password/confirm"
+        # DASHBOARD GERENCIAL
         - "API_URL_PLACEHOLDER/dashboard/gerencial"
+        # CONDUCTORES — ADMIN y GERENTE
+        - "API_URL_PLACEHOLDER/conductores"
+        - "API_URL_PLACEHOLDER/conductores/.*/estadisticas"
+        # CONTRATOS — todo GERENTE
+        - "API_URL_PLACEHOLDER/contratos"
+        - "API_URL_PLACEHOLDER/contratos/indicadores"
+        - "API_URL_PLACEHOLDER/contratos/vigentes"
+        - "API_URL_PLACEHOLDER/contratos/.*"
+        # UNIDADES
+        - "API_URL_PLACEHOLDER/unidades/disponibles"
+        # JORNADAS — ADMIN y GERENTE
         - "API_URL_PLACEHOLDER/jornadas"
         - "API_URL_PLACEHOLDER/jornadas/exportar"
-        - "API_URL_PLACEHOLDER/conductores"
-        - "API_URL_PLACEHOLDER/contratos"
-        - "API_URL_PLACEHOLDER/contratos/.*"
-        - "API_URL_PLACEHOLDER/contratos/vigentes"
-        - "API_URL_PLACEHOLDER/contratos/indicadores"
-        - "API_URL_PLACEHOLDER/unidades/disponibles"
+        - "API_URL_PLACEHOLDER/jornadas/historial-gerencial"
+        - "API_URL_PLACEHOLDER/jornadas/historial-gerencial/metrics"
+        - "API_URL_PLACEHOLDER/jornadas/alerta/.*"
       excludePaths:
-        - "API_URL_PLACEHOLDER/camiones.*"
+        # ADMIN exclusivo
         - "API_URL_PLACEHOLDER/dashboard$"
+        - "API_URL_PLACEHOLDER/camiones.*"
         - "API_URL_PLACEHOLDER/gps/.*"
+        - "API_URL_PLACEHOLDER/conductores/dashboard/.*"
+        - "API_URL_PLACEHOLDER/alertas/.*"
+        # CHOFER exclusivo
         - "API_URL_PLACEHOLDER/jornadas/actual/.*"
         - "API_URL_PLACEHOLDER/jornadas/iniciar"
         - "API_URL_PLACEHOLDER/jornadas/finalizar"
@@ -67,7 +92,7 @@ jobs:
     parameters:
       context: "GERENTE"
       maxRuleDurationInMins: 5
-      maxScanDurationInMins: 20
+      maxScanDurationInMins: 30
       threadPerHost: 2
       addQueryParam: true
     name: "ActiveScan-GERENTE"
@@ -80,9 +105,11 @@ jobs:
       reportTitle: "Nanutech | ROL GERENTE | Reporte de Seguridad ZAP"
       reportDescription: >
         Escaneo activo con token ROL GERENTE.
-        Endpoints: /dashboard/gerencial, /jornadas, /conductores,
-        /contratos, /unidades/disponibles, /auth/*.
-        Pruebas: SQL Injection, XSS, CORS, Path Traversal, Headers HTTP.
+        Endpoints: /dashboard/gerencial, /conductores, /conductores/{id}/estadisticas,
+        /contratos/*, /unidades/disponibles, /jornadas, /jornadas/exportar,
+        /jornadas/historial-gerencial, /jornadas/alerta/{id}, /auth/*.
+        Pruebas: SQL Injection, XSS en campos de contrato y jornada,
+        CORS, Path Traversal en IDs, Security Headers.
     name: "ReporteHTML-GERENTE"
 
   - type: report
