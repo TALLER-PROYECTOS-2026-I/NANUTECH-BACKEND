@@ -9,29 +9,6 @@ Lee datos desde:
   - reporte-GERENTE-json.json      → hallazgos ZAP del rol GERENTE
   - reporte-CHOFER-json.json       → hallazgos ZAP del rol CHOFER
   - variables de entorno           → fecha, URL del run, badge, contadores
-
-Estructura JSON de ZAP esperada:
-  {
-    "site": [
-      {
-        "@name": "https://...",
-        "alerts": [
-          {
-            "name": "Cross Site Scripting",
-            "riskcode": "3",        ← 3=High 2=Medium 1=Low 0=Info
-            "riskdesc": "High (Medium)",
-            "desc": "...",
-            "solution": "...",
-            "cweid": "79",
-            "instances": [
-              { "uri": "...", "method": "GET", "param": "", "evidence": "" }
-            ],
-            "count": "2"
-          }
-        ]
-      }
-    ]
-  }
 """
 import os
 import json
@@ -51,12 +28,10 @@ BADGE_BD    = os.environ.get("BADGE_BD", "#3fb950")
 AC_JSON     = os.environ.get("AC_JSON", "gh-pages-site/access-control-report.json")
 OUT         = os.environ.get("OUT", "gh-pages-site/index.html")
 
-# Rutas de los reportes JSON de ZAP por rol
 ZAP_ADMIN_JSON   = os.environ.get("ZAP_ADMIN_JSON",   "gh-pages-site/admin/reporte-ADMIN-json.json")
 ZAP_GERENTE_JSON = os.environ.get("ZAP_GERENTE_JSON", "gh-pages-site/gerente/reporte-GERENTE-json.json")
 ZAP_CHOFER_JSON  = os.environ.get("ZAP_CHOFER_JSON",  "gh-pages-site/chofer/reporte-CHOFER-json.json")
 
-# ── Mapeo riskcode → etiqueta visual ─────────────────────────────────────────
 RISK_LABELS = {
     "3": ("🔴 High",   "riesgo-high"),
     "2": ("🟠 Medium", "riesgo-medium"),
@@ -73,29 +48,20 @@ if os.path.exists(AC_JSON):
 fecha_gen  = ac_data.get("generado_en", "N/A")
 resultados = ac_data.get("resultados", {})
 
-# ── Función: leer hallazgos de un reporte JSON de ZAP ────────────────────────
+# ── Leer hallazgos ZAP ───────────────────────────────────────────────────────
 def load_zap_alerts(filepath):
-    """
-    Lee un reporte JSON de ZAP y devuelve una lista de alertas únicas.
-    Cada alerta tiene: name, riskcode, riskdesc, desc, solution, cweid, instances.
-    Deduplica por (name, cweid) para no repetir el mismo hallazgo.
-    """
     if not os.path.exists(filepath):
         return []
-
     try:
         with open(filepath, encoding="utf-8") as f:
             data = json.load(f)
     except (json.JSONDecodeError, IOError):
         return []
-
     alerts = []
     seen   = set()
-
-    sites = data.get("site", [])
+    sites  = data.get("site", [])
     if not isinstance(sites, list):
         sites = [sites]
-
     for site in sites:
         for alert in site.get("alerts", []):
             key = (alert.get("name", ""), alert.get("cweid", ""))
@@ -112,32 +78,21 @@ def load_zap_alerts(filepath):
                 "count":     str(alert.get("count", "1")),
                 "instances": alert.get("instances", []),
             })
-
-    # Ordenar por riskcode descendente (High primero)
     alerts.sort(key=lambda a: int(a["riskcode"]) if a["riskcode"].isdigit() else 0, reverse=True)
     return alerts
 
-# ── Función: construir tabla de hallazgos ZAP ─────────────────────────────────
 def build_zap_table(alerts, rol_label):
-    """
-    Construye el HTML de la tabla de hallazgos para un rol específico.
-    Si no hay alertas devuelve un estado vacío.
-    """
     if not alerts:
-        return f'''
-        <div class="empty-state">
+        return f'''<div class="empty-state">
           <span class="icon">✅</span>
           <p>No se encontraron hallazgos en el escaneo ZAP para {rol_label},
              o el reporte aún no está disponible.</p>
         </div>'''
-
     rows = ""
     for alert in alerts:
         riskcode = alert["riskcode"]
         risk_label, risk_class = RISK_LABELS.get(riskcode, ("🔵 Info", "riesgo-info"))
         cwe = f'<code>CWE-{alert["cweid"]}</code>' if alert["cweid"] else "N/A"
-
-        # Hasta 3 endpoints afectados para no sobrecargar la tabla
         instances = alert["instances"][:3]
         endpoints_html = "<br>".join(
             f'<code>{inst.get("method","?")} {inst.get("uri","?")}</code>'
@@ -145,124 +100,217 @@ def build_zap_table(alerts, rol_label):
         )
         if len(alert["instances"]) > 3:
             endpoints_html += f'<br><span style="color:#8b949e;font-size:11px">+{len(alert["instances"])-3} más</span>'
-
-        # Solución truncada a 200 chars para la tabla
         solution = alert["solution"].replace("<p>", "").replace("</p>", " ").strip()
         solution = solution[:200] + "..." if len(solution) > 200 else solution
-
-        rows += f'''
-        <tr>
+        rows += f'''<tr>
           <td><span class="{risk_class}">{risk_label}</span></td>
           <td><strong>{alert["name"]}</strong></td>
           <td>{cwe}</td>
           <td>{endpoints_html or "N/A"}</td>
           <td style="font-size:12px;color:#8b949e">{solution or "Ver reporte completo."}</td>
         </tr>'''
-
-    return f'''
-    <table class="hallazgos-table">
+    return f'''<table class="hallazgos-table">
       <thead><tr>
-        <th>Riesgo</th>
-        <th>Vulnerabilidad</th>
-        <th>CWE</th>
-        <th>Endpoints afectados</th>
-        <th>Acción recomendada</th>
+        <th>Riesgo</th><th>Vulnerabilidad</th><th>CWE</th>
+        <th>Endpoints afectados</th><th>Acción recomendada</th>
       </tr></thead>
       <tbody>{rows}</tbody>
     </table>'''
 
-# ── Cargar hallazgos de los 3 roles ──────────────────────────────────────────
 alerts_admin   = load_zap_alerts(ZAP_ADMIN_JSON)
 alerts_gerente = load_zap_alerts(ZAP_GERENTE_JSON)
 alerts_chofer  = load_zap_alerts(ZAP_CHOFER_JSON)
-
-# Contadores de hallazgos ZAP por severidad (todos los roles combinados)
 all_alerts = alerts_admin + alerts_gerente + alerts_chofer
 zap_high   = sum(1 for a in all_alerts if a["riskcode"] == "3")
 zap_medium = sum(1 for a in all_alerts if a["riskcode"] == "2")
 zap_low    = sum(1 for a in all_alerts if a["riskcode"] == "1")
 zap_info   = sum(1 for a in all_alerts if a["riskcode"] == "0")
-zap_total  = len(set((a["name"], a["cweid"]) for a in all_alerts))  # únicos globales
+zap_total  = len(set((a["name"], a["cweid"]) for a in all_alerts))
 
 table_admin   = build_zap_table(alerts_admin,   "ROL ADMIN")
 table_gerente = build_zap_table(alerts_gerente, "ROL GERENTE")
 table_chofer  = build_zap_table(alerts_chofer,  "ROL CHOFER")
 
-# ── Generar filas de la tabla de Access Control ───────────────────────────────
-ac_rows = ""
-for rol, items in resultados.items():
+# ── Construir tabs de Access Control por rol ──────────────────────────────────
+ROLES_AC = ["ADMIN", "GERENTE", "CHOFER", "ANONIMO", "PUBLICO"]
+
+ROLE_COLORS = {
+    "ADMIN":   ("role-admin",   "#58a6ff"),
+    "GERENTE": ("role-gerente", "#a371f7"),
+    "CHOFER":  ("role-chofer",  "#3fb950"),
+    "ANONIMO": ("role-anonimo", "#e3b341"),
+    "PUBLICO": ("role-publico", "#8b949e"),
+}
+
+def resultado_icon(r):
+    if r == "PASS":
+        return "✅"
+    elif r == "FAIL_CRITICO":
+        return "🚨"
+    else:
+        return "⚠️"
+
+def resultado_class(r):
+    if r == "PASS":
+        return "row-pass"
+    elif r == "FAIL_CRITICO":
+        return "row-critico"
+    else:
+        return "row-menor"
+
+def resultado_badge(r, status):
+    if r == "PASS":
+        return f'<span class="tag-pass">✅ {status}</span>'
+    elif r == "FAIL_CRITICO":
+        return f'<span class="tag-critico">🚨 {status}</span>'
+    else:
+        return f'<span class="tag-menor">⚠️ {status}</span>'
+
+def build_ac_tab(rol):
+    items = resultados.get(rol, [])
+    if not items:
+        return '<div class="empty-state"><span class="icon">🔍</span><p>No hay pruebas registradas para este rol.</p></div>'
+
+    total  = len(items)
+    passed = sum(1 for i in items if i.get("resultado") == "PASS")
+    crits  = sum(1 for i in items if i.get("resultado") == "FAIL_CRITICO")
+    warns  = sum(1 for i in items if i.get("resultado") == "FAIL_MENOR")
+
+    # Mini resumen del rol
+    summary_html = f'''
+    <div class="rol-summary">
+      <div class="rol-stat stat-total"><span class="stat-num">{total}</span><span class="stat-lbl">Total</span></div>
+      <div class="rol-stat stat-pass"><span class="stat-num">{passed}</span><span class="stat-lbl">✅ Pasadas</span></div>
+      <div class="rol-stat stat-crit"><span class="stat-num">{crits}</span><span class="stat-lbl">🚨 Críticos</span></div>
+      <div class="rol-stat stat-warn"><span class="stat-num">{warns}</span><span class="stat-lbl">⚠️ Warnings</span></div>
+    </div>'''
+
+    # Filtros visuales (botones JS)
+    filter_html = f'''
+    <div class="filter-bar" id="filter-{rol}">
+      <button class="filter-btn active" onclick="filterAC('{rol}','ALL',this)">Todos ({total})</button>
+      <button class="filter-btn" onclick="filterAC('{rol}','PASS',this)">✅ Pasadas ({passed})</button>
+      <button class="filter-btn btn-crit" onclick="filterAC('{rol}','FAIL_CRITICO',this)">🚨 Críticos ({crits})</button>
+      <button class="filter-btn btn-warn" onclick="filterAC('{rol}','FAIL_MENOR',this)">⚠️ Warnings ({warns})</button>
+    </div>'''
+
+    # Tabla completa con todas las pruebas
+    rows = ""
     for item in items:
-        r = item.get("resultado", "")
-        if r not in ("FAIL_CRITICO", "FAIL_MENOR"):
-            continue
+        r        = item.get("resultado", "PASS")
         method   = item.get("method", "")
         endpoint = item.get("endpoint", "")
+        expected = item.get("expected", "")
         status   = item.get("http_status", "")
         roles_ok = item.get("roles_permitidos", "")
         nota     = item.get("nota", "")
+        detalle  = item.get("detalle", "")
 
-        if r == "FAIL_CRITICO":
-            row_class = "row-critico"
-            tag = f'<span class="tag-critico">🚨 {status}</span>'
+        icon        = resultado_icon(r)
+        row_class   = resultado_class(r)
+        status_badge = resultado_badge(r, status)
+
+        # Descripción combinada
+        desc = nota if nota else ("Acceso correcto según la política de roles." if r == "PASS" else "")
+        if detalle and r != "PASS":
+            desc += f'<br><span style="color:#8b949e;font-size:11px">{detalle}</span>'
+
+        # Expected badge
+        if expected == "200":
+            exp_badge = '<span class="tag-exp-200">Debe → 2xx</span>'
+        elif expected == "403":
+            exp_badge = '<span class="tag-exp-403">Debe → 401/403</span>'
         else:
-            row_class = "row-menor"
-            tag = f'<span class="tag-menor">⚠️ {status}</span>'
+            exp_badge = '<span class="tag-exp-pub">Público</span>'
 
-        ac_rows += (
-            f'<tr class="{row_class}">'
-            f'<td><span class="tag-rol">{rol}</span></td>'
-            f'<td><span class="method">{method}</span></td>'
-            f'<td><code>{endpoint}</code></td>'
-            f'<td>{tag}</td>'
-            f'<td class="roles-ok">{roles_ok}</td>'
-            f'<td style="font-size:12px;color:#8b949e">{nota}</td>'
-            f'</tr>\n'
-        )
+        rows += f'''<tr class="{row_class}" data-resultado="{r}">
+          <td style="text-align:center;font-size:16px">{icon}</td>
+          <td><span class="method">{method}</span></td>
+          <td><code style="font-size:11px">{endpoint}</code></td>
+          <td>{exp_badge}</td>
+          <td>{status_badge}</td>
+          <td style="font-size:12px;color:#8b949e;max-width:300px">{desc}</td>
+          <td style="font-size:11px;color:#8b949e">{roles_ok}</td>
+        </tr>'''
 
-# ── Generar resumen por rol (Access Control) ──────────────────────────────────
+    table_html = f'''<table id="ac-table-{rol}">
+      <thead><tr>
+        <th style="width:40px">Estado</th>
+        <th>Método</th>
+        <th>Endpoint</th>
+        <th>Esperado</th>
+        <th>HTTP Real</th>
+        <th>Descripción</th>
+        <th>Roles autorizados</th>
+      </tr></thead>
+      <tbody>{rows}</tbody>
+    </table>'''
+
+    return summary_html + filter_html + table_html
+
+# Construir tabs HTML para Access Control
+ac_tab_buttons = ""
+ac_tab_contents = ""
+
+for i, rol in enumerate(ROLES_AC):
+    items   = resultados.get(rol, [])
+    total   = len(items)
+    crits   = sum(1 for x in items if x.get("resultado") == "FAIL_CRITICO")
+    warns   = sum(1 for x in items if x.get("resultado") == "FAIL_MENOR")
+    passed  = sum(1 for x in items if x.get("resultado") == "PASS")
+    cls, color = ROLE_COLORS.get(rol, ("role-admin", "#58a6ff"))
+
+    active_btn = "active" if i == 0 else ""
+    active_tab = "active" if i == 0 else ""
+
+    # Indicador de estado en el botón
+    if crits > 0:
+        estado_dot = '&nbsp;<span class="dot dot-crit"></span>'
+    elif warns > 0:
+        estado_dot = '&nbsp;<span class="dot dot-warn"></span>'
+    elif total > 0:
+        estado_dot = '&nbsp;<span class="dot dot-pass"></span>'
+    else:
+        estado_dot = ''
+
+    ac_tab_buttons += f'''<button class="tab-btn {active_btn}" onclick="showACTab('{rol}',this)">
+      <span class="role-badge {cls}">{rol}</span>&nbsp;{total} pruebas{estado_dot}
+    </button>\n'''
+
+    content = build_ac_tab(rol)
+    ac_tab_contents += f'''<div id="ac-tab-{rol}" class="tab-content {active_tab}">
+      <div class="card">{content}</div>
+    </div>\n'''
+
+# Resumen por rol (tabla pequeña arriba)
 rol_summary = ""
-for rol in ["ADMIN", "GERENTE", "CHOFER", "PUBLICO", "ANONIMO"]:
-    items = resultados.get(rol, [])
+for rol in ROLES_AC:
+    items   = resultados.get(rol, [])
     if not items:
         continue
     r_total = len(items)
     r_pass  = sum(1 for i in items if i.get("resultado") == "PASS")
     r_crit  = sum(1 for i in items if i.get("resultado") == "FAIL_CRITICO")
     r_menor = sum(1 for i in items if i.get("resultado") == "FAIL_MENOR")
-
+    cls, _ = ROLE_COLORS.get(rol, ("role-admin", "#58a6ff"))
     if r_crit > 0:
-        icon = "🚨"; cls = "fail"
+        icon = "🚨"; icls = "fail"
     elif r_menor > 0:
-        icon = "⚠️"; cls = "warn"
+        icon = "⚠️"; icls = "warn"
     else:
-        icon = "✅"; cls = "pass"
-
+        icon = "✅"; icls = "pass"
     rol_summary += (
         f'<tr>'
-        f'<td><strong>{rol}</strong></td>'
+        f'<td><span class="role-badge {cls}">{rol}</span></td>'
         f'<td>{r_total}</td>'
         f'<td class="pass">{r_pass}</td>'
         f'<td class="fail">{r_crit}</td>'
         f'<td class="warn">{r_menor}</td>'
-        f'<td class="{cls}">{icon}</td>'
+        f'<td class="{icls}">{icon}</td>'
         f'</tr>\n'
     )
-
 if not rol_summary:
-    rol_summary = '<tr><td colspan="6" style="text-align:center;color:#8b949e;padding:20px">No hay datos disponibles</td></tr>'
-
-# ── Sección hallazgos Access Control ─────────────────────────────────────────
-if ac_rows:
-    ac_section = f"""
-    <table>
-      <thead><tr>
-        <th>Rol</th><th>Método</th><th>Endpoint</th>
-        <th>HTTP Recibido</th><th>Roles autorizados</th><th>Descripción</th>
-      </tr></thead>
-      <tbody>{ac_rows}</tbody>
-    </table>"""
-else:
-    ac_section = '<div class="empty-state"><span class="icon">✅</span><p>No se detectaron vulnerabilidades de control de acceso.</p></div>'
+    rol_summary = '<tr><td colspan="6" style="text-align:center;color:#8b949e;padding:20px">No hay datos</td></tr>'
 
 # ── HTML completo ─────────────────────────────────────────────────────────────
 html = f"""<!DOCTYPE html>
@@ -282,13 +330,13 @@ html = f"""<!DOCTYPE html>
     nav{{background:#161b22;border-bottom:1px solid #30363d;padding:0 40px;display:flex;gap:0;overflow-x:auto}}
     nav a{{color:#8b949e;padding:12px 16px;font-size:13px;border-bottom:2px solid transparent;display:block;white-space:nowrap}}
     nav a:hover{{color:#f0f6fc;border-bottom-color:#58a6ff;text-decoration:none}}
-    .container{{max-width:1200px;margin:0 auto;padding:28px 24px}}
+    .container{{max-width:1300px;margin:0 auto;padding:28px 24px}}
     .meta{{color:#8b949e;font-size:12px;margin-bottom:24px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}}
     .meta strong{{color:#c9d1d9}}
-    section{{margin-bottom:36px}}
+    section{{margin-bottom:40px}}
     section > h2{{font-size:1rem;color:#f0f6fc;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:8px}}
     .grid-4{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:20px}}
-    .grid-5{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}}
+    .grid-5{{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}}
     .metric{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;text-align:center}}
     .metric .num{{font-size:2.2rem;font-weight:700;display:block;margin-bottom:6px;line-height:1}}
     .metric .lbl{{font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px}}
@@ -297,23 +345,63 @@ html = f"""<!DOCTYPE html>
     .metric.alert-high{{border-color:#f85149;background:#f8514908}}
     .metric.alert-medium{{border-color:#e3b341;background:#e3b34108}}
     .num.pass{{color:#3fb950}} .num.fail{{color:#f85149}} .num.warn{{color:#e3b341}} .num.info{{color:#58a6ff}} .num.gray{{color:#8b949e}}
-    .card{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;margin-bottom:16px}}
+    .card{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;margin-bottom:16px;overflow-x:auto}}
     .card-title{{font-size:13px;color:#f0f6fc;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}}
     table{{width:100%;border-collapse:collapse;font-size:13px}}
-    th{{background:#21262d;color:#8b949e;padding:9px 12px;text-align:left;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #30363d}}
+    th{{background:#21262d;color:#8b949e;padding:9px 12px;text-align:left;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #30363d;white-space:nowrap}}
     td{{padding:9px 12px;border-bottom:1px solid #21262d;vertical-align:middle}}
     tr:last-child td{{border-bottom:none}}
-    tr.row-critico{{background:#f8514906}} tr.row-menor{{background:#e3b34106}}
+    tr.row-critico{{background:#f8514906}}
+    tr.row-menor{{background:#e3b34106}}
+    tr.row-pass{{background:transparent}}
     tr:hover td{{background:#21262d}}
+    tr.hidden{{display:none}}
     code{{background:#21262d;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:12px;color:#79c0ff}}
     .tag-critico{{background:#f8514933;color:#f85149;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap}}
     .tag-menor{{background:#e3b34133;color:#e3b341;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap}}
+    .tag-pass{{background:#3fb95033;color:#3fb950;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap}}
+    .tag-exp-200{{background:#58a6ff22;color:#58a6ff;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;border:1px solid #58a6ff44}}
+    .tag-exp-403{{background:#f8514922;color:#f85149;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;border:1px solid #f8514944}}
+    .tag-exp-pub{{background:#8b949e22;color:#8b949e;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;border:1px solid #8b949e44}}
     .tag-rol{{background:#21262d;color:#c9d1d9;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;border:1px solid #30363d}}
     .method{{background:#58a6ff22;color:#58a6ff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:700;font-family:monospace}}
     .roles-ok{{color:#8b949e;font-size:12px}}
     .pass{{color:#3fb950}} .fail{{color:#f85149}} .warn{{color:#e3b341}}
-    .zap-section{{margin-bottom:24px}}
-    .zap-section h3{{font-size:13px;color:#f0f6fc;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;padding:10px 16px;background:#21262d;border-radius:6px;border-left:3px solid #58a6ff}}
+    /* Role badges */
+    .role-badge{{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}}
+    .role-admin{{background:#58a6ff22;color:#58a6ff;border:1px solid #58a6ff44}}
+    .role-gerente{{background:#a371f722;color:#a371f7;border:1px solid #a371f744}}
+    .role-chofer{{background:#3fb95022;color:#3fb950;border:1px solid #3fb95044}}
+    .role-anonimo{{background:#e3b34122;color:#e3b341;border:1px solid #e3b34144}}
+    .role-publico{{background:#8b949e22;color:#8b949e;border:1px solid #8b949e44}}
+    /* Tabs */
+    .tab-buttons{{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}}
+    .tab-btn{{padding:7px 14px;border-radius:6px;border:1px solid #30363d;background:#21262d;color:#8b949e;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;display:flex;align-items:center;gap:6px}}
+    .tab-btn.active{{background:#161b22;border-color:#58a6ff;color:#f0f6fc}}
+    .tab-btn:hover:not(.active){{background:#30363d;color:#c9d1d9}}
+    .tab-content{{display:none}}
+    .tab-content.active{{display:block}}
+    /* Dots de estado en tabs */
+    .dot{{display:inline-block;width:8px;height:8px;border-radius:50%}}
+    .dot-crit{{background:#f85149}}
+    .dot-warn{{background:#e3b341}}
+    .dot-pass{{background:#3fb950}}
+    /* Rol summary cards */
+    .rol-summary{{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}}
+    .rol-stat{{background:#21262d;border:1px solid #30363d;border-radius:6px;padding:10px 16px;text-align:center;min-width:80px}}
+    .stat-pass{{border-color:#3fb95044}}
+    .stat-crit{{border-color:#f8514944}}
+    .stat-warn{{border-color:#e3b34144}}
+    .stat-num{{display:block;font-size:1.5rem;font-weight:700;color:#f0f6fc;line-height:1}}
+    .stat-lbl{{display:block;font-size:10px;color:#8b949e;margin-top:4px;text-transform:uppercase}}
+    /* Filter bar */
+    .filter-bar{{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}}
+    .filter-btn{{padding:5px 12px;border-radius:5px;border:1px solid #30363d;background:#21262d;color:#8b949e;cursor:pointer;font-size:12px;transition:all 0.15s}}
+    .filter-btn.active{{background:#58a6ff22;border-color:#58a6ff;color:#58a6ff}}
+    .filter-btn.btn-crit.active{{background:#f8514922;border-color:#f85149;color:#f85149}}
+    .filter-btn.btn-warn.active{{background:#e3b34122;border-color:#e3b341;color:#e3b341}}
+    .filter-btn:hover:not(.active){{background:#30363d;color:#c9d1d9}}
+    /* ZAP section */
     .zap-links{{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}}
     .zap-link{{display:inline-block;padding:6px 12px;background:#21262d;border:1px solid #30363d;border-radius:5px;color:#58a6ff;font-size:12px;transition:background 0.15s}}
     .zap-link:hover{{background:#30363d;text-decoration:none}}
@@ -322,16 +410,8 @@ html = f"""<!DOCTYPE html>
     .riesgo-medium{{background:#e3b34133;color:#e3b341}}
     .riesgo-low{{background:#3fb95022;color:#3fb950}}
     .riesgo-info{{background:#58a6ff22;color:#58a6ff}}
-    .role-badge{{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}}
-    .role-admin{{background:#58a6ff22;color:#58a6ff;border:1px solid #58a6ff44}}
-    .role-gerente{{background:#a371f722;color:#a371f7;border:1px solid #a371f744}}
-    .role-chofer{{background:#3fb95022;color:#3fb950;border:1px solid #3fb95044}}
     .empty-state{{text-align:center;padding:40px;color:#8b949e}}
     .empty-state .icon{{font-size:2.5rem;display:block;margin-bottom:10px}}
-    .tab-buttons{{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}}
-    .tab-btn{{padding:7px 16px;border-radius:6px;border:1px solid #30363d;background:#21262d;color:#8b949e;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s}}
-    .tab-btn.active{{background:#58a6ff22;border-color:#58a6ff;color:#58a6ff}}
-    .tab-content{{display:none}} .tab-content.active{{display:block}}
     footer{{text-align:center;padding:20px;color:#8b949e;font-size:12px;border-top:1px solid #21262d;margin-top:40px}}
   </style>
 </head>
@@ -359,9 +439,7 @@ html = f"""<!DOCTYPE html>
     <a href="{RUN_URL}" target="_blank">Ver workflow en GitHub Actions →</a>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       RESUMEN EJECUTIVO
-  ══════════════════════════════════════════════════════════ -->
+  <!-- ═══ RESUMEN ══════════════════════════════════════════════════════════ -->
   <section id="resumen">
     <h2>📊 Resumen ejecutivo</h2>
 
@@ -412,16 +490,10 @@ html = f"""<!DOCTYPE html>
         </div>
       </div>
     </div>
-  </section>
 
-  <!-- ═══════════════════════════════════════════════════════
-       ACCESS CONTROL
-  ══════════════════════════════════════════════════════════ -->
-  <section id="access-control">
-    <h2>🔒 Broken Access Control — OWASP A01</h2>
-
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-title">Resultado por rol</div>
+    <!-- Resumen compacto por rol -->
+    <div class="card">
+      <div class="card-title">Resultado por rol — Access Control</div>
       <table>
         <thead><tr>
           <th>Rol</th><th>Total pruebas</th><th>Pasadas</th>
@@ -430,82 +502,86 @@ html = f"""<!DOCTYPE html>
         <tbody>{rol_summary}</tbody>
       </table>
     </div>
-
-    <div class="card">
-      <div class="card-title">Detalle de hallazgos por endpoint</div>
-      {ac_section}
-    </div>
   </section>
 
-  <!-- ═══════════════════════════════════════════════════════
-       ZAP SCANS — hallazgos dinámicos por rol
-  ══════════════════════════════════════════════════════════ -->
-  <section id="zap-scans">
-    <h2>🛡️ Hallazgos ZAP Active Scan por rol</h2>
-    <p style="color:#8b949e;font-size:13px;margin-bottom:20px">
-      Vulnerabilidades técnicas detectadas por OWASP ZAP en el active scan.
-      Incluye: SQL Injection · XSS · CORS · Path Traversal · SSRF · Security Headers · Integer Overflow.
-      Los hallazgos se leen directamente de los reportes JSON generados por ZAP en cada ejecución.
+  <!-- ═══ ACCESS CONTROL CON TABS POR ROL ═════════════════════════════════ -->
+  <section id="access-control">
+    <h2>🔒 Broken Access Control — OWASP A01</h2>
+    <p style="color:#8b949e;font-size:13px;margin-bottom:16px">
+      Selecciona un rol para ver el detalle completo de todas sus pruebas —
+      tanto las que pasaron como las que fallaron. Usa los filtros dentro de
+      cada tab para ver solo los críticos, warnings o pasadas.
     </p>
 
     <div class="tab-buttons">
-      <button class="tab-btn active" onclick="showTab('admin')">
-        <span class="role-badge role-admin">ADMIN</span>&nbsp;
-        {len(alerts_admin)} hallazgo{"s" if len(alerts_admin) != 1 else ""}
+      {ac_tab_buttons}
+    </div>
+
+    {ac_tab_contents}
+  </section>
+
+  <!-- ═══ ZAP SCANS CON TABS POR ROL ══════════════════════════════════════ -->
+  <section id="zap-scans">
+    <h2>🛡️ Hallazgos ZAP Active Scan por rol</h2>
+    <p style="color:#8b949e;font-size:13px;margin-bottom:20px">
+      Vulnerabilidades técnicas detectadas por OWASP ZAP.
+      Incluye: SQL Injection · XSS · CORS · Path Traversal · SSRF ·
+      Security Headers · Integer Overflow.
+      Los hallazgos se leen directamente de los reportes JSON generados por ZAP.
+    </p>
+
+    <div class="tab-buttons">
+      <button class="tab-btn active" onclick="showZAPTab('zadmin',this)">
+        <span class="role-badge role-admin">ADMIN</span>&nbsp;{len(alerts_admin)} hallazgo{"s" if len(alerts_admin) != 1 else ""}
       </button>
-      <button class="tab-btn" onclick="showTab('gerente')">
-        <span class="role-badge role-gerente">GERENTE</span>&nbsp;
-        {len(alerts_gerente)} hallazgo{"s" if len(alerts_gerente) != 1 else ""}
+      <button class="tab-btn" onclick="showZAPTab('zgerente',this)">
+        <span class="role-badge role-gerente">GERENTE</span>&nbsp;{len(alerts_gerente)} hallazgo{"s" if len(alerts_gerente) != 1 else ""}
       </button>
-      <button class="tab-btn" onclick="showTab('chofer')">
-        <span class="role-badge role-chofer">CHOFER</span>&nbsp;
-        {len(alerts_chofer)} hallazgo{"s" if len(alerts_chofer) != 1 else ""}
+      <button class="tab-btn" onclick="showZAPTab('zchofer',this)">
+        <span class="role-badge role-chofer">CHOFER</span>&nbsp;{len(alerts_chofer)} hallazgo{"s" if len(alerts_chofer) != 1 else ""}
       </button>
     </div>
 
-    <!-- TAB ADMIN -->
-    <div id="tab-admin" class="tab-content active">
+    <div id="tab-zadmin" class="tab-content active">
       <div class="card">
         <div class="card-title">
           <span class="role-badge role-admin">ADMIN</span>
-          Endpoints escaneados: /camiones, /dashboard, /jornadas, /conductores,
-          /contratos/vigentes, /unidades/disponibles, /gps/*, /alertas/*, /auth/*
+          /camiones/*, /dashboard, /conductores/*, /contratos/vigentes,
+          /unidades/disponibles, /gps/*, /jornadas/*, /alertas/*, /auth/*
         </div>
         <div class="zap-links">
           <a class="zap-link" href="admin/reporte-ADMIN.html">📋 Reporte HTML completo</a>
-          <a class="zap-link" href="admin/reporte-ADMIN-json.json">📄 JSON raw (CI/CD)</a>
+          <a class="zap-link" href="admin/reporte-ADMIN-json.json">📄 JSON raw</a>
         </div>
         {table_admin}
       </div>
     </div>
 
-    <!-- TAB GERENTE -->
-    <div id="tab-gerente" class="tab-content">
+    <div id="tab-zgerente" class="tab-content">
       <div class="card">
         <div class="card-title">
           <span class="role-badge role-gerente">GERENTE</span>
-          Endpoints escaneados: /dashboard/gerencial, /jornadas, /conductores,
-          /contratos, /unidades/disponibles, /alertas/*, /auth/*
+          /dashboard/gerencial, /conductores, /contratos/*, /unidades/disponibles,
+          /jornadas/*, /auth/*
         </div>
         <div class="zap-links">
           <a class="zap-link" href="gerente/reporte-GERENTE.html">📋 Reporte HTML completo</a>
-          <a class="zap-link" href="gerente/reporte-GERENTE-json.json">📄 JSON raw (CI/CD)</a>
+          <a class="zap-link" href="gerente/reporte-GERENTE-json.json">📄 JSON raw</a>
         </div>
         {table_gerente}
       </div>
     </div>
 
-    <!-- TAB CHOFER -->
-    <div id="tab-chofer" class="tab-content">
+    <div id="tab-zchofer" class="tab-content">
       <div class="card">
         <div class="card-title">
           <span class="role-badge role-chofer">CHOFER</span>
-          Endpoints escaneados: /jornadas/actual/{{conductorId}},
-          /jornadas/iniciar, /jornadas/finalizar, /alertas/sos, /alertas/auxilio, /auth/*
+          /jornadas/actual/{{conductorId}}, /jornadas/iniciar,
+          /jornadas/finalizar, /alertas/sos, /alertas/auxilio, /auth/*
         </div>
         <div class="zap-links">
           <a class="zap-link" href="chofer/reporte-CHOFER.html">📋 Reporte HTML completo</a>
-          <a class="zap-link" href="chofer/reporte-CHOFER-json.json">📄 JSON raw (CI/CD)</a>
+          <a class="zap-link" href="chofer/reporte-CHOFER-json.json">📄 JSON raw</a>
         </div>
         {table_chofer}
       </div>
@@ -522,11 +598,44 @@ html = f"""<!DOCTYPE html>
 </footer>
 
 <script>
-  function showTab(rol) {{
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    document.getElementById('tab-' + rol).classList.add('active');
-    event.currentTarget.classList.add('active');
+  // ── Tabs de ZAP ────────────────────────────────────────────────────────
+  function showZAPTab(id, btn) {{
+    document.querySelectorAll('[id^="tab-z"]').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.closest('.tab-buttons').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }}
+
+  // ── Tabs de Access Control ─────────────────────────────────────────────
+  function showACTab(rol, btn) {{
+    document.querySelectorAll('[id^="ac-tab-"]').forEach(el => el.classList.remove('active'));
+    document.getElementById('ac-tab-' + rol).classList.add('active');
+    btn.closest('.tab-buttons').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }}
+
+  // ── Filtro dentro de cada tab de Access Control ────────────────────────
+  function filterAC(rol, tipo, btn) {{
+    const table = document.getElementById('ac-table-' + rol);
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {{
+      if (tipo === 'ALL') {{
+        row.classList.remove('hidden');
+      }} else {{
+        const r = row.getAttribute('data-resultado');
+        if (r === tipo) {{
+          row.classList.remove('hidden');
+        }} else {{
+          row.classList.add('hidden');
+        }}
+      }}
+    }});
+    const bar = document.getElementById('filter-' + rol);
+    if (bar) {{
+      bar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }}
   }}
 </script>
 
