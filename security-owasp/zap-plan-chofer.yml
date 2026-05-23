@@ -38,16 +38,20 @@ jobs:
       targetUrl: "API_URL_PLACEHOLDER"
     name: "ImportarOpenAPI-CHOFER"
 
-  # FIX: matchStrings (lista) es la sintaxis correcta para esta versión del addon
-  - type: replacer
+  - type: script
     parameters:
-      matchStrings:
-        - description: "Bearer token ROL CHOFER"
-          matchType: "REQ_HEADER"
-          matchString: "Authorization"
-          matchRegex: false
-          replacement: "Bearer ZAP_TOKEN_PLACEHOLDER"
-          initiators: []
+      action: "add"
+      type: "httpsender"
+      engine: "ECMAScript : Graal.js"
+      name: "InjectarBearer"
+      inline: |
+        function sendingRequest(msg, initiator, helper) {
+          msg.getRequestHeader().setHeader(
+            "Authorization",
+            "Bearer ZAP_TOKEN_PLACEHOLDER"
+          );
+        }
+        function responseReceived(msg, initiator, helper) {}
     name: "InjectarToken-CHOFER"
 
   - type: passiveScan-wait
