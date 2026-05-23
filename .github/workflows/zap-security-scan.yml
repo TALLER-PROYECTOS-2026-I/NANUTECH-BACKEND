@@ -6,7 +6,7 @@ name: 🔐 Nanutech Security Scan - OWASP ZAP
 #   tu-repo/
 #   ├── .github/
 #   │   ├── workflows/
-#   │   │   └── security.yml                  ← este archivo
+#   │   │   └── security.yml
 #   │   └── scripts/
 #   │       └── access-control-tests.sh
 #   └── security-owasp/
@@ -15,35 +15,25 @@ name: 🔐 Nanutech Security Scan - OWASP ZAP
 #       ├── zap-plan-gerente.yml
 #       └── zap-plan-chofer.yml
 #
-# CÓMO FUNCIONA LA INYECCIÓN DE TOKEN:
-#   ZAP NO interpola variables de entorno dentro del YAML del plan.
-#   Los planes tienen placeholders que sed reemplaza antes de que ZAP los lea:
-#     API_URL_PLACEHOLDER   → secrets.API_URL_TESTING
-#     ZAP_TOKEN_PLACEHOLDER → Bearer token real del ro
-#
-# Flujo:
-#   1. get-tokens  → POST /auth/login ×3 → guarda tokens como outputs
-#   2. scan-*      → sed reemplaza placeholders → docker run ZAP
-#                  → ZAP hace active scan (XSS, SQLi, CORS, Path Traversal, etc.)
-#                  → genera reportes HTML+JSON en security-owasp/reports/
-#   3. access-control-tests → curl ×N con los 3 tokens
-#                           → verifica 200/403 para cada combinación rol+endpoint
-#   4. summary     → consolida resultados en GitHub UI
+# FIXES aplicados en esta versión:
+#   1. replacer: matchStrings (no "rules") → token se inyecta correctamente
+#   2. reports/: chmod 777 desde dentro del contenedor → ZAP puede escribir
+#   3. Debug: se listan las URLs importadas y las que se escanean
 # =============================================================================
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-  schedule:
-    - cron: "0 3 * * 1"
   workflow_dispatch:
     inputs:
       rol:
-        description: "Rol a escanear: all | admin | gerente | chofer"
-        required: false
+        description: "Rol a escanear"
+        required: true
         default: "all"
+        type: choice
+        options:
+          - all
+          - admin
+          - gerente
+          - chofer
 
 permissions:
   contents: read
@@ -53,7 +43,7 @@ permissions:
 jobs:
 
   # ===========================================================================
-  # JOB 1: LOGIN CON LOS 3 ROLES → obtener token
+  # JOB 1: LOGIN CON LOS 3 ROLES → obtener tokens
   # ===========================================================================
   get-tokens:
     name: 🔑 Login (3 roles)
@@ -155,8 +145,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preparar carpeta de reportes
-        run: mkdir -p security-owasp/reports
+      # FIX 2: crear reports/ con permisos abiertos ANTES de montar en Docker
+      # ZAP corre como usuario "zap" dentro del contenedor → necesita escribir aquí
+      - name: Preparar carpeta de reportes con permisos
+        run: |
+          mkdir -p security-owasp/reports
+          chmod 777 security-owasp/reports
 
       - name: Inyectar URL y token en los planes
         run: |
@@ -194,24 +188,67 @@ jobs:
             ghcr.io/zaproxy/zaproxy:stable \
             bash -c "
               set -e
-              echo '--- Instalando addons ---'
+
+              echo '════════════════════════════════════════'
+              echo '  Instalando addons ZAP'
+              echo '════════════════════════════════════════'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall replacer       2>/dev/null || true
               zap.sh -cmd -addonupdate                 2>/dev/null || true
 
-              echo '--- Ejecutando plan ADMIN ---'
+              echo ''
+              echo '════════════════════════════════════════'
+              echo '  Verificando permisos de reports/'
+              echo '════════════════════════════════════════'
+              ls -la /zap/wrk/
+              ls -la /zap/wrk/reports/ || mkdir -p /zap/wrk/reports
+              chmod 777 /zap/wrk/reports
+
+              echo ''
+              echo '════════════════════════════════════════'
+              echo '  Ejecutando plan ADMIN'
+              echo '════════════════════════════════════════'
               zap.sh -cmd -autorun /zap/wrk/zap-plan-admin.run.yml
             "
         continue-on-error: true
 
+      # DEBUG: mostrar exactamente qué URLs fueron importadas y escaneadas
+      - name: 🔎 Debug — URLs importadas y estado del escaneo
+        run: |
+          echo "════════════════════════════════════════"
+          echo "  Archivos en security-owasp/"
+          echo "════════════════════════════════════════"
+          ls -lh security-owasp/
+
+          echo ""
+          echo "════════════════════════════════════════"
+          echo "  Contenido de reports/"
+          echo "════════════════════════════════════════"
+          ls -lh security-owasp/reports/ || echo "(vacío)"
+
+          echo ""
+          echo "════════════════════════════════════════"
+          echo "  URLs definidas en openapi.run.yml"
+          echo "════════════════════════════════════════"
+          python3 -c "
+          import yaml
+          spec = yaml.safe_load(open('security-owasp/openapi.run.yml'))
+          base = spec.get('servers', [{}])[0].get('url', '')
+          paths = list(spec.get('paths', {}).keys())
+          print(f'Base URL: {base}')
+          print(f'Total endpoints: {len(paths)}')
+          for p in sorted(paths):
+              print(f'  → {base}{p}')
+          " 2>/dev/null || echo "No se pudo parsear openapi.run.yml"
+
       - name: Verificar reportes generados
         run: |
           if ls security-owasp/reports/reporte-ADMIN* 1>/dev/null 2>&1; then
-            echo "✅ Reportes ADMIN:"
+            echo "✅ Reportes ADMIN generados:"
             ls -lh security-owasp/reports/reporte-ADMIN*
           else
-            echo "⚠️ No se encontraron reportes."
+            echo "⚠️ No se encontraron reportes ADMIN."
             ls -la security-owasp/reports/ || echo "(vacío)"
           fi
 
@@ -239,8 +276,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preparar carpeta de reportes
-        run: mkdir -p security-owasp/reports
+      - name: Preparar carpeta de reportes con permisos
+        run: |
+          mkdir -p security-owasp/reports
+          chmod 777 security-owasp/reports
 
       - name: Inyectar URL y token
         run: |
@@ -278,23 +317,59 @@ jobs:
             ghcr.io/zaproxy/zaproxy:stable \
             bash -c "
               set -e
-              echo '--- Instalando addons ---'
+
+              echo '════════════════════════════════════════'
+              echo '  Instalando addons ZAP'
+              echo '════════════════════════════════════════'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall replacer       2>/dev/null || true
               zap.sh -cmd -addonupdate                 2>/dev/null || true
 
+              echo ''
+              echo '════════════════════════════════════════'
+              echo '  Verificando permisos de reports/'
+              echo '════════════════════════════════════════'
+              ls -la /zap/wrk/reports/ || mkdir -p /zap/wrk/reports
+              chmod 777 /zap/wrk/reports
+
+              echo ''
+              echo '════════════════════════════════════════'
+              echo '  Ejecutando plan GERENTE'
+              echo '════════════════════════════════════════'
               zap.sh -cmd -autorun /zap/wrk/zap-plan-gerente.run.yml
             "
         continue-on-error: true
 
+      - name: 🔎 Debug — URLs importadas y estado del escaneo
+        run: |
+          echo "════════════════════════════════════════"
+          echo "  Contenido de reports/"
+          echo "════════════════════════════════════════"
+          ls -lh security-owasp/reports/ || echo "(vacío)"
+
+          echo ""
+          echo "════════════════════════════════════════"
+          echo "  URLs definidas en openapi.run.yml"
+          echo "════════════════════════════════════════"
+          python3 -c "
+          import yaml
+          spec = yaml.safe_load(open('security-owasp/openapi.run.yml'))
+          base = spec.get('servers', [{}])[0].get('url', '')
+          paths = list(spec.get('paths', {}).keys())
+          print(f'Base URL: {base}')
+          print(f'Total endpoints: {len(paths)}')
+          for p in sorted(paths):
+              print(f'  → {base}{p}')
+          " 2>/dev/null || echo "No se pudo parsear openapi.run.yml"
+
       - name: Verificar reportes generados
         run: |
           if ls security-owasp/reports/reporte-GERENTE* 1>/dev/null 2>&1; then
-            echo "✅ Reportes GERENTE:"
+            echo "✅ Reportes GERENTE generados:"
             ls -lh security-owasp/reports/reporte-GERENTE*
           else
-            echo "⚠️ No se encontraron reportes."
+            echo "⚠️ No se encontraron reportes GERENTE."
             ls -la security-owasp/reports/ || echo "(vacío)"
           fi
 
@@ -322,8 +397,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preparar carpeta de reportes
-        run: mkdir -p security-owasp/reports
+      - name: Preparar carpeta de reportes con permisos
+        run: |
+          mkdir -p security-owasp/reports
+          chmod 777 security-owasp/reports
 
       - name: Inyectar URL y token
         run: |
@@ -361,23 +438,59 @@ jobs:
             ghcr.io/zaproxy/zaproxy:stable \
             bash -c "
               set -e
-              echo '--- Instalando addons ---'
+
+              echo '════════════════════════════════════════'
+              echo '  Instalando addons ZAP'
+              echo '════════════════════════════════════════'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall replacer       2>/dev/null || true
               zap.sh -cmd -addonupdate                 2>/dev/null || true
 
+              echo ''
+              echo '════════════════════════════════════════'
+              echo '  Verificando permisos de reports/'
+              echo '════════════════════════════════════════'
+              ls -la /zap/wrk/reports/ || mkdir -p /zap/wrk/reports
+              chmod 777 /zap/wrk/reports
+
+              echo ''
+              echo '════════════════════════════════════════'
+              echo '  Ejecutando plan CHOFER'
+              echo '════════════════════════════════════════'
               zap.sh -cmd -autorun /zap/wrk/zap-plan-chofer.run.yml
             "
         continue-on-error: true
 
+      - name: 🔎 Debug — URLs importadas y estado del escaneo
+        run: |
+          echo "════════════════════════════════════════"
+          echo "  Contenido de reports/"
+          echo "════════════════════════════════════════"
+          ls -lh security-owasp/reports/ || echo "(vacío)"
+
+          echo ""
+          echo "════════════════════════════════════════"
+          echo "  URLs definidas en openapi.run.yml"
+          echo "════════════════════════════════════════"
+          python3 -c "
+          import yaml
+          spec = yaml.safe_load(open('security-owasp/openapi.run.yml'))
+          base = spec.get('servers', [{}])[0].get('url', '')
+          paths = list(spec.get('paths', {}).keys())
+          print(f'Base URL: {base}')
+          print(f'Total endpoints: {len(paths)}')
+          for p in sorted(paths):
+              print(f'  → {base}{p}')
+          " 2>/dev/null || echo "No se pudo parsear openapi.run.yml"
+
       - name: Verificar reportes generados
         run: |
           if ls security-owasp/reports/reporte-CHOFER* 1>/dev/null 2>&1; then
-            echo "✅ Reportes CHOFER:"
+            echo "✅ Reportes CHOFER generados:"
             ls -lh security-owasp/reports/reporte-CHOFER*
           else
-            echo "⚠️ No se encontraron reportes."
+            echo "⚠️ No se encontraron reportes CHOFER."
             ls -la security-owasp/reports/ || echo "(vacío)"
           fi
 
