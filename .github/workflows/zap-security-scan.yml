@@ -36,9 +36,11 @@ on:
           - chofer
 
 permissions:
-  contents: read
+  contents: write        # necesario para push a gh-pages
   issues: write
   pull-requests: write
+  pages: write
+  id-token: write
 
 jobs:
 
@@ -527,12 +529,202 @@ jobs:
           retention-days: 30
 
   # ===========================================================================
-  # JOB 6: RESUMEN FINAL EN GITHUB UI
+  # JOB 6: PUBLICAR REPORTES EN GITHUB PAGES (rama gh-pages)
+  # Accede en: https://<org>.github.io/<repo>/
+  # ===========================================================================
+  publish-report:
+    name: 📄 Publicar en GitHub Pages
+    runs-on: ubuntu-latest
+    needs: [scan-admin, scan-gerente, scan-chofer, access-control-tests]
+    if: always()
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Descargar todos los reportes ZAP
+        uses: actions/download-artifact@v4
+        with:
+          path: all-reports
+        continue-on-error: true
+
+      - name: Descargar reporte access control
+        uses: actions/download-artifact@v4
+        with:
+          name: reporte-access-control
+          path: all-reports/reporte-access-control
+        continue-on-error: true
+
+      - name: Construir sitio HTML de reportes
+        run: |
+          mkdir -p gh-pages-site
+          FECHA=$(date -u +"%Y-%m-%d %H:%M UTC")
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # ── Copiar reportes ZAP ──────────────────────────────────────────
+          for rol in ADMIN GERENTE CHOFER; do
+            SRC="all-reports/reporte-${rol}"
+            if [ -d "$SRC" ]; then
+              mkdir -p "gh-pages-site/${rol,,}"
+              cp "$SRC"/*.html "gh-pages-site/${rol,,}/" 2>/dev/null || true
+              cp "$SRC"/*.json "gh-pages-site/${rol,,}/" 2>/dev/null || true
+            fi
+          done
+
+          # ── Copiar reporte access control ────────────────────────────────
+          AC_JSON="all-reports/reporte-access-control/access-control-report.json"
+          if [ -f "$AC_JSON" ]; then
+            cp "$AC_JSON" gh-pages-site/access-control-report.json
+            TOTAL=$(jq '.resumen.total_pruebas' "$AC_JSON")
+            PASS=$(jq  '.resumen.pasadas'        "$AC_JSON")
+            FAIL=$(jq  '.resumen.fallidas'        "$AC_JSON")
+            CRIT=$(jq  '.resumen.fail_critico'    "$AC_JSON")
+          else
+            TOTAL=0; PASS=0; FAIL=0; CRIT=0
+          fi
+
+          # ── Badge de estado ──────────────────────────────────────────────
+          if [ "$CRIT" -gt 0 ]; then
+            BADGE_COLOR="e05d44"; BADGE_TEXT="VULNERABLE"
+          elif [ "$FAIL" -gt 0 ]; then
+            BADGE_COLOR="fe7d37"; BADGE_TEXT="WARNINGS"
+          else
+            BADGE_COLOR="4c1"; BADGE_TEXT="SECURE"
+          fi
+
+          # ── Generar index.html ───────────────────────────────────────────
+          cat > gh-pages-site/index.html << HTMLEOF
+          <!DOCTYPE html>
+          <html lang="es">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Nanutech — Security Report</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                     background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+              header { background: #161b22; border-bottom: 1px solid #30363d;
+                       padding: 20px 40px; display: flex; align-items: center; gap: 16px; }
+              header h1 { font-size: 1.4rem; color: #f0f6fc; }
+              header .badge { background: #${BADGE_COLOR}; color: #fff;
+                              padding: 4px 12px; border-radius: 20px;
+                              font-size: 0.8rem; font-weight: 700; letter-spacing: 1px; }
+              .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+              .meta { color: #8b949e; font-size: 0.85rem; margin-bottom: 32px; }
+              .meta a { color: #58a6ff; text-decoration: none; }
+              .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                      gap: 20px; margin-bottom: 32px; }
+              .card { background: #161b22; border: 1px solid #30363d;
+                      border-radius: 8px; padding: 24px; }
+              .card h2 { font-size: 1rem; color: #f0f6fc; margin-bottom: 16px;
+                         display: flex; align-items: center; gap: 8px; }
+              .stat { display: flex; justify-content: space-between;
+                      padding: 8px 0; border-bottom: 1px solid #21262d; font-size: 0.9rem; }
+              .stat:last-child { border-bottom: none; }
+              .stat .val { font-weight: 700; }
+              .pass  { color: #3fb950; }
+              .fail  { color: #f85149; }
+              .warn  { color: #e3b341; }
+              .links { display: flex; flex-direction: column; gap: 10px; }
+              .link-btn { display: block; padding: 10px 16px;
+                          background: #21262d; border: 1px solid #30363d;
+                          border-radius: 6px; color: #58a6ff; text-decoration: none;
+                          font-size: 0.9rem; transition: background 0.2s; }
+              .link-btn:hover { background: #30363d; }
+              .critico-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+              .critico-table th { background: #21262d; color: #8b949e;
+                                  padding: 8px 12px; text-align: left; }
+              .critico-table td { padding: 8px 12px; border-top: 1px solid #21262d; }
+              .critico-table tr:hover td { background: #21262d; }
+              .tag-critico { background: #f8514933; color: #f85149;
+                             padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
+              footer { text-align: center; padding: 24px;
+                       color: #8b949e; font-size: 0.8rem;
+                       border-top: 1px solid #21262d; margin-top: 40px; }
+            </style>
+          </head>
+          <body>
+            <header>
+              <h1>🔐 Nanutech Security Report</h1>
+              <span class="badge">${BADGE_TEXT}</span>
+            </header>
+            <div class="container">
+              <p class="meta">
+                Generado: <strong>${FECHA}</strong> &nbsp;|&nbsp;
+                <a href="${RUN_URL}" target="_blank">Ver workflow run →</a>
+              </p>
+
+              <div class="grid">
+
+                <!-- Access Control -->
+                <div class="card">
+                  <h2>🔒 Broken Access Control (OWASP A01)</h2>
+                  <div class="stat"><span>Total pruebas</span><span class="val">${TOTAL}</span></div>
+                  <div class="stat"><span>Pasadas</span><span class="val pass">${PASS}</span></div>
+                  <div class="stat"><span>Fallidas</span><span class="val fail">${FAIL}</span></div>
+                  <div class="stat"><span>🚨 Críticos</span><span class="val fail">${CRIT}</span></div>
+                </div>
+
+                <!-- Reportes ZAP -->
+                <div class="card">
+                  <h2>🛡️ Reportes ZAP (XSS · SQLi · CORS · Headers)</h2>
+                  <div class="links">
+                    <a class="link-btn" href="admin/reporte-ADMIN.html">📋 ROL ADMIN — Ver reporte HTML</a>
+                    <a class="link-btn" href="gerente/reporte-GERENTE.html">📋 ROL GERENTE — Ver reporte HTML</a>
+                    <a class="link-btn" href="chofer/reporte-CHOFER.html">📋 ROL CHOFER — Ver reporte HTML</a>
+                    <a class="link-btn" href="access-control-report.json">📄 Access Control — JSON completo</a>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Tabla de críticos -->
+              <div class="card" id="criticos">
+                <h2>🚨 Vulnerabilidades críticas detectadas</h2>
+          HTMLEOF
+
+          # Inyectar tabla de críticos desde JSON
+          if [ -f "$AC_JSON" ] && [ "$CRIT" -gt 0 ]; then
+            echo '<table class="critico-table"><thead><tr>' >> gh-pages-site/index.html
+            echo '<th>Rol</th><th>Método</th><th>Endpoint</th><th>HTTP Recibido</th><th>Solo debería acceder</th></tr></thead><tbody>' >> gh-pages-site/index.html
+            jq -r '
+              .resultados | to_entries[] | .value[] |
+              select(.resultado == "FAIL_CRITICO") |
+              "<tr><td><strong>\(.rol)</strong></td><td>\(.method)</td><td><code>\(.endpoint)</code></td><td><span class="tag-critico">\(.http_status)</span></td><td>\(.roles_permitidos)</td></tr>"
+            ' "$AC_JSON" >> gh-pages-site/index.html
+            echo '</tbody></table>' >> gh-pages-site/index.html
+          else
+            echo '<p class="pass" style="margin-top:12px">✅ No se detectaron vulnerabilidades críticas de acceso.</p>' >> gh-pages-site/index.html
+          fi
+
+          cat >> gh-pages-site/index.html << HTMLEOF2
+              </div>
+            </div>
+            <footer>Nanutech Security Scan · OWASP ZAP · Generado automáticamente con GitHub Actions</footer>
+          </body>
+          </html>
+          HTMLEOF2
+
+          echo "✅ Sitio construido en gh-pages-site/"
+          ls -lh gh-pages-site/
+
+      - name: Publicar en rama gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./gh-pages-site
+          publish_branch: gh-pages
+          commit_message: "🔐 Security report — ${{ github.run_id }}"
+          force_orphan: false
+
+  # ===========================================================================
+  # JOB 7: RESUMEN FINAL EN GITHUB UI
   # ===========================================================================
   summary:
     name: 📊 Resumen
     runs-on: ubuntu-latest
-    needs: [scan-admin, scan-gerente, scan-chofer, access-control-tests]
+    needs: [scan-admin, scan-gerente, scan-chofer, access-control-tests, publish-report]
     if: always()
 
     steps:
