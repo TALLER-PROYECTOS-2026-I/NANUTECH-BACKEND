@@ -1,12 +1,8 @@
 # =============================================================================
 # zap-plan-gerente.yml — ROL GERENTE
-#
-# Placeholders reemplazados por sed en el workflow:
+# Placeholders reemplazados por sed antes de correr ZAP:
 #   API_URL_PLACEHOLDER   → URL real del API Gateway
 #   ZAP_TOKEN_PLACEHOLDER → Bearer token del GERENTE
-#
-# Cubre: XSS, SQLi, CORS, Path Traversal, Security Headers
-# Usa Default Policy de ZAP (no requiere XML externo)
 # =============================================================================
 env:
   contexts:
@@ -39,7 +35,6 @@ env:
     progressToStdout: true
 
 jobs:
-  # ── 1. Importar spec OpenAPI ──────────────────────────────────────────────
   - type: openapi
     parameters:
       apiFile: "/zap/wrk/openapi.run.yml"
@@ -47,12 +42,10 @@ jobs:
       targetUrl: "API_URL_PLACEHOLDER"
     name: "ImportarOpenAPI-GERENTE"
 
-  # ── 2. Inyectar Bearer token ──────────────────────────────────────────────
-  #    FIX: era "matchStrings" (incorrecto) → token nunca se inyectaba
-  #    CORRECTO: "rules" (lista de objetos con description, matchType, etc.)
+  # FIX: matchStrings (lista) es la sintaxis correcta para esta versión del addon
   - type: replacer
     parameters:
-      rules:
+      matchStrings:
         - description: "Bearer token ROL GERENTE"
           matchType: "REQ_HEADER"
           matchString: "Authorization"
@@ -61,13 +54,11 @@ jobs:
           initiators: []
     name: "InjectarToken-GERENTE"
 
-  # ── 3. Escaneo pasivo ─────────────────────────────────────────────────────
   - type: passiveScan-wait
     parameters:
       maxDuration: 5
     name: "PassiveScan-GERENTE"
 
-  # ── 4. Escaneo activo — Default Policy ────────────────────────────────────
   - type: activeScan
     parameters:
       context: "GERENTE"
@@ -77,7 +68,6 @@ jobs:
       addQueryParam: true
     name: "ActiveScan-GERENTE"
 
-  # ── 5. Reporte HTML ───────────────────────────────────────────────────────
   - type: report
     parameters:
       template: "traditional-html"
@@ -91,7 +81,6 @@ jobs:
         Pruebas: SQL Injection, XSS, CORS, Path Traversal, Headers HTTP.
     name: "ReporteHTML-GERENTE"
 
-  # ── 6. Reporte JSON ───────────────────────────────────────────────────────
   - type: report
     parameters:
       template: "traditional-json"
