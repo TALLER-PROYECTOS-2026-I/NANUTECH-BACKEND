@@ -1,27 +1,35 @@
 name: 🔐 Nanutech Security Scan - OWASP ZAP
 
-# =========================================================================
-# CÓMO FUNCIONA LA INYECCIÓN DE TOKEN (esto es lo crítico):
+# =============================================================================
+# ESTRUCTURA DE ARCHIVOS:
 #
-# ZAP Automation Framework NO interpola variables de entorno dentro
-# del YAML del plan. Si pones ${ZAP_TOKEN} en el plan, ZAP lo trata
-# como texto literal, no como variable.
+#   tu-repo/
+#   ├── .github/
+#   │   ├── workflows/
+#   │   │   └── security.yml                  ← este archivo
+#   │   └── scripts/
+#   │       └── access-control-tests.sh
+#   └── security-owasp/
+#       ├── openapi.yml
+#       ├── zap-plan-admin.yml
+#       ├── zap-plan-gerente.yml
+#       └── zap-plan-chofer.yml
 #
-# La solución: los planes tienen el placeholder ZAP_TOKEN_PLACEHOLDER.
-# El workflow hace "sed" para reemplazar ese placeholder con el token
-# real ANTES de que ZAP lea el archivo. Así ZAP recibe el token
-# directamente en el YAML, sin ninguna interpolación.
+# CÓMO FUNCIONA LA INYECCIÓN DE TOKEN:
+#   ZAP NO interpola variables de entorno dentro del YAML del plan.
+#   Los planes tienen placeholders que sed reemplaza antes de que ZAP los lea:
+#     API_URL_PLACEHOLDER   → secrets.API_URL_TESTING
+#     ZAP_TOKEN_PLACEHOLDER → Bearer token real del rol
 #
-# Flujo completo:
-#   1. get-tokens  → POST /auth/login × 3 → guarda tokens como outputs
-#   2. scan-*      → sed reemplaza ZAP_TOKEN_PLACEHOLDER en el plan
-#                  → docker run ZAP lee el plan ya con el token real
-#                  → ZAP hace active scan (XSS, SQLi, CORS, etc.)
-#                  → genera reporte HTML en reports/
-#   3. access-control-tests → curl directo con los 3 tokens
-#                           → verifica 200/403 por cada combinación rol+endpoint
+# Flujo:
+#   1. get-tokens  → POST /auth/login ×3 → guarda tokens como outputs
+#   2. scan-*      → sed reemplaza placeholders → docker run ZAP
+#                  → ZAP hace active scan (XSS, SQLi, CORS, Path Traversal, etc.)
+#                  → genera reportes HTML+JSON en security-owasp/reports/
+#   3. access-control-tests → curl ×N con los 3 tokens
+#                           → verifica 200/403 para cada combinación rol+endpoint
 #   4. summary     → consolida resultados en GitHub UI
-# =========================================================================
+# =============================================================================
 
 on:
   push:
@@ -44,9 +52,9 @@ permissions:
 
 jobs:
 
-  # =========================================================================
-  # JOB 1: LOGIN CON LOS 3 ROLES
-  # =========================================================================
+  # ===========================================================================
+  # JOB 1: LOGIN CON LOS 3 ROLES → obtener tokens
+  # ===========================================================================
   get-tokens:
     name: 🔑 Login (3 roles)
     runs-on: ubuntu-latest
@@ -66,9 +74,9 @@ jobs:
             -d '{"email":"admin@nanutech.com","password":"Admin123!"}')
           RESP=$(cat /tmp/resp_admin.txt)
           echo "HTTP Status ADMIN: $HTTP_STATUS"
-          echo "Respuesta ADMIN: $RESP"
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "❌ Login ADMIN falló con HTTP $HTTP_STATUS"
+            echo "$RESP" | jq . || echo "$RESP"
             exit 1
           fi
           TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
@@ -91,9 +99,9 @@ jobs:
             -d '{"email":"gerente@nanutech.com","password":"Admin123!"}')
           RESP=$(cat /tmp/resp_gerente.txt)
           echo "HTTP Status GERENTE: $HTTP_STATUS"
-          echo "Respuesta GERENTE: $RESP"
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "❌ Login GERENTE falló con HTTP $HTTP_STATUS"
+            echo "$RESP" | jq . || echo "$RESP"
             exit 1
           fi
           TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
@@ -116,9 +124,9 @@ jobs:
             -d '{"email":"chofer@nanutech.com","password":"Admin123!"}')
           RESP=$(cat /tmp/resp_chofer.txt)
           echo "HTTP Status CHOFER: $HTTP_STATUS"
-          echo "Respuesta CHOFER: $RESP"
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "❌ Login CHOFER falló con HTTP $HTTP_STATUS"
+            echo "$RESP" | jq . || echo "$RESP"
             exit 1
           fi
           TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
@@ -131,9 +139,9 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
-  # =========================================================================
+  # ===========================================================================
   # JOB 2: ESCANEO ROL ADMIN
-  # =========================================================================
+  # ===========================================================================
   scan-admin:
     name: 🛡️ ZAP Scan ROL ADMIN
     runs-on: ubuntu-latest
@@ -147,25 +155,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preparar workspace
-        run: mkdir -p reports
+      - name: Preparar carpeta de reportes
+        run: mkdir -p security-owasp/reports
 
-      - name: Inyectar URL y token en los archivos de configuración
+      - name: Inyectar URL y token en los planes
         run: |
-          cp zap-plan-admin.yml zap-plan-admin.run.yml
-          cp openapi.yml openapi.run.yml
+          cp security-owasp/zap-plan-admin.yml security-owasp/zap-plan-admin.run.yml
+          cp security-owasp/openapi.yml         security-owasp/openapi.run.yml
 
           sed -i "s@API_URL_PLACEHOLDER@${{ secrets.API_URL_TESTING }}@g" \
-            zap-plan-admin.run.yml openapi.run.yml
+            security-owasp/zap-plan-admin.run.yml \
+            security-owasp/openapi.run.yml
 
           sed -i "s@ZAP_TOKEN_PLACEHOLDER@${{ needs.get-tokens.outputs.token_admin }}@g" \
-            zap-plan-admin.run.yml
+            security-owasp/zap-plan-admin.run.yml
 
       - name: Verificar YAML válido tras sustitución
         run: |
           python3 -c "
           import yaml, sys
-          for f in ['zap-plan-admin.run.yml', 'openapi.run.yml']:
+          for f in ['security-owasp/zap-plan-admin.run.yml', 'security-owasp/openapi.run.yml']:
               try:
                   yaml.safe_load(open(f))
                   print(f'✅ {f} OK')
@@ -181,15 +190,11 @@ jobs:
         run: |
           docker run --rm \
             --network host \
-            -v "${{ github.workspace }}:/zap/wrk/:rw" \
+            -v "${{ github.workspace }}/security-owasp:/zap/wrk/:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
             bash -c "
               set -e
-              echo '--- Copiando política de escaneo ---'
-              mkdir -p /home/zap/.ZAP/policies
-              cp /zap/wrk/nanutech-scan-policy.xml /home/zap/.ZAP/policies/
-
-              echo '--- Instalando y actualizando addons ---'
+              echo '--- Instalando addons ---'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall replacer       2>/dev/null || true
@@ -200,14 +205,14 @@ jobs:
             "
         continue-on-error: true
 
-      - name: Verificar reporte generado
+      - name: Verificar reportes generados
         run: |
-          if ls reports/reporte-ADMIN* 1>/dev/null 2>&1; then
-            echo "✅ Reportes generados:"
-            ls -lh reports/reporte-ADMIN*
+          if ls security-owasp/reports/reporte-ADMIN* 1>/dev/null 2>&1; then
+            echo "✅ Reportes ADMIN:"
+            ls -lh security-owasp/reports/reporte-ADMIN*
           else
-            echo "⚠️ No se encontraron reportes. Contenido de reports/:"
-            ls -la reports/ || echo "(vacío)"
+            echo "⚠️ No se encontraron reportes."
+            ls -la security-owasp/reports/ || echo "(vacío)"
           fi
 
       - name: Subir reporte ADMIN
@@ -215,12 +220,12 @@ jobs:
         if: always()
         with:
           name: reporte-ADMIN
-          path: reports/reporte-ADMIN*
+          path: security-owasp/reports/reporte-ADMIN*
           retention-days: 30
 
-  # =========================================================================
+  # ===========================================================================
   # JOB 3: ESCANEO ROL GERENTE
-  # =========================================================================
+  # ===========================================================================
   scan-gerente:
     name: 🛡️ ZAP Scan ROL GERENTE
     runs-on: ubuntu-latest
@@ -234,25 +239,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preparar workspace
-        run: mkdir -p reports
+      - name: Preparar carpeta de reportes
+        run: mkdir -p security-owasp/reports
 
       - name: Inyectar URL y token
         run: |
-          cp zap-plan-gerente.yml zap-plan-gerente.run.yml
-          cp openapi.yml openapi.run.yml
+          cp security-owasp/zap-plan-gerente.yml security-owasp/zap-plan-gerente.run.yml
+          cp security-owasp/openapi.yml           security-owasp/openapi.run.yml
 
           sed -i "s@API_URL_PLACEHOLDER@${{ secrets.API_URL_TESTING }}@g" \
-            zap-plan-gerente.run.yml openapi.run.yml
+            security-owasp/zap-plan-gerente.run.yml \
+            security-owasp/openapi.run.yml
 
           sed -i "s@ZAP_TOKEN_PLACEHOLDER@${{ needs.get-tokens.outputs.token_gerente }}@g" \
-            zap-plan-gerente.run.yml
+            security-owasp/zap-plan-gerente.run.yml
 
       - name: Verificar YAML válido
         run: |
           python3 -c "
           import yaml, sys
-          for f in ['zap-plan-gerente.run.yml', 'openapi.run.yml']:
+          for f in ['security-owasp/zap-plan-gerente.run.yml', 'security-owasp/openapi.run.yml']:
               try:
                   yaml.safe_load(open(f))
                   print(f'✅ {f} OK')
@@ -268,14 +274,11 @@ jobs:
         run: |
           docker run --rm \
             --network host \
-            -v "${{ github.workspace }}:/zap/wrk/:rw" \
+            -v "${{ github.workspace }}/security-owasp:/zap/wrk/:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
             bash -c "
               set -e
-              mkdir -p /home/zap/.ZAP/policies
-              cp /zap/wrk/nanutech-scan-policy.xml /home/zap/.ZAP/policies/
-
-              echo '--- Instalando y actualizando addons ---'
+              echo '--- Instalando addons ---'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall replacer       2>/dev/null || true
@@ -285,14 +288,14 @@ jobs:
             "
         continue-on-error: true
 
-      - name: Verificar reporte generado
+      - name: Verificar reportes generados
         run: |
-          if ls reports/reporte-GERENTE* 1>/dev/null 2>&1; then
-            echo "✅ Reportes generados:"
-            ls -lh reports/reporte-GERENTE*
+          if ls security-owasp/reports/reporte-GERENTE* 1>/dev/null 2>&1; then
+            echo "✅ Reportes GERENTE:"
+            ls -lh security-owasp/reports/reporte-GERENTE*
           else
-            echo "⚠️ No se encontraron reportes. Contenido de reports/:"
-            ls -la reports/ || echo "(vacío)"
+            echo "⚠️ No se encontraron reportes."
+            ls -la security-owasp/reports/ || echo "(vacío)"
           fi
 
       - name: Subir reporte GERENTE
@@ -300,12 +303,12 @@ jobs:
         if: always()
         with:
           name: reporte-GERENTE
-          path: reports/reporte-GERENTE*
+          path: security-owasp/reports/reporte-GERENTE*
           retention-days: 30
 
-  # =========================================================================
+  # ===========================================================================
   # JOB 4: ESCANEO ROL CHOFER
-  # =========================================================================
+  # ===========================================================================
   scan-chofer:
     name: 🛡️ ZAP Scan ROL CHOFER
     runs-on: ubuntu-latest
@@ -319,25 +322,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preparar workspace
-        run: mkdir -p reports
+      - name: Preparar carpeta de reportes
+        run: mkdir -p security-owasp/reports
 
       - name: Inyectar URL y token
         run: |
-          cp zap-plan-chofer.yml zap-plan-chofer.run.yml
-          cp openapi.yml openapi.run.yml
+          cp security-owasp/zap-plan-chofer.yml security-owasp/zap-plan-chofer.run.yml
+          cp security-owasp/openapi.yml          security-owasp/openapi.run.yml
 
           sed -i "s@API_URL_PLACEHOLDER@${{ secrets.API_URL_TESTING }}@g" \
-            zap-plan-chofer.run.yml openapi.run.yml
+            security-owasp/zap-plan-chofer.run.yml \
+            security-owasp/openapi.run.yml
 
           sed -i "s@ZAP_TOKEN_PLACEHOLDER@${{ needs.get-tokens.outputs.token_chofer }}@g" \
-            zap-plan-chofer.run.yml
+            security-owasp/zap-plan-chofer.run.yml
 
       - name: Verificar YAML válido
         run: |
           python3 -c "
           import yaml, sys
-          for f in ['zap-plan-chofer.run.yml', 'openapi.run.yml']:
+          for f in ['security-owasp/zap-plan-chofer.run.yml', 'security-owasp/openapi.run.yml']:
               try:
                   yaml.safe_load(open(f))
                   print(f'✅ {f} OK')
@@ -353,14 +357,11 @@ jobs:
         run: |
           docker run --rm \
             --network host \
-            -v "${{ github.workspace }}:/zap/wrk/:rw" \
+            -v "${{ github.workspace }}/security-owasp:/zap/wrk/:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
             bash -c "
               set -e
-              mkdir -p /home/zap/.ZAP/policies
-              cp /zap/wrk/nanutech-scan-policy.xml /home/zap/.ZAP/policies/
-
-              echo '--- Instalando y actualizando addons ---'
+              echo '--- Instalando addons ---'
               zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
               zap.sh -cmd -addoninstall replacer       2>/dev/null || true
@@ -370,14 +371,14 @@ jobs:
             "
         continue-on-error: true
 
-      - name: Verificar reporte generado
+      - name: Verificar reportes generados
         run: |
-          if ls reports/reporte-CHOFER* 1>/dev/null 2>&1; then
-            echo "✅ Reportes generados:"
-            ls -lh reports/reporte-CHOFER*
+          if ls security-owasp/reports/reporte-CHOFER* 1>/dev/null 2>&1; then
+            echo "✅ Reportes CHOFER:"
+            ls -lh security-owasp/reports/reporte-CHOFER*
           else
-            echo "⚠️ No se encontraron reportes. Contenido de reports/:"
-            ls -la reports/ || echo "(vacío)"
+            echo "⚠️ No se encontraron reportes."
+            ls -la security-owasp/reports/ || echo "(vacío)"
           fi
 
       - name: Subir reporte CHOFER
@@ -385,12 +386,12 @@ jobs:
         if: always()
         with:
           name: reporte-CHOFER
-          path: reports/reporte-CHOFER*
+          path: security-owasp/reports/reporte-CHOFER*
           retention-days: 30
 
-  # =========================================================================
+  # ===========================================================================
   # JOB 5: BROKEN ACCESS CONTROL CON CURL
-  # =========================================================================
+  # ===========================================================================
   access-control-tests:
     name: 🔒 Broken Access Control
     runs-on: ubuntu-latest
@@ -404,7 +405,7 @@ jobs:
         run: sudo apt-get install -y jq bc
 
       - name: Crear carpeta de reportes
-        run: mkdir -p reports
+        run: mkdir -p security-owasp/reports
 
       - name: Ejecutar pruebas de control de acceso
         run: |
@@ -415,18 +416,19 @@ jobs:
           TOKEN_ADMIN:   ${{ needs.get-tokens.outputs.token_admin }}
           TOKEN_GERENTE: ${{ needs.get-tokens.outputs.token_gerente }}
           TOKEN_CHOFER:  ${{ needs.get-tokens.outputs.token_chofer }}
+          REPORT_DIR:    security-owasp/reports
 
       - name: Subir reporte access control
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: reporte-access-control
-          path: reports/access-control-report.json
+          path: security-owasp/reports/access-control-report.json
           retention-days: 30
 
-  # =========================================================================
+  # ===========================================================================
   # JOB 6: RESUMEN FINAL EN GITHUB UI
-  # =========================================================================
+  # ===========================================================================
   summary:
     name: 📊 Resumen
     runs-on: ubuntu-latest
@@ -447,9 +449,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Estado |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 🛡️ ZAP ADMIN   | ${{ needs.scan-admin.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🛡️ ZAP GERENTE | ${{ needs.scan-gerente.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🛡️ ZAP CHOFER  | ${{ needs.scan-chofer.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛡️ ZAP ADMIN      | ${{ needs.scan-admin.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛡️ ZAP GERENTE    | ${{ needs.scan-gerente.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛡️ ZAP CHOFER     | ${{ needs.scan-chofer.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🔒 Access Control | ${{ needs.access-control-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -458,15 +460,16 @@ jobs:
             TOTAL=$(jq '.resumen.total_pruebas' "$JSON")
             PASS=$(jq  '.resumen.pasadas'       "$JSON")
             FAIL=$(jq  '.resumen.fallidas'       "$JSON")
+            CRIT=$(jq  '.resumen.fail_critico'   "$JSON")
 
-            echo "### 🔒 Access Control: $PASS/$TOTAL pasadas — $FAIL fallidas" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔒 Access Control: $PASS/$TOTAL pasadas — $FAIL fallidas ($CRIT críticos)" >> $GITHUB_STEP_SUMMARY
 
             CRITICOS=$(jq -r '
               .resultados | to_entries[] |
               .key as $rol |
               .value[] |
               select(.resultado == "FAIL_CRITICO") |
-              "| \($rol) | \(.endpoint) | \(.http_status) | 🚨 Recibió 200, debía ser 403 |"
+              "| \($rol) | \(.method) \(.endpoint) | \(.http_status) | 🚨 Recibió \(.http_status), debía ser 403 |"
             ' "$JSON" 2>/dev/null || echo "")
 
             if [ -n "$CRITICOS" ]; then
@@ -478,11 +481,29 @@ jobs:
             else
               echo "✅ No se detectó Broken Access Control" >> $GITHUB_STEP_SUMMARY
             fi
+
+            WARNS=$(jq -r '
+              .resultados | to_entries[] |
+              .key as $rol |
+              .value[] |
+              select(.resultado == "FAIL_MENOR") |
+              "| \($rol) | \(.method) \(.endpoint) | \(.http_status) | \(.nota) |"
+            ' "$JSON" 2>/dev/null || echo "")
+
+            if [ -n "$WARNS" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### ⚠️ Warnings (posibles falsos negativos)" >> $GITHUB_STEP_SUMMARY
+              echo "| Rol | Endpoint | HTTP Real | Nota |" >> $GITHUB_STEP_SUMMARY
+              echo "|-----|----------|-----------|------|" >> $GITHUB_STEP_SUMMARY
+              echo "$WARNS" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⚠️ No se encontró el reporte de access control" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📁 Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- \`reporte-ADMIN\` → HTML ZAP con hallazgos (XSS/SQLi/CORS)" >> $GITHUB_STEP_SUMMARY
-          echo "- \`reporte-GERENTE\` → HTML ZAP con hallazgos" >> $GITHUB_STEP_SUMMARY
-          echo "- \`reporte-CHOFER\` → HTML ZAP con hallazgos" >> $GITHUB_STEP_SUMMARY
-          echo "- \`reporte-access-control\` → JSON con pruebas rol→endpoint" >> $GITHUB_STEP_SUMMARY
+          echo "### 📁 Artifacts generados" >> $GITHUB_STEP_SUMMARY
+          echo "- \`reporte-ADMIN\`         → HTML + JSON ZAP (XSS/SQLi/CORS/Headers)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`reporte-GERENTE\`        → HTML + JSON ZAP" >> $GITHUB_STEP_SUMMARY
+          echo "- \`reporte-CHOFER\`         → HTML + JSON ZAP" >> $GITHUB_STEP_SUMMARY
+          echo "- \`reporte-access-control\` → JSON con matriz completa rol→endpoint" >> $GITHUB_STEP_SUMMARY
