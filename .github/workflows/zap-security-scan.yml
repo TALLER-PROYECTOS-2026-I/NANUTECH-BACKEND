@@ -19,7 +19,7 @@ name: 🔐 Nanutech Security Scan - OWASP ZAP
 #   ZAP NO interpola variables de entorno dentro del YAML del plan.
 #   Los planes tienen placeholders que sed reemplaza antes de que ZAP los lea:
 #     API_URL_PLACEHOLDER   → secrets.API_URL_TESTING
-#     ZAP_TOKEN_PLACEHOLDER → Bearer token real del rol
+#     ZAP_TOKEN_PLACEHOLDER → Bearer token real del ro
 #
 # Flujo:
 #   1. get-tokens  → POST /auth/login ×3 → guarda tokens como outputs
