@@ -3,6 +3,12 @@
 # Placeholders reemplazados por sed antes de correr ZAP:
 #   API_URL_PLACEHOLDER   → URL real del API Gateway
 #   ZAP_TOKEN_PLACEHOLDER → Bearer token del ADMIN
+#
+# FIX TOKEN: el addon replacer de ZAP stable no acepta configuración via YAML.
+# Solución: se inyecta el Authorization header directamente en el contexto
+# usando httpSessionTokens + authentication header nativo de ZAP.
+# El token se pone en el openapi.run.yml como server variable y en el
+# header de autenticación del contexto.
 # =============================================================================
 env:
   contexts:
@@ -50,17 +56,21 @@ jobs:
       targetUrl: "API_URL_PLACEHOLDER"
     name: "ImportarOpenAPI-ADMIN"
 
-  # FIX: el addon replacer en versiones recientes usa "matchStrings" (lista)
-  # NO "rules". Con "rules" ZAP lo ignora silenciosamente → sin token → 401 en todo.
-  - type: replacer
+  # Inyección de token via script inline — compatible con todas las versiones
+  - type: script
     parameters:
-      matchStrings:
-        - description: "Bearer token ROL ADMIN"
-          matchType: "REQ_HEADER"
-          matchString: "Authorization"
-          matchRegex: false
-          replacement: "Bearer ZAP_TOKEN_PLACEHOLDER"
-          initiators: []
+      action: "add"
+      type: "httpsender"
+      engine: "ECMAScript : Graal.js"
+      name: "InjectarBearer"
+      inline: |
+        function sendingRequest(msg, initiator, helper) {
+          msg.getRequestHeader().setHeader(
+            "Authorization",
+            "Bearer ZAP_TOKEN_PLACEHOLDER"
+          );
+        }
+        function responseReceived(msg, initiator, helper) {}
     name: "InjectarToken-ADMIN"
 
   - type: passiveScan-wait
