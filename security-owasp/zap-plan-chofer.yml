@@ -1,12 +1,8 @@
 # =============================================================================
 # zap-plan-chofer.yml — ROL CHOFER
-#
-# Placeholders reemplazados por sed en el workflow:
+# Placeholders reemplazados por sed antes de correr ZAP:
 #   API_URL_PLACEHOLDER   → URL real del API Gateway
 #   ZAP_TOKEN_PLACEHOLDER → Bearer token del CHOFER
-#
-# Cubre: XSS, SQLi, CORS, Path Traversal, Security Headers
-# Usa Default Policy de ZAP (no requiere XML externo)
 # =============================================================================
 env:
   contexts:
@@ -35,7 +31,6 @@ env:
     progressToStdout: true
 
 jobs:
-  # ── 1. Importar spec OpenAPI ──────────────────────────────────────────────
   - type: openapi
     parameters:
       apiFile: "/zap/wrk/openapi.run.yml"
@@ -43,12 +38,10 @@ jobs:
       targetUrl: "API_URL_PLACEHOLDER"
     name: "ImportarOpenAPI-CHOFER"
 
-  # ── 2. Inyectar Bearer token ──────────────────────────────────────────────
-  #    FIX: removido "contexts" del report (parámetro no existe en ZAP)
-  #    FIX: removido defaultPolicy:false + policy externo (no hay XML)
+  # FIX: matchStrings (lista) es la sintaxis correcta para esta versión del addon
   - type: replacer
     parameters:
-      rules:
+      matchStrings:
         - description: "Bearer token ROL CHOFER"
           matchType: "REQ_HEADER"
           matchString: "Authorization"
@@ -57,16 +50,11 @@ jobs:
           initiators: []
     name: "InjectarToken-CHOFER"
 
-  # ── 3. Escaneo pasivo ─────────────────────────────────────────────────────
   - type: passiveScan-wait
     parameters:
       maxDuration: 5
     name: "PassiveScan-CHOFER"
 
-  # ── 4. Escaneo activo — Default Policy ────────────────────────────────────
-  #    SQLi en: conductorId (path param), jornada_id (body)
-  #    XSS en: observaciones (finalizar jornada)
-  #    Path Traversal en: /jornadas/actual/{conductorId}
   - type: activeScan
     parameters:
       context: "CHOFER"
@@ -76,8 +64,6 @@ jobs:
       addQueryParam: true
     name: "ActiveScan-CHOFER"
 
-  # ── 5. Reporte HTML ───────────────────────────────────────────────────────
-  #    FIX: removido "contexts" del bloque report (causa error silencioso)
   - type: report
     parameters:
       template: "traditional-html"
@@ -93,7 +79,6 @@ jobs:
         CORS, Headers HTTP.
     name: "ReporteHTML-CHOFER"
 
-  # ── 6. Reporte JSON ───────────────────────────────────────────────────────
   - type: report
     parameters:
       template: "traditional-json"
