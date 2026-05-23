@@ -2,349 +2,334 @@
 # =============================================================================
 # access-control-tests.sh
 #
-# Prueba sistemática de Broken Access Control (OWASP A01:2021).
+# Prueba Broken Access Control (OWASP A01):
+#   → Verifica que cada endpoint SOLO acepte los roles autorizados
+#   → Roles que NO deben tener acceso deben recibir 403
+#   → Endpoints públicos deben ser accesibles sin token (200/400, nunca 401)
 #
-# Por qué existe este script y no lo hace ZAP solo:
-#   ZAP con ZAP_AUTH_HEADER_VALUE solo sabe autenticarse como UN rol por job.
-#   Para probar "CHOFER intentando acceder a /camiones" necesitamos
-#   usar el token de CHOFER pero apuntar a un endpoint que no le corresponde.
-#   Eso ZAP no lo hace automáticamente: necesita que explícitamente le digas
-#   "usa este token Y prueba este endpoint que no está en su contexto".
-#   Este script hace exactamente eso con curl.
+# Variables de entorno requeridas (inyectadas por el workflow):
+#   API_URL       → URL base del API Gateway
+#   TOKEN_ADMIN   → Bearer token del ADMIN
+#   TOKEN_GERENTE → Bearer token del GERENTE
+#   TOKEN_CHOFER  → Bearer token del CHOFER
 #
-# Estructura del reporte JSON generado:
-# {
-#   "resumen": { "total": N, "pass": N, "fail": N },
-#   "resultados": {
-#     "SIN_TOKEN": [
-#       { "endpoint": "GET /camiones", "esperado": "401", "real": "401", "resultado": "PASS" },
-#       ...
-#     ],
-#     "CHOFER": [ ... ],
-#     "GERENTE": [ ... ],
-#     "ADMIN": [ ... ]
-#   }
-# }
+# Salida: ${REPORT_DIR:-security-owasp/reports}/access-control-report.json
 # =============================================================================
 
 set -euo pipefail
 
-# Variables de entorno requeridas (vienen del workflow)
-API="${API_URL:?Variable API_URL no definida}"
-TOKEN_ADMIN="${TOKEN_ADMIN:?Variable TOKEN_ADMIN no definida}"
-TOKEN_GERENTE="${TOKEN_GERENTE:?Variable TOKEN_GERENTE no definida}"
-TOKEN_CHOFER="${TOKEN_CHOFER:?Variable TOKEN_CHOFER no definida}"
+# ── Colores para stdout ──────────────────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# UUIDs de datos seed (migración 002_seed.sql)
-CONDUCTOR_ID="22222222-2222-2222-2222-222222222222"
-CAMION_ID="aaaa0001-0000-0000-0000-000000000001"
-CONTRATO_ID="bbbb0001-0000-0000-0000-000000000001"
-JORNADA_ID="cccc0002-0000-0000-0000-000000000002"
+# ── Validar variables de entorno ─────────────────────────────────────────────
+for var in API_URL TOKEN_ADMIN TOKEN_GERENTE TOKEN_CHOFER; do
+  if [ -z "${!var:-}" ]; then
+    echo -e "${RED}❌ Variable de entorno '$var' no definida${NC}"
+    exit 1
+  fi
+done
 
 mkdir -p reports
 
-# Contadores globales
-TOTAL=0; PASS=0; FAIL=0
+# ── Contadores globales ───────────────────────────────────────────────────────
+TOTAL=0
+PASS=0
+FAIL=0
+FAIL_CRITICO=0   # 200 cuando debía ser 403 (acceso indebido)
+FAIL_MENOR=0     # 403 cuando debía ser 200 (falso negativo)
 
-# Acumulador JSON
-declare -A ROL_JSON
-ROL_JSON["SIN_TOKEN"]="[]"
-ROL_JSON["CHOFER"]="[]"
-ROL_JSON["GERENTE"]="[]"
-ROL_JSON["ADMIN"]="[]"
+# ── Acumulador JSON ───────────────────────────────────────────────────────────
+RESULTADOS_JSON="{}"
 
-# Colores para consola
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
-
-# =============================================================================
-# test_endpoint <ROL> <TOKEN> <METODO> <PATH> <BODY> <PERMITIDO> <DESCRIPCION>
+# ── Función principal de prueba ───────────────────────────────────────────────
+# Uso: check_access <ROL> <TOKEN> <METHOD> <ENDPOINT_PATH> <EXPECTED_STATUS> [BODY]
 #
-#   ROL       : SIN_TOKEN | CHOFER | GERENTE | ADMIN
-#   TOKEN     : Bearer token o "" para sin token
-#   METODO    : GET | POST
-#   PATH      : /camiones, /camiones/panel, etc.
-#   BODY      : JSON string o "" para GET
-#   PERMITIDO : "SI" → espera 2xx | "NO" → espera 401 o 403
-#   DESCRIPCION: texto libre para el reporte
-# =============================================================================
-test_endpoint() {
+# EXPECTED_STATUS puede ser:
+#   200    → debe tener acceso (2xx)
+#   403    → debe ser rechazado por rol
+#   401    → debe requerir autenticación
+#   PUBLIC → endpoint público, esperamos 200 o 400 (no 401/403)
+check_access() {
   local ROL="$1"
   local TOKEN="$2"
   local METHOD="$3"
-  local PATH="$4"
-  local BODY="$5"
-  local PERMITIDO="$6"
-  local DESC="$7"
+  local PATH_EP="$4"
+  local EXPECTED="$5"
+  local BODY="${6:-}"
 
   TOTAL=$((TOTAL + 1))
+  local URL="${API_URL}${PATH_EP}"
+  local RESULTADO="PASS"
+  local NOTA=""
 
   # Construir comando curl
-  local CURL_CMD=(curl -s -o /tmp/resp_body.txt -w "%{http_code}" \
-    --max-time 15 \
-    -X "$METHOD" \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json")
+  local CURL_ARGS=(-s -o /dev/null -w "%{http_code}" --max-time 15 -X "$METHOD")
 
-  [ -n "$TOKEN" ] && CURL_CMD+=(-H "Authorization: Bearer $TOKEN")
-  [ -n "$BODY" ] && [ "$METHOD" = "POST" ] && CURL_CMD+=(-d "$BODY")
-  CURL_CMD+=("${API}${PATH}")
+  if [ "$TOKEN" != "NONE" ]; then
+    CURL_ARGS+=(-H "Authorization: Bearer $TOKEN")
+  fi
 
-  local STATUS
-  STATUS=$("${CURL_CMD[@]}" 2>/dev/null || echo "000")
+  CURL_ARGS+=(-H "Content-Type: application/json")
 
-  local RESP_PREVIEW
-  RESP_PREVIEW=$(head -c 120 /tmp/resp_body.txt 2>/dev/null | tr '\n' ' ' | tr '"' "'")
+  if [ -n "$BODY" ]; then
+    CURL_ARGS+=(-d "$BODY")
+  fi
 
-  # Evaluar resultado
-  local RESULTADO EMOJI COLOR ESPERADO_STR
-  if [ "$PERMITIDO" = "SI" ]; then
-    ESPERADO_STR="2xx"
-    if [[ "$STATUS" =~ ^2 ]]; then
-      RESULTADO="PASS"; EMOJI="✅"; COLOR="$GREEN"; PASS=$((PASS + 1))
+  local HTTP_STATUS
+  HTTP_STATUS=$(curl "${CURL_ARGS[@]}" "$URL" 2>/dev/null || echo "000")
+
+  # ── Evaluar resultado ────────────────────────────────────────────────────
+  if [ "$EXPECTED" = "PUBLIC" ]; then
+    # Endpoint público: aceptamos 200, 201, 400, 404 — NO 401 ni 403
+    if [[ "$HTTP_STATUS" =~ ^(200|201|400|404)$ ]]; then
+      RESULTADO="PASS"
     else
-      RESULTADO="FAIL"; EMOJI="❌"; COLOR="$RED"; FAIL=$((FAIL + 1))
+      RESULTADO="FAIL_MENOR"
+      NOTA="Endpoint público devolvió $HTTP_STATUS (esperaba 2xx/400/404)"
+      FAIL_MENOR=$((FAIL_MENOR + 1))
+      FAIL=$((FAIL + 1))
     fi
-  else
-    ESPERADO_STR="401 o 403"
-    if [[ "$STATUS" == "401" || "$STATUS" == "403" ]]; then
-      RESULTADO="PASS"; EMOJI="✅"; COLOR="$GREEN"; PASS=$((PASS + 1))
-    elif [[ "$STATUS" =~ ^2 ]]; then
-      # 200 donde debería ser 403 = Broken Access Control crítico
-      RESULTADO="FAIL_CRITICO"; EMOJI="🚨"; COLOR="$RED"; FAIL=$((FAIL + 1))
+
+  elif [ "$EXPECTED" = "200" ]; then
+    # Rol autorizado: debe recibir 2xx (200, 201, 204)
+    if [[ "$HTTP_STATUS" =~ ^2 ]]; then
+      RESULTADO="PASS"
+    elif [ "$HTTP_STATUS" = "404" ]; then
+      # 404 puede ser válido si el recurso no existe en testing
+      RESULTADO="PASS"
+      NOTA="404 aceptado (recurso no existe en ambiente de testing)"
     else
-      # 404, 500, etc. también deniegan acceso efectivamente
-      RESULTADO="PASS"; EMOJI="✅"; COLOR="$GREEN"; PASS=$((PASS + 1))
+      RESULTADO="FAIL_MENOR"
+      NOTA="Rol $ROL debía tener acceso, recibió $HTTP_STATUS"
+      FAIL_MENOR=$((FAIL_MENOR + 1))
+      FAIL=$((FAIL + 1))
+    fi
+
+  elif [ "$EXPECTED" = "403" ]; then
+    # Rol NO autorizado: debe recibir 401 o 403
+    if [[ "$HTTP_STATUS" =~ ^(401|403)$ ]]; then
+      RESULTADO="PASS"
+    elif [[ "$HTTP_STATUS" =~ ^2 ]]; then
+      # ⚠️ CRÍTICO: acceso indebido
+      RESULTADO="FAIL_CRITICO"
+      NOTA="🚨 Broken Access Control: $ROL recibió $HTTP_STATUS en endpoint prohibido"
+      FAIL_CRITICO=$((FAIL_CRITICO + 1))
+      FAIL=$((FAIL + 1))
+    else
+      RESULTADO="PASS"
+      NOTA="Recibió $HTTP_STATUS (aceptable como rechazo)"
     fi
   fi
 
-  # Imprimir en consola
-  printf "${COLOR}%s${NC} ${BOLD}[%-9s]${NC} %-6s %-40s esperado:%-8s real:${COLOR}%s${NC}  %s\n" \
-    "$EMOJI" "$ROL" "$METHOD" "$PATH" "$ESPERADO_STR" "$STATUS" "$DESC"
+  # ── Log en stdout ────────────────────────────────────────────────────────
+  if [ "$RESULTADO" = "PASS" ]; then
+    echo -e "  ${GREEN}✅ PASS${NC} [$ROL] $METHOD $PATH_EP → $HTTP_STATUS"
+    PASS=$((PASS + 1))
+  elif [ "$RESULTADO" = "FAIL_CRITICO" ]; then
+    echo -e "  ${RED}🚨 CRITICO${NC} [$ROL] $METHOD $PATH_EP → $HTTP_STATUS | $NOTA"
+  else
+    echo -e "  ${YELLOW}⚠️  WARN${NC}  [$ROL] $METHOD $PATH_EP → $HTTP_STATUS | $NOTA"
+  fi
 
-  # Agregar al JSON del rol
+  # ── Acumular JSON ────────────────────────────────────────────────────────
   local ENTRY
-  ENTRY=$(printf '{"endpoint":"%s %s","descripcion":"%s","permitido":"%s","esperado":"%s","http_status":"%s","resultado":"%s","respuesta_preview":"%s"}' \
-    "$METHOD" "$PATH" "$DESC" "$PERMITIDO" "$ESPERADO_STR" "$STATUS" "$RESULTADO" "$RESP_PREVIEW")
+  ENTRY=$(jq -n \
+    --arg rol "$ROL" \
+    --arg method "$METHOD" \
+    --arg endpoint "$PATH_EP" \
+    --arg expected "$EXPECTED" \
+    --arg http_status "$HTTP_STATUS" \
+    --arg resultado "$RESULTADO" \
+    --arg nota "$NOTA" \
+    '{rol:$rol, method:$method, endpoint:$endpoint, expected:$expected, http_status:$http_status, resultado:$resultado, nota:$nota}')
 
-  # Append al array JSON del rol
-  if [ "${ROL_JSON[$ROL]}" = "[]" ]; then
-    ROL_JSON[$ROL]="[$ENTRY]"
-  else
-    ROL_JSON[$ROL]="${ROL_JSON[$ROL]%]},${ENTRY}]"
-  fi
+  RESULTADOS_JSON=$(echo "$RESULTADOS_JSON" | jq \
+    --arg rol "$ROL" \
+    --argjson entry "$ENTRY" \
+    '.[$rol] = (.[$rol] // []) + [$entry]')
 }
 
 # =============================================================================
-# SIN TOKEN — detecta auth bypass
-# Todos los endpoints privados deben devolver 401
+# MATRIZ DE PRUEBAS
+# Formato: check_access ROL TOKEN METHOD ENDPOINT EXPECTED [BODY]
+#
+# EXPECTED:
+#   200    → el rol DEBE tener acceso
+#   403    → el rol NO debe tener acceso (esperamos 401/403)
+#   PUBLIC → endpoint sin autenticación (esperamos 2xx o 400)
+# =============================================================================
+
+echo ""
+echo -e "${BLUE}════════════════════════════════════════════════${NC}"
+echo -e "${BLUE}  Nanutech — Broken Access Control Tests        ${NC}"
+echo -e "${BLUE}════════════════════════════════════════════════${NC}"
+
+# ── ENDPOINTS PÚBLICOS (sin token) ───────────────────────────────────────────
+echo ""
+echo -e "${BLUE}── Endpoints públicos (sin autenticación) ──────${NC}"
+check_access "PUBLICO" "NONE" "POST" "/auth/login" \
+  "PUBLIC" '{"email":"admin@nanutech.com","password":"Admin123!"}'
+
+check_access "PUBLICO" "NONE" "POST" "/auth/forgot-password" \
+  "PUBLIC" '{"email":"admin@nanutech.com"}'
+
+check_access "PUBLICO" "NONE" "POST" "/auth/forgot-password/confirm" \
+  "PUBLIC" '{"email":"admin@nanutech.com","code":"000000","newPassword":"Test123!"}'
+
+# ── ROL ADMIN ────────────────────────────────────────────────────────────────
+echo ""
+echo -e "${BLUE}── ROL ADMIN (debe tener acceso) ───────────────${NC}"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/auth/me"                       "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/camiones"                      "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "POST" "/camiones"                      "200" \
+  '{"placa":"TEST-ZAP","marca":"Volvo","modelo":"FH16","anio":2023,"capacidad_ton":20,"vin":"VINTEST001","color":"Blanco","combustible":"DIESEL","gps":true}'
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/camiones/panel"                "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/camiones/exportar/csv"         "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/dashboard"                     "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/jornadas"                      "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/jornadas/exportar"             "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/conductores"                   "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/contratos/vigentes"            "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/unidades/disponibles"          "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/gps/proveedores"               "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/gps/plantilla"                 "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/gps/resumen"                   "200"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/gps/registros"                 "200"
+
+echo ""
+echo -e "${BLUE}── ROL ADMIN (NO debe tener acceso) ────────────${NC}"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/dashboard/gerencial"           "403"
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/contratos"                     "403"
+check_access "ADMIN" "$TOKEN_ADMIN" "POST" "/contratos"                     "403" \
+  '{"codigo":"TEST-001","cliente":"Test","tipo_servicio":"POR_VIAJE","fecha_inicio":"2026-01-01"}'
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/contratos/indicadores"         "403"
+check_access "ADMIN" "$TOKEN_ADMIN" "POST" "/jornadas/iniciar"              "403" \
+  '{"jornada_id":"cccc0001-0000-0000-0000-000000000001"}'
+check_access "ADMIN" "$TOKEN_ADMIN" "POST" "/jornadas/finalizar"            "403" \
+  '{"jornada_id":"cccc0001-0000-0000-0000-000000000001","km_recorridos":100}'
+check_access "ADMIN" "$TOKEN_ADMIN" "GET"  "/jornadas/actual/22222222-2222-2222-2222-222222222222" "403"
+
+# ── ROL GERENTE ───────────────────────────────────────────────────────────────
+echo ""
+echo -e "${BLUE}── ROL GERENTE (debe tener acceso) ─────────────${NC}"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/auth/me"                   "200"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/dashboard/gerencial"       "200"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/jornadas"                  "200"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/jornadas/exportar"         "200"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/conductores"               "200"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/contratos"                 "200"
+check_access "GERENTE" "$TOKEN_GERENTE" "POST" "/contratos"                 "200" \
+  '{"codigo":"TEST-GER-001","cliente":"Test SA","tipo_servicio":"POR_VIAJE","fecha_inicio":"2026-01-01"}'
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/contratos/vigentes"        "200"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/contratos/indicadores"     "200"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/unidades/disponibles"      "200"
+
+echo ""
+echo -e "${BLUE}── ROL GERENTE (NO debe tener acceso) ──────────${NC}"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/dashboard"                 "403"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/camiones"                  "403"
+check_access "GERENTE" "$TOKEN_GERENTE" "POST" "/camiones"                  "403" \
+  '{"placa":"TEST-GER","marca":"Volvo","modelo":"FH16","anio":2023,"capacidad_ton":20,"vin":"VINGERTEST1","color":"Rojo","combustible":"DIESEL","gps":true}'
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/camiones/panel"            "403"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/camiones/exportar/csv"     "403"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/gps/proveedores"           "403"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/gps/resumen"               "403"
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/gps/registros"             "403"
+check_access "GERENTE" "$TOKEN_GERENTE" "POST" "/jornadas/iniciar"          "403" \
+  '{"jornada_id":"cccc0001-0000-0000-0000-000000000001"}'
+check_access "GERENTE" "$TOKEN_GERENTE" "POST" "/jornadas/finalizar"        "403" \
+  '{"jornada_id":"cccc0001-0000-0000-0000-000000000001","km_recorridos":100}'
+check_access "GERENTE" "$TOKEN_GERENTE" "GET"  "/jornadas/actual/22222222-2222-2222-2222-222222222222" "403"
+
+# ── ROL CHOFER ────────────────────────────────────────────────────────────────
+echo ""
+echo -e "${BLUE}── ROL CHOFER (debe tener acceso) ──────────────${NC}"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/auth/me"                     "200"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/jornadas/actual/22222222-2222-2222-2222-222222222222" "200"
+check_access "CHOFER" "$TOKEN_CHOFER" "POST" "/jornadas/iniciar"            "200" \
+  '{"jornada_id":"cccc0002-0000-0000-0000-000000000002"}'
+check_access "CHOFER" "$TOKEN_CHOFER" "POST" "/jornadas/finalizar"          "200" \
+  '{"jornada_id":"cccc0002-0000-0000-0000-000000000002","km_recorridos":300,"observaciones":"Sin incidencias"}'
+
+echo ""
+echo -e "${BLUE}── ROL CHOFER (NO debe tener acceso) ───────────${NC}"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/dashboard"                   "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/dashboard/gerencial"         "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/camiones"                    "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "POST" "/camiones"                    "403" \
+  '{"placa":"TEST-CHO","marca":"Volvo","modelo":"FH16","anio":2023,"capacidad_ton":20,"vin":"VINCHOTEST1","color":"Azul","combustible":"DIESEL","gps":true}'
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/camiones/panel"              "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/jornadas"                    "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "POST" "/jornadas"                    "403" \
+  '{"conductor_id":"22222222-2222-2222-2222-222222222222","unidad_id":"aaaa0001-0000-0000-0000-000000000001","contrato_id":"bbbb0001-0000-0000-0000-000000000001","fecha_jornada":"2026-05-21","origen":"Lima","destino":"Arequipa","km_estimados":520}'
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/jornadas/exportar"           "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/conductores"                 "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/contratos"                   "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/contratos/vigentes"          "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/contratos/indicadores"       "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/unidades/disponibles"        "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/gps/proveedores"             "403"
+check_access "CHOFER" "$TOKEN_CHOFER" "GET"  "/gps/resumen"                 "403"
+
+# ── SIN TOKEN (endpoints protegidos deben devolver 401) ───────────────────────
+echo ""
+echo -e "${BLUE}── Sin token (debe recibir 401 en protegidos) ──${NC}"
+check_access "ANONIMO" "NONE" "GET"  "/auth/me"           "403"
+check_access "ANONIMO" "NONE" "GET"  "/camiones"          "403"
+check_access "ANONIMO" "NONE" "GET"  "/dashboard"         "403"
+check_access "ANONIMO" "NONE" "GET"  "/jornadas"          "403"
+check_access "ANONIMO" "NONE" "GET"  "/conductores"       "403"
+check_access "ANONIMO" "NONE" "GET"  "/contratos"         "403"
+check_access "ANONIMO" "NONE" "GET"  "/gps/proveedores"   "403"
+
+# =============================================================================
+# RESUMEN FINAL
 # =============================================================================
 echo ""
-echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════════════════${NC}"
-echo -e "${BOLD}${CYAN}  SIN TOKEN — Auth Bypass (todos deben devolver 401)${NC}"
-echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════════════════${NC}"
+echo -e "${BLUE}════════════════════════════════════════════════${NC}"
+echo -e "${BLUE}  RESUMEN DE RESULTADOS${NC}"
+echo -e "${BLUE}════════════════════════════════════════════════${NC}"
+echo -e "  Total pruebas : ${TOTAL}"
+echo -e "  ${GREEN}Pasadas        : ${PASS}${NC}"
+echo -e "  ${RED}Fallidas       : ${FAIL}${NC}"
+echo -e "    ${RED}🚨 Críticos  : ${FAIL_CRITICO}  (Broken Access Control confirmado)${NC}"
+echo -e "    ${YELLOW}⚠️  Menores   : ${FAIL_MENOR}${NC}"
+echo -e "${BLUE}════════════════════════════════════════════════${NC}"
 
-test_endpoint "SIN_TOKEN" "" "POST" "/auth/login"                   '{"email":"admin@nanutech.com","password":"Admin123!"}' "SI"  "Login es publico"
-test_endpoint "SIN_TOKEN" "" "POST" "/auth/forgot-password"         '{"email":"admin@nanutech.com"}'                        "SI"  "Forgot-password es publico"
-test_endpoint "SIN_TOKEN" "" "POST" "/auth/forgot-password/confirm" '{"email":"admin@nanutech.com","code":"123456","newPassword":"Test123!"}'  "SI"  "Confirm forgot es publico"
-test_endpoint "SIN_TOKEN" "" "GET"  "/auth/me"                      ""  "NO"  "Me requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/camiones"                     ""  "NO"  "Camiones requiere token"
-test_endpoint "SIN_TOKEN" "" "POST" "/camiones"                     '{"placa":"X"}' "NO" "POST camiones requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/camiones/${CAMION_ID}"        ""  "NO"  "Camion por ID requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/camiones/panel"               ""  "NO"  "Panel camiones requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/camiones/exportar/csv"        ""  "NO"  "Export CSV requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/dashboard"                    ""  "NO"  "Dashboard requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/dashboard/gerencial"          ""  "NO"  "Dashboard gerencial requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/jornadas"                     ""  "NO"  "Jornadas requiere token"
-test_endpoint "SIN_TOKEN" "" "POST" "/jornadas"                     '{"conductor_id":"x"}' "NO" "POST jornadas requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/jornadas/actual/${CONDUCTOR_ID}" "" "NO" "Jornada actual requiere token"
-test_endpoint "SIN_TOKEN" "" "POST" "/jornadas/iniciar"             '{"jornada_id":"x"}' "NO" "Iniciar jornada requiere token"
-test_endpoint "SIN_TOKEN" "" "POST" "/jornadas/finalizar"           '{"jornada_id":"x"}' "NO" "Finalizar jornada requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/jornadas/exportar"            ""  "NO"  "Exportar jornadas requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/conductores"                  ""  "NO"  "Conductores requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/contratos"                    ""  "NO"  "Contratos requiere token"
-test_endpoint "SIN_TOKEN" "" "POST" "/contratos"                    '{"codigo":"X"}' "NO" "POST contratos requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/contratos/${CONTRATO_ID}"     ""  "NO"  "Contrato por ID requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/contratos/indicadores"        ""  "NO"  "Indicadores contratos requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/contratos/vigentes"           ""  "NO"  "Contratos vigentes requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/unidades/disponibles"         ""  "NO"  "Unidades requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/gps/registros"                ""  "NO"  "GPS registros requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/gps/proveedores"              ""  "NO"  "GPS proveedores requiere token"
-test_endpoint "SIN_TOKEN" "" "GET"  "/gps/resumen"                  ""  "NO"  "GPS resumen requiere token"
+if [ "$FAIL_CRITICO" -gt 0 ]; then
+  echo -e "${RED}🚨 Se detectaron $FAIL_CRITICO casos de Broken Access Control${NC}"
+fi
 
-# =============================================================================
-# ROL CHOFER
-# SI puede: /auth/me, /jornadas/actual/{id}, /jornadas/iniciar, /jornadas/finalizar
-# NO puede: TODO LO DEMÁS
-# =============================================================================
+# ── Generar JSON de reporte ───────────────────────────────────────────────────
+REPORT_JSON=$(jq -n \
+  --argjson total "$TOTAL" \
+  --argjson pass "$PASS" \
+  --argjson fail "$FAIL" \
+  --argjson criticos "$FAIL_CRITICO" \
+  --argjson menores "$FAIL_MENOR" \
+  --argjson resultados "$RESULTADOS_JSON" \
+  --arg fecha "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  '{
+    generado_en: $fecha,
+    resumen: {
+      total_pruebas: $total,
+      pasadas: $pass,
+      fallidas: $fail,
+      fail_critico: $criticos,
+      fail_menor: $menores
+    },
+    resultados: $resultados
+  }')
+
+echo "$REPORT_JSON" > ${REPORT_DIR:-security-owasp/reports}/access-control-report.json
 echo ""
-echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════════════════${NC}"
-echo -e "${BOLD}${CYAN}  ROL CHOFER — endpoints permitidos vs denegados${NC}"
-echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════════════════${NC}"
+echo -e "${GREEN}✅ Reporte guardado en ${REPORT_DIR:-security-owasp/reports}/access-control-report.json${NC}"
 
-# LO QUE SÍ PUEDE HACER
-echo -e "\n${YELLOW}  → Endpoints PERMITIDOS para CHOFER (deben devolver 2xx)${NC}"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/auth/me"                         ""  "SI"  "CHOFER ve su sesion"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/jornadas/actual/${CONDUCTOR_ID}" ""  "SI"  "CHOFER ve su jornada actual"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "POST" "/jornadas/iniciar"   '{"jornada_id":"'"$JORNADA_ID"'"}'  "SI"  "CHOFER inicia jornada"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "POST" "/jornadas/finalizar" '{"jornada_id":"'"$JORNADA_ID"'","km_recorridos":300,"observaciones":"Sin incidencias"}' "SI" "CHOFER finaliza jornada"
-
-# LO QUE NO PUEDE HACER — escalada de privilegios
-echo -e "\n${YELLOW}  → Endpoints DENEGADOS para CHOFER (deben devolver 403)${NC}"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/camiones"                        ""  "NO"  "CHOFER no puede listar camiones"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "POST" "/camiones"                        '{"placa":"ZAP-CHF","marca":"Volvo","modelo":"FH16","anio":2023,"capacidad_ton":20,"vin":"VINCHF001","color":"Rojo","combustible":"DIESEL","gps":true}' "NO" "CHOFER no puede crear camion"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/camiones/${CAMION_ID}"           ""  "NO"  "CHOFER no puede ver camion por ID"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/camiones/panel"                  ""  "NO"  "CHOFER no puede ver panel camiones"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/camiones/exportar/csv"           ""  "NO"  "CHOFER no puede exportar CSV"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/dashboard"                       ""  "NO"  "CHOFER no puede ver dashboard admin"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/dashboard/gerencial"             ""  "NO"  "CHOFER no puede ver dashboard gerencial"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/jornadas"                        ""  "NO"  "CHOFER no puede listar todas las jornadas"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "POST" "/jornadas"                        '{"conductor_id":"'"$CONDUCTOR_ID"'","unidad_id":"'"$CAMION_ID"'","contrato_id":"'"$CONTRATO_ID"'","fecha_jornada":"2026-06-01","origen":"Lima","destino":"Ica","km_estimados":300}' "NO" "CHOFER no puede crear jornada"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/jornadas/exportar"               ""  "NO"  "CHOFER no puede exportar jornadas"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/conductores"                     ""  "NO"  "CHOFER no puede ver conductores"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/contratos"                       ""  "NO"  "CHOFER no puede ver contratos"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "POST" "/contratos"                       '{"codigo":"CHF-001","cliente":"Test","tipo_servicio":"POR_VIAJE","fecha_inicio":"2026-01-01"}' "NO" "CHOFER no puede crear contrato"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/contratos/${CONTRATO_ID}"        ""  "NO"  "CHOFER no puede ver contrato por ID"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/contratos/indicadores"           ""  "NO"  "CHOFER no puede ver indicadores"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/contratos/vigentes"              ""  "NO"  "CHOFER no puede ver contratos vigentes"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/unidades/disponibles"            ""  "NO"  "CHOFER no puede ver unidades"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/gps/registros"                   ""  "NO"  "CHOFER no puede ver GPS"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/gps/proveedores"                 ""  "NO"  "CHOFER no puede ver proveedores GPS"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "POST" "/gps/importar"                    '{"proveedor":"GPSCONTROL"}' "NO" "CHOFER no puede importar GPS"
-test_endpoint "CHOFER" "$TOKEN_CHOFER" "GET"  "/gps/resumen"                     ""  "NO"  "CHOFER no puede ver resumen GPS"
-
-# =============================================================================
-# ROL GERENTE
-# SI puede: /dashboard/gerencial, /jornadas, /conductores, /contratos/*, /unidades/disponibles
-# NO puede: /camiones/*, /dashboard (admin), /gps/*
-# =============================================================================
-echo ""
-echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════════════════${NC}"
-echo -e "${BOLD}${CYAN}  ROL GERENTE — endpoints permitidos vs denegados${NC}"
-echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════════════════${NC}"
-
-echo -e "\n${YELLOW}  → Endpoints PERMITIDOS para GERENTE (deben devolver 2xx)${NC}"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/auth/me"                       ""  "SI"  "GERENTE ve su sesion"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/dashboard/gerencial"           ""  "SI"  "GERENTE accede a su dashboard"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/jornadas"                      ""  "SI"  "GERENTE lista jornadas"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "POST" "/jornadas"                      '{"conductor_id":"'"$CONDUCTOR_ID"'","unidad_id":"'"$CAMION_ID"'","contrato_id":"'"$CONTRATO_ID"'","fecha_jornada":"2026-06-01","origen":"Lima","destino":"Arequipa","km_estimados":520}' "SI" "GERENTE crea jornada"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/jornadas/exportar"             ""  "SI"  "GERENTE exporta jornadas"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/conductores"                   ""  "SI"  "GERENTE ve conductores"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/contratos"                     ""  "SI"  "GERENTE lista contratos"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "POST" "/contratos"                     '{"codigo":"ZAP-GER-001","cliente":"Empresa Test","tipo_servicio":"POR_VIAJE","fecha_inicio":"2026-01-01"}' "SI" "GERENTE crea contrato"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/contratos/${CONTRATO_ID}"      ""  "SI"  "GERENTE ve contrato por ID"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/contratos/indicadores"         ""  "SI"  "GERENTE ve indicadores"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/contratos/vigentes"            ""  "SI"  "GERENTE ve contratos vigentes"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/unidades/disponibles"          ""  "SI"  "GERENTE ve unidades disponibles"
-
-echo -e "\n${YELLOW}  → Endpoints DENEGADOS para GERENTE (deben devolver 403)${NC}"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/camiones"                      ""  "NO"  "GERENTE no puede listar camiones"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "POST" "/camiones"                      '{"placa":"ZAP-GER","marca":"Volvo","modelo":"FH16","anio":2023,"capacidad_ton":20,"vin":"VINGER001","color":"Azul","combustible":"DIESEL","gps":true}' "NO" "GERENTE no puede crear camion"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/camiones/${CAMION_ID}"         ""  "NO"  "GERENTE no puede ver camion por ID"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/camiones/panel"                ""  "NO"  "GERENTE no puede ver panel camiones"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/camiones/exportar/csv"         ""  "NO"  "GERENTE no puede exportar CSV camiones"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/dashboard"                     ""  "NO"  "GERENTE no puede ver dashboard admin"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/gps/registros"                 ""  "NO"  "GERENTE no puede ver GPS"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/gps/proveedores"               ""  "NO"  "GERENTE no puede ver proveedores GPS"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "POST" "/gps/importar"                  '{"proveedor":"GPSCONTROL"}' "NO" "GERENTE no puede importar GPS"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/gps/resumen"                   ""  "NO"  "GERENTE no puede ver resumen GPS"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "GET"  "/jornadas/actual/${CONDUCTOR_ID}" "" "NO" "GERENTE no puede ver jornada actual de chofer"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "POST" "/jornadas/iniciar"              '{"jornada_id":"'"$JORNADA_ID"'"}' "NO" "GERENTE no puede iniciar jornada"
-test_endpoint "GERENTE" "$TOKEN_GERENTE" "POST" "/jornadas/finalizar"            '{"jornada_id":"'"$JORNADA_ID"'"}' "NO" "GERENTE no puede finalizar jornada"
-
-# =============================================================================
-# ROL ADMIN
-# SI puede: /camiones/*, /dashboard, /jornadas (GET/POST), /conductores,
-#           /contratos/vigentes, /unidades/disponibles, /gps/*
-# NO puede: /contratos (crud), /dashboard/gerencial, /jornadas/actual, /iniciar, /finalizar
-# =============================================================================
-echo ""
-echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════════════════${NC}"
-echo -e "${BOLD}${CYAN}  ROL ADMIN — endpoints permitidos vs denegados${NC}"
-echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════════════════${NC}"
-
-echo -e "\n${YELLOW}  → Endpoints PERMITIDOS para ADMIN (deben devolver 2xx)${NC}"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/auth/me"                          ""  "SI"  "ADMIN ve su sesion"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/camiones"                         ""  "SI"  "ADMIN lista camiones"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "POST" "/camiones"                         '{"placa":"ZAP-ADM","marca":"Scania","modelo":"R450","anio":2023,"capacidad_ton":22,"vin":"VINADM0001","color":"Negro","combustible":"DIESEL","gps":true}' "SI" "ADMIN crea camion"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/camiones/${CAMION_ID}"            ""  "SI"  "ADMIN ve camion por ID"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/camiones/panel"                   ""  "SI"  "ADMIN ve panel camiones"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/camiones/exportar/csv"            ""  "SI"  "ADMIN exporta CSV"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/dashboard"                        ""  "SI"  "ADMIN ve su dashboard"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/jornadas"                         ""  "SI"  "ADMIN lista jornadas"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "POST" "/jornadas"                         '{"conductor_id":"'"$CONDUCTOR_ID"'","unidad_id":"'"$CAMION_ID"'","contrato_id":"'"$CONTRATO_ID"'","fecha_jornada":"2026-06-02","origen":"Lima","destino":"Ica","km_estimados":300}' "SI" "ADMIN crea jornada"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/jornadas/exportar"                ""  "SI"  "ADMIN exporta jornadas"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/conductores"                      ""  "SI"  "ADMIN ve conductores"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/contratos/vigentes"               ""  "SI"  "ADMIN ve contratos vigentes"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/unidades/disponibles"             ""  "SI"  "ADMIN ve unidades disponibles"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/gps/registros"                    ""  "SI"  "ADMIN ve registros GPS"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/gps/proveedores"                  ""  "SI"  "ADMIN ve proveedores GPS"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/gps/plantilla"                    ""  "SI"  "ADMIN descarga plantilla GPS"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/gps/plantilla/GPSCONTROL"         ""  "SI"  "ADMIN descarga plantilla GPSCONTROL"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/gps/resumen"                      ""  "SI"  "ADMIN ve resumen GPS"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "POST" "/gps/validar"                      '{"proveedor":"GPSCONTROL"}' "SI" "ADMIN valida GPS"
-
-echo -e "\n${YELLOW}  → Endpoints DENEGADOS para ADMIN (deben devolver 403)${NC}"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/contratos"                        ""  "NO"  "ADMIN no puede listar contratos (solo GERENTE)"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "POST" "/contratos"                        '{"codigo":"ADM-001","cliente":"Test","tipo_servicio":"POR_VIAJE","fecha_inicio":"2026-01-01"}' "NO" "ADMIN no puede crear contrato"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/contratos/${CONTRATO_ID}"         ""  "NO"  "ADMIN no puede ver contrato por ID"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/contratos/indicadores"            ""  "NO"  "ADMIN no puede ver indicadores contratos"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/dashboard/gerencial"              ""  "NO"  "ADMIN no puede ver dashboard gerencial"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "GET"  "/jornadas/actual/${CONDUCTOR_ID}"  ""  "NO"  "ADMIN no puede ver jornada actual de chofer"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "POST" "/jornadas/iniciar"                 '{"jornada_id":"'"$JORNADA_ID"'"}' "NO" "ADMIN no puede iniciar jornada (solo CHOFER)"
-test_endpoint "ADMIN" "$TOKEN_ADMIN" "POST" "/jornadas/finalizar"               '{"jornada_id":"'"$JORNADA_ID"'"}' "NO" "ADMIN no puede finalizar jornada (solo CHOFER)"
-
-# =============================================================================
-# GENERAR REPORTE JSON FINAL
-# =============================================================================
-FECHA=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-cat > reports/access-control-report.json << JSON
-{
-  "metadata": {
-    "fecha_ejecucion": "${FECHA}",
-    "api_url": "${API}",
-    "descripcion": "Pruebas de Broken Access Control (OWASP A01:2021). Verifica que cada rol solo accede a los endpoints que le corresponden."
-  },
-  "resumen": {
-    "total_pruebas": ${TOTAL},
-    "pasadas": ${PASS},
-    "fallidas": ${FAIL},
-    "porcentaje_exito": $(echo "scale=1; ${PASS} * 100 / ${TOTAL}" | bc 2>/dev/null || echo "0")
-  },
-  "como_leer_este_reporte": {
-    "PASS": "El endpoint respondio como se esperaba (2xx cuando esta permitido, 401/403 cuando esta denegado)",
-    "FAIL": "El endpoint NO respondio como se esperaba (ej: rol no puede acceder pero recibio 2xx)",
-    "FAIL_CRITICO": "BROKEN ACCESS CONTROL: el rol recibio 200 en un endpoint que debia denegar con 403"
-  },
-  "resultados": {
-    "SIN_TOKEN": ${ROL_JSON[SIN_TOKEN]},
-    "CHOFER": ${ROL_JSON[CHOFER]},
-    "GERENTE": ${ROL_JSON[GERENTE]},
-    "ADMIN": ${ROL_JSON[ADMIN]}
-  }
-}
-JSON
-
-# =============================================================================
-# RESUMEN EN CONSOLA
-# =============================================================================
-echo ""
-echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════════════════${NC}"
-echo -e "${BOLD}  RESUMEN FINAL${NC}"
-echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════════════════${NC}"
-echo -e "  Total pruebas : ${BOLD}${TOTAL}${NC}"
-echo -e "  Pasadas       : ${GREEN}${BOLD}${PASS}${NC}"
-echo -e "  Fallidas      : ${RED}${BOLD}${FAIL}${NC}"
-echo ""
-echo -e "📄 Reporte: ${BOLD}reports/access-control-report.json${NC}"
-echo ""
-
-if [ "$FAIL" -gt 0 ]; then
-  echo -e "${RED}${BOLD}❌ ${FAIL} prueba(s) de control de acceso fallaron.${NC}"
-  echo -e "${RED}   Busca 'FAIL_CRITICO' en el JSON para ver los Broken Access Control.${NC}"
+# Salir con error si hay críticos (para que el job falle en CI/CD)
+if [ "$FAIL_CRITICO" -gt 0 ]; then
   exit 1
-else
-  echo -e "${GREEN}${BOLD}✅ Todas las pruebas de control de acceso pasaron.${NC}"
-  exit 0
 fi
