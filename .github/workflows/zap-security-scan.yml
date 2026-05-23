@@ -43,99 +43,11 @@ permissions:
 jobs:
 
   # ===========================================================================
-  # JOB 1: LOGIN CON LOS 3 ROLES → obtener tokens
-  # ===========================================================================
-  get-tokens:
-    name: 🔑 Login (3 roles)
-    runs-on: ubuntu-latest
-    outputs:
-      token_admin:   ${{ steps.admin.outputs.token }}
-      token_gerente: ${{ steps.gerente.outputs.token }}
-      token_chofer:  ${{ steps.chofer.outputs.token }}
-
-    steps:
-      - name: Login ADMIN
-        id: admin
-        run: |
-          HTTP_STATUS=$(curl -s -o /tmp/resp_admin.txt -w "%{http_code}" \
-            --max-time 15 \
-            -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"admin@nanutech.com","password":"Admin123!"}')
-          RESP=$(cat /tmp/resp_admin.txt)
-          echo "HTTP Status ADMIN: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "❌ Login ADMIN falló con HTTP $HTTP_STATUS"
-            echo "$RESP" | jq . || echo "$RESP"
-            exit 1
-          fi
-          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
-          if [ -z "$TOKEN" ]; then
-            echo "❌ HTTP 200 pero no se encontró .data.session.accessToken"
-            echo "$RESP" | jq . || echo "$RESP"
-            exit 1
-          fi
-          echo "✅ Token ADMIN obtenido (${#TOKEN} chars)"
-          echo "::add-mask::$TOKEN"
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
-
-      - name: Login GERENTE
-        id: gerente
-        run: |
-          HTTP_STATUS=$(curl -s -o /tmp/resp_gerente.txt -w "%{http_code}" \
-            --max-time 15 \
-            -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"gerente@nanutech.com","password":"Admin123!"}')
-          RESP=$(cat /tmp/resp_gerente.txt)
-          echo "HTTP Status GERENTE: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "❌ Login GERENTE falló con HTTP $HTTP_STATUS"
-            echo "$RESP" | jq . || echo "$RESP"
-            exit 1
-          fi
-          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
-          if [ -z "$TOKEN" ]; then
-            echo "❌ HTTP 200 pero no se encontró .data.session.accessToken"
-            echo "$RESP" | jq . || echo "$RESP"
-            exit 1
-          fi
-          echo "✅ Token GERENTE obtenido (${#TOKEN} chars)"
-          echo "::add-mask::$TOKEN"
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
-
-      - name: Login CHOFER
-        id: chofer
-        run: |
-          HTTP_STATUS=$(curl -s -o /tmp/resp_chofer.txt -w "%{http_code}" \
-            --max-time 15 \
-            -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"chofer@nanutech.com","password":"Admin123!"}')
-          RESP=$(cat /tmp/resp_chofer.txt)
-          echo "HTTP Status CHOFER: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "❌ Login CHOFER falló con HTTP $HTTP_STATUS"
-            echo "$RESP" | jq . || echo "$RESP"
-            exit 1
-          fi
-          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
-          if [ -z "$TOKEN" ]; then
-            echo "❌ HTTP 200 pero no se encontró .data.session.accessToken"
-            echo "$RESP" | jq . || echo "$RESP"
-            exit 1
-          fi
-          echo "✅ Token CHOFER obtenido (${#TOKEN} chars)"
-          echo "::add-mask::$TOKEN"
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
-
-  # ===========================================================================
   # JOB 2: ESCANEO ROL ADMIN
   # ===========================================================================
   scan-admin:
     name: 🛡️ ZAP Scan ROL ADMIN
     runs-on: ubuntu-latest
-    needs: get-tokens
     if: |
       github.event_name != 'workflow_dispatch' ||
       github.event.inputs.rol == 'all'         ||
@@ -145,15 +57,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # FIX 2: crear reports/ con permisos abiertos ANTES de montar en Docker
-      # ZAP corre como usuario "zap" dentro del contenedor → necesita escribir aquí
       - name: Preparar carpeta de reportes con permisos
         run: |
           mkdir -p security-owasp/reports
           chmod 777 security-owasp/reports
 
+      - name: 🔑 Login ADMIN y obtener token
+        run: |
+          RESP=$(curl -s --max-time 15 \
+            -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@nanutech.com","password":"Admin123!"}')
+          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
+          if [ -z "$TOKEN" ]; then
+            echo "❌ No se pudo obtener token ADMIN"
+            echo "$RESP"
+            exit 1
+          fi
+          echo "✅ Token ADMIN obtenido (${#TOKEN} chars)"
+          echo "$TOKEN" > /tmp/token_admin.txt
+
       - name: Inyectar URL y token en los planes
         run: |
+          TOKEN=$(cat /tmp/token_admin.txt)
           cp security-owasp/zap-plan-admin.yml security-owasp/zap-plan-admin.run.yml
           cp security-owasp/openapi.yml         security-owasp/openapi.run.yml
 
@@ -161,7 +87,7 @@ jobs:
             security-owasp/zap-plan-admin.run.yml \
             security-owasp/openapi.run.yml
 
-          sed -i "s@ZAP_TOKEN_PLACEHOLDER@${{ needs.get-tokens.outputs.token_admin }}@g" \
+          sed -i "s@ZAP_TOKEN_PLACEHOLDER@${TOKEN}@g" \
             security-owasp/zap-plan-admin.run.yml
 
       - name: Verificar YAML válido tras sustitución
@@ -203,8 +129,6 @@ jobs:
               echo '════════════════════════════════════════'
               ls -la /zap/wrk/
               ls -la /zap/wrk/reports/ || mkdir -p /zap/wrk/reports
-              chmod 777 /zap/wrk/reports
-
               echo ''
               echo '════════════════════════════════════════'
               echo '  Ejecutando plan ADMIN'
@@ -266,7 +190,6 @@ jobs:
   scan-gerente:
     name: 🛡️ ZAP Scan ROL GERENTE
     runs-on: ubuntu-latest
-    needs: get-tokens
     if: |
       github.event_name != 'workflow_dispatch' ||
       github.event.inputs.rol == 'all'          ||
@@ -281,8 +204,24 @@ jobs:
           mkdir -p security-owasp/reports
           chmod 777 security-owasp/reports
 
+      - name: 🔑 Login GERENTE y obtener token
+        run: |
+          RESP=$(curl -s --max-time 15 \
+            -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"gerente@nanutech.com","password":"Admin123!"}')
+          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
+          if [ -z "$TOKEN" ]; then
+            echo "❌ No se pudo obtener token GERENTE"
+            echo "$RESP"
+            exit 1
+          fi
+          echo "✅ Token GERENTE obtenido (${#TOKEN} chars)"
+          echo "$TOKEN" > /tmp/token_gerente.txt
+
       - name: Inyectar URL y token
         run: |
+          TOKEN=$(cat /tmp/token_gerente.txt)
           cp security-owasp/zap-plan-gerente.yml security-owasp/zap-plan-gerente.run.yml
           cp security-owasp/openapi.yml           security-owasp/openapi.run.yml
 
@@ -290,7 +229,7 @@ jobs:
             security-owasp/zap-plan-gerente.run.yml \
             security-owasp/openapi.run.yml
 
-          sed -i "s@ZAP_TOKEN_PLACEHOLDER@${{ needs.get-tokens.outputs.token_gerente }}@g" \
+          sed -i "s@ZAP_TOKEN_PLACEHOLDER@${TOKEN}@g" \
             security-owasp/zap-plan-gerente.run.yml
 
       - name: Verificar YAML válido
@@ -331,8 +270,6 @@ jobs:
               echo '  Verificando permisos de reports/'
               echo '════════════════════════════════════════'
               ls -la /zap/wrk/reports/ || mkdir -p /zap/wrk/reports
-              chmod 777 /zap/wrk/reports
-
               echo ''
               echo '════════════════════════════════════════'
               echo '  Ejecutando plan GERENTE'
@@ -387,7 +324,6 @@ jobs:
   scan-chofer:
     name: 🛡️ ZAP Scan ROL CHOFER
     runs-on: ubuntu-latest
-    needs: get-tokens
     if: |
       github.event_name != 'workflow_dispatch' ||
       github.event.inputs.rol == 'all'          ||
@@ -402,8 +338,24 @@ jobs:
           mkdir -p security-owasp/reports
           chmod 777 security-owasp/reports
 
+      - name: 🔑 Login CHOFER y obtener token
+        run: |
+          RESP=$(curl -s --max-time 15 \
+            -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"chofer@nanutech.com","password":"Admin123!"}')
+          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
+          if [ -z "$TOKEN" ]; then
+            echo "❌ No se pudo obtener token CHOFER"
+            echo "$RESP"
+            exit 1
+          fi
+          echo "✅ Token CHOFER obtenido (${#TOKEN} chars)"
+          echo "$TOKEN" > /tmp/token_chofer.txt
+
       - name: Inyectar URL y token
         run: |
+          TOKEN=$(cat /tmp/token_chofer.txt)
           cp security-owasp/zap-plan-chofer.yml security-owasp/zap-plan-chofer.run.yml
           cp security-owasp/openapi.yml          security-owasp/openapi.run.yml
 
@@ -411,7 +363,7 @@ jobs:
             security-owasp/zap-plan-chofer.run.yml \
             security-owasp/openapi.run.yml
 
-          sed -i "s@ZAP_TOKEN_PLACEHOLDER@${{ needs.get-tokens.outputs.token_chofer }}@g" \
+          sed -i "s@ZAP_TOKEN_PLACEHOLDER@${TOKEN}@g" \
             security-owasp/zap-plan-chofer.run.yml
 
       - name: Verificar YAML válido
@@ -452,8 +404,6 @@ jobs:
               echo '  Verificando permisos de reports/'
               echo '════════════════════════════════════════'
               ls -la /zap/wrk/reports/ || mkdir -p /zap/wrk/reports
-              chmod 777 /zap/wrk/reports
-
               echo ''
               echo '════════════════════════════════════════'
               echo '  Ejecutando plan CHOFER'
@@ -504,11 +454,18 @@ jobs:
 
   # ===========================================================================
   # JOB 5: BROKEN ACCESS CONTROL CON CURL
+  #
+  # Verifica que cada rol SOLO acceda a sus endpoints autorizados.
+  # Detecta si un CHOFER puede llamar /camiones y recibe 200 en vez de 403
+  # (Broken Access Control - OWASP A01).
+  #
+  # NOTA: Este job hace su propio login en lugar de recibir tokens del
+  # job get-tokens, porque GitHub Actions bloquea el paso de outputs
+  # que parecen secrets (tokens JWT largos enmascarados con ::add-mask::).
   # ===========================================================================
   access-control-tests:
     name: 🔒 Broken Access Control
     runs-on: ubuntu-latest
-    needs: get-tokens
 
     steps:
       - name: Checkout
@@ -520,16 +477,48 @@ jobs:
       - name: Crear carpeta de reportes
         run: mkdir -p security-owasp/reports
 
+      - name: 🔑 Login y obtener tokens (3 roles)
+        run: |
+          get_token() {
+            local EMAIL="$1"
+            local LABEL="$2"
+            local RESP
+            RESP=$(curl -s --max-time 15 \
+              -X POST "$API_URL_TESTING/auth/login" \
+              -H "Content-Type: application/json" \
+              -d "{\"email\":\"${EMAIL}\",\"password\":\"Admin123!\"}")
+            local TOKEN
+            TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
+            if [ -z "$TOKEN" ]; then
+              echo "❌ No se pudo obtener token para $LABEL"
+              echo "$RESP"
+              exit 1
+            fi
+            echo "✅ Token $LABEL obtenido (${#TOKEN} chars)"
+            echo "$TOKEN"
+          }
+
+          T_ADMIN=$(get_token "admin@nanutech.com" "ADMIN")
+          T_GERENTE=$(get_token "gerente@nanutech.com" "GERENTE")
+          T_CHOFER=$(get_token "chofer@nanutech.com" "CHOFER")
+
+          # Guardar en archivo — evita el bloqueo de outputs de GitHub Actions
+          printf "TOKEN_ADMIN=%s\nTOKEN_GERENTE=%s\nTOKEN_CHOFER=%s\n" \
+            "$T_ADMIN" "$T_GERENTE" "$T_CHOFER" > /tmp/tokens.env
+          echo "✅ Tokens guardados"
+        env:
+          API_URL_TESTING: ${{ secrets.API_URL_TESTING }}
+
       - name: Ejecutar pruebas de control de acceso
         run: |
+          set -a
+          source /tmp/tokens.env
+          set +a
           chmod +x .github/scripts/access-control-tests.sh
           bash .github/scripts/access-control-tests.sh
         env:
-          API_URL:       ${{ secrets.API_URL_TESTING }}
-          TOKEN_ADMIN:   ${{ needs.get-tokens.outputs.token_admin }}
-          TOKEN_GERENTE: ${{ needs.get-tokens.outputs.token_gerente }}
-          TOKEN_CHOFER:  ${{ needs.get-tokens.outputs.token_chofer }}
-          REPORT_DIR:    security-owasp/reports
+          API_URL:    ${{ secrets.API_URL_TESTING }}
+          REPORT_DIR: security-owasp/reports
 
       - name: Subir reporte access control
         uses: actions/upload-artifact@v4
