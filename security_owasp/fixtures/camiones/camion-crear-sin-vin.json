@@ -1,0 +1,11 @@
+{
+  "placa": "ZAP-SIN-VIN-001",
+  "marca": "Volvo",
+  "modelo": "FH16",
+  "anio": 2022,
+  "capacidad_ton": 20,
+  "color": "Blanco",
+  "combustible": "DIESEL",
+  "gps": true,
+  "kilometraje_actual": 0
+}

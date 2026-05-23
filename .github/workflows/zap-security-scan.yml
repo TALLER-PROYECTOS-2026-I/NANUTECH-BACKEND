@@ -1,0 +1,608 @@
+name: 🔐 Nanutech Security Scan - OWASP ZAP
+
+# =============================================================================
+# EJECUCIÓN: solo manual (workflow_dispatch)
+# Elige el rol a escanear desde el dropdown de GitHub Actions.
+#
+# ESTRUCTURA DE ARCHIVOS EN EL REPO:
+#   .github/
+#   ├── workflows/security.yml          ← este archivo
+#   └── scripts/
+#       ├── access-control-tests.sh
+#       └── generate-report.py
+#   security-owasp/
+#   ├── openapi.yml
+#   ├── zap-plan-admin.yml
+#   ├── zap-plan-gerente.yml
+#   └── zap-plan-chofer.yml
+#
+# CÓMO FUNCIONA EL TOKEN:
+#   Cada job hace su propio login y guarda el token en /tmp/token_ROL.txt
+#   El token se inyecta en el plan ZAP via sed sobre ZAP_TOKEN_PLACEHOLDER
+#   El script httpsender de ZAP lo agrega en cada request del active scan
+# =============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      rol:
+        description: "Rol a escanear"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - admin
+          - gerente
+          - chofer
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  pages: write
+  id-token: write
+
+jobs:
+
+  # ===========================================================================
+  # JOB 1: ESCANEO ROL ADMIN
+  # Login propio → token en /tmp → sed → ZAP con httpsender script
+  # ===========================================================================
+  scan-admin:
+    name: 🛡️ ZAP Scan ROL ADMIN
+    runs-on: ubuntu-latest
+    if: |
+      github.event.inputs.rol == 'all' ||
+      github.event.inputs.rol == 'admin'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preparar carpeta de reportes
+        run: |
+          mkdir -p security-owasp/reports
+          chmod 777 security-owasp/reports
+
+      - name: 🔑 Login ADMIN y obtener token
+        run: |
+          RESP=$(curl -s --max-time 15 \
+            -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@nanutech.com","password":"Admin123!"}')
+          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
+          if [ -z "$TOKEN" ]; then
+            echo "❌ No se pudo obtener token ADMIN"
+            echo "$RESP"
+            exit 1
+          fi
+          echo "✅ Token ADMIN obtenido (${#TOKEN} chars)"
+          printf '%s' "$TOKEN" > /tmp/token_admin.txt
+
+      - name: Inyectar URL y token en los planes
+        run: |
+          TOKEN=$(cat /tmp/token_admin.txt)
+          cp security-owasp/zap-plan-admin.yml security-owasp/zap-plan-admin.run.yml
+          cp security-owasp/openapi.yml         security-owasp/openapi.run.yml
+
+          sed -i "s@API_URL_PLACEHOLDER@${{ secrets.API_URL_TESTING }}@g" \
+            security-owasp/zap-plan-admin.run.yml \
+            security-owasp/openapi.run.yml
+
+          sed -i "s@ZAP_TOKEN_PLACEHOLDER@${TOKEN}@g" \
+            security-owasp/zap-plan-admin.run.yml
+
+      - name: Verificar YAML válido
+        run: |
+          python3 -c "
+          import yaml, sys
+          for f in ['security-owasp/zap-plan-admin.run.yml', 'security-owasp/openapi.run.yml']:
+              try:
+                  yaml.safe_load(open(f))
+                  print(f'✅ {f} OK')
+              except Exception as e:
+                  print(f'❌ {f} inválido: {e}')
+                  sys.exit(1)
+          "
+
+      - name: Pull imagen ZAP
+        run: docker pull ghcr.io/zaproxy/zaproxy:stable
+
+      - name: 🔍 ZAP Active Scan ROL ADMIN
+        run: |
+          docker run --rm \
+            --network host \
+            -v "${{ github.workspace }}/security-owasp:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            bash -c "
+              set -e
+              echo '════════════════════════════════'
+              echo '  Instalando addons ZAP'
+              echo '════════════════════════════════'
+              zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
+              zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
+              zap.sh -cmd -addoninstall graaljs        2>/dev/null || true
+              zap.sh -cmd -addoninstall scripts        2>/dev/null || true
+              zap.sh -cmd -addonupdate                 2>/dev/null || true
+
+              echo '════════════════════════════════'
+              echo '  Ejecutando plan ADMIN'
+              echo '════════════════════════════════'
+              zap.sh -cmd -autorun /zap/wrk/zap-plan-admin.run.yml
+            "
+        continue-on-error: true
+
+      - name: 🔎 Debug — reportes y URLs escaneadas
+        run: |
+          echo "── Reportes generados ──"
+          ls -lh security-owasp/reports/ || echo "(vacío)"
+          echo ""
+          echo "── Endpoints importados ──"
+          python3 -c "
+          import yaml
+          spec = yaml.safe_load(open('security-owasp/openapi.run.yml'))
+          base = spec.get('servers', [{}])[0].get('url', '')
+          paths = list(spec.get('paths', {}).keys())
+          print(f'Base URL: {base}')
+          print(f'Total endpoints: {len(paths)}')
+          for p in sorted(paths): print(f'  → {base}{p}')
+          " 2>/dev/null || true
+
+      - name: Subir reporte ADMIN
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-ADMIN
+          path: security-owasp/reports/reporte-ADMIN*
+          retention-days: 30
+
+  # ===========================================================================
+  # JOB 2: ESCANEO ROL GERENTE
+  # ===========================================================================
+  scan-gerente:
+    name: 🛡️ ZAP Scan ROL GERENTE
+    runs-on: ubuntu-latest
+    if: |
+      github.event.inputs.rol == 'all' ||
+      github.event.inputs.rol == 'gerente'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preparar carpeta de reportes
+        run: |
+          mkdir -p security-owasp/reports
+          chmod 777 security-owasp/reports
+
+      - name: 🔑 Login GERENTE y obtener token
+        run: |
+          RESP=$(curl -s --max-time 15 \
+            -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"gerente@nanutech.com","password":"Admin123!"}')
+          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
+          if [ -z "$TOKEN" ]; then
+            echo "❌ No se pudo obtener token GERENTE"
+            echo "$RESP"
+            exit 1
+          fi
+          echo "✅ Token GERENTE obtenido (${#TOKEN} chars)"
+          printf '%s' "$TOKEN" > /tmp/token_gerente.txt
+
+      - name: Inyectar URL y token
+        run: |
+          TOKEN=$(cat /tmp/token_gerente.txt)
+          cp security-owasp/zap-plan-gerente.yml security-owasp/zap-plan-gerente.run.yml
+          cp security-owasp/openapi.yml           security-owasp/openapi.run.yml
+
+          sed -i "s@API_URL_PLACEHOLDER@${{ secrets.API_URL_TESTING }}@g" \
+            security-owasp/zap-plan-gerente.run.yml \
+            security-owasp/openapi.run.yml
+
+          sed -i "s@ZAP_TOKEN_PLACEHOLDER@${TOKEN}@g" \
+            security-owasp/zap-plan-gerente.run.yml
+
+      - name: Verificar YAML válido
+        run: |
+          python3 -c "
+          import yaml, sys
+          for f in ['security-owasp/zap-plan-gerente.run.yml', 'security-owasp/openapi.run.yml']:
+              try:
+                  yaml.safe_load(open(f))
+                  print(f'✅ {f} OK')
+              except Exception as e:
+                  print(f'❌ {f} inválido: {e}')
+                  sys.exit(1)
+          "
+
+      - name: Pull imagen ZAP
+        run: docker pull ghcr.io/zaproxy/zaproxy:stable
+
+      - name: 🔍 ZAP Active Scan ROL GERENTE
+        run: |
+          docker run --rm \
+            --network host \
+            -v "${{ github.workspace }}/security-owasp:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            bash -c "
+              set -e
+              echo '════════════════════════════════'
+              echo '  Instalando addons ZAP'
+              echo '════════════════════════════════'
+              zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
+              zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
+              zap.sh -cmd -addoninstall graaljs        2>/dev/null || true
+              zap.sh -cmd -addoninstall scripts        2>/dev/null || true
+              zap.sh -cmd -addonupdate                 2>/dev/null || true
+
+              echo '════════════════════════════════'
+              echo '  Ejecutando plan GERENTE'
+              echo '════════════════════════════════'
+              zap.sh -cmd -autorun /zap/wrk/zap-plan-gerente.run.yml
+            "
+        continue-on-error: true
+
+      - name: 🔎 Debug — reportes y URLs escaneadas
+        run: |
+          echo "── Reportes generados ──"
+          ls -lh security-owasp/reports/ || echo "(vacío)"
+          echo ""
+          echo "── Endpoints importados ──"
+          python3 -c "
+          import yaml
+          spec = yaml.safe_load(open('security-owasp/openapi.run.yml'))
+          base = spec.get('servers', [{}])[0].get('url', '')
+          paths = list(spec.get('paths', {}).keys())
+          print(f'Base URL: {base}')
+          print(f'Total endpoints: {len(paths)}')
+          for p in sorted(paths): print(f'  → {base}{p}')
+          " 2>/dev/null || true
+
+      - name: Subir reporte GERENTE
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-GERENTE
+          path: security-owasp/reports/reporte-GERENTE*
+          retention-days: 30
+
+  # ===========================================================================
+  # JOB 3: ESCANEO ROL CHOFER
+  # ===========================================================================
+  scan-chofer:
+    name: 🛡️ ZAP Scan ROL CHOFER
+    runs-on: ubuntu-latest
+    if: |
+      github.event.inputs.rol == 'all' ||
+      github.event.inputs.rol == 'chofer'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preparar carpeta de reportes
+        run: |
+          mkdir -p security-owasp/reports
+          chmod 777 security-owasp/reports
+
+      - name: 🔑 Login CHOFER y obtener token
+        run: |
+          RESP=$(curl -s --max-time 15 \
+            -X POST "${{ secrets.API_URL_TESTING }}/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"chofer@nanutech.com","password":"Admin123!"}')
+          TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
+          if [ -z "$TOKEN" ]; then
+            echo "❌ No se pudo obtener token CHOFER"
+            echo "$RESP"
+            exit 1
+          fi
+          echo "✅ Token CHOFER obtenido (${#TOKEN} chars)"
+          printf '%s' "$TOKEN" > /tmp/token_chofer.txt
+
+      - name: Inyectar URL y token
+        run: |
+          TOKEN=$(cat /tmp/token_chofer.txt)
+          cp security-owasp/zap-plan-chofer.yml security-owasp/zap-plan-chofer.run.yml
+          cp security-owasp/openapi.yml          security-owasp/openapi.run.yml
+
+          sed -i "s@API_URL_PLACEHOLDER@${{ secrets.API_URL_TESTING }}@g" \
+            security-owasp/zap-plan-chofer.run.yml \
+            security-owasp/openapi.run.yml
+
+          sed -i "s@ZAP_TOKEN_PLACEHOLDER@${TOKEN}@g" \
+            security-owasp/zap-plan-chofer.run.yml
+
+      - name: Verificar YAML válido
+        run: |
+          python3 -c "
+          import yaml, sys
+          for f in ['security-owasp/zap-plan-chofer.run.yml', 'security-owasp/openapi.run.yml']:
+              try:
+                  yaml.safe_load(open(f))
+                  print(f'✅ {f} OK')
+              except Exception as e:
+                  print(f'❌ {f} inválido: {e}')
+                  sys.exit(1)
+          "
+
+      - name: Pull imagen ZAP
+        run: docker pull ghcr.io/zaproxy/zaproxy:stable
+
+      - name: 🔍 ZAP Active Scan ROL CHOFER
+        run: |
+          docker run --rm \
+            --network host \
+            -v "${{ github.workspace }}/security-owasp:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            bash -c "
+              set -e
+              echo '════════════════════════════════'
+              echo '  Instalando addons ZAP'
+              echo '════════════════════════════════'
+              zap.sh -cmd -addoninstall pscanrulesBeta 2>/dev/null || true
+              zap.sh -cmd -addoninstall ascanrulesBeta 2>/dev/null || true
+              zap.sh -cmd -addoninstall graaljs        2>/dev/null || true
+              zap.sh -cmd -addoninstall scripts        2>/dev/null || true
+              zap.sh -cmd -addonupdate                 2>/dev/null || true
+
+              echo '════════════════════════════════'
+              echo '  Ejecutando plan CHOFER'
+              echo '════════════════════════════════'
+              zap.sh -cmd -autorun /zap/wrk/zap-plan-chofer.run.yml
+            "
+        continue-on-error: true
+
+      - name: 🔎 Debug — reportes y URLs escaneadas
+        run: |
+          echo "── Reportes generados ──"
+          ls -lh security-owasp/reports/ || echo "(vacío)"
+          echo ""
+          echo "── Endpoints importados ──"
+          python3 -c "
+          import yaml
+          spec = yaml.safe_load(open('security-owasp/openapi.run.yml'))
+          base = spec.get('servers', [{}])[0].get('url', '')
+          paths = list(spec.get('paths', {}).keys())
+          print(f'Base URL: {base}')
+          print(f'Total endpoints: {len(paths)}')
+          for p in sorted(paths): print(f'  → {base}{p}')
+          " 2>/dev/null || true
+
+      - name: Subir reporte CHOFER
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-CHOFER
+          path: security-owasp/reports/reporte-CHOFER*
+          retention-days: 30
+
+  # ===========================================================================
+  # JOB 4: BROKEN ACCESS CONTROL
+  # Login propio para los 3 roles, guarda tokens en archivos individuales
+  # ===========================================================================
+  access-control-tests:
+    name: 🔒 Broken Access Control
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar dependencias
+        run: sudo apt-get install -y jq bc
+
+      - name: Crear carpeta de reportes
+        run: mkdir -p security-owasp/reports
+
+      - name: 🔑 Login + Ejecutar pruebas de control de acceso
+        run: |
+          login() {
+            local EMAIL="$1" LABEL="$2"
+            local RESP TOKEN
+            RESP=$(curl -s --max-time 15 \
+              -X POST "$API_URL/auth/login" \
+              -H "Content-Type: application/json" \
+              -d "{\"email\":\"${EMAIL}\",\"password\":\"Admin123!\"}")
+            TOKEN=$(echo "$RESP" | jq -r '.data.session.accessToken // empty')
+            if [ -z "$TOKEN" ]; then
+              echo "❌ No se pudo obtener token para $LABEL"
+              echo "$RESP"
+              exit 1
+            fi
+            echo "✅ Token $LABEL obtenido (${#TOKEN} chars)"
+            printf '%s' "$TOKEN" > "/tmp/token_${LABEL}.txt"
+          }
+
+          login "admin@nanutech.com"   "ADMIN"
+          login "gerente@nanutech.com" "GERENTE"
+          login "chofer@nanutech.com"  "CHOFER"
+
+          TOKEN_ADMIN=$(cat /tmp/token_ADMIN.txt)
+          TOKEN_GERENTE=$(cat /tmp/token_GERENTE.txt)
+          TOKEN_CHOFER=$(cat /tmp/token_CHOFER.txt)
+          export TOKEN_ADMIN TOKEN_GERENTE TOKEN_CHOFER
+
+          chmod +x .github/scripts/access-control-tests.sh
+          bash .github/scripts/access-control-tests.sh
+        env:
+          API_URL:    ${{ secrets.API_URL_TESTING }}
+          REPORT_DIR: security-owasp/reports
+
+      - name: Subir reporte access control
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-access-control
+          path: security-owasp/reports/access-control-report.json
+          retention-days: 30
+
+  # ===========================================================================
+  # JOB 5: PUBLICAR EN GITHUB PAGES
+  # Corre siempre, aunque algún scan haya fallado o sido skipped
+  # URL: https://<org>.github.io/<repo>/
+  # Requiere: Settings → Pages → Branch: gh-pages → / (root)
+  # ===========================================================================
+  publish-report:
+    name: 📄 Publicar en GitHub Pages
+    runs-on: ubuntu-latest
+    needs: [scan-admin, scan-gerente, scan-chofer, access-control-tests]
+    if: always()
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Descargar reportes ZAP
+        uses: actions/download-artifact@v4
+        with:
+          path: all-reports
+        continue-on-error: true
+
+      - name: Descargar reporte access control
+        uses: actions/download-artifact@v4
+        with:
+          name: reporte-access-control
+          path: all-reports/reporte-access-control
+        continue-on-error: true
+
+      - name: Construir sitio de reportes
+        run: |
+          mkdir -p gh-pages-site
+
+          for rol in ADMIN GERENTE CHOFER; do
+            SRC="all-reports/reporte-${rol}"
+            if [ -d "$SRC" ]; then
+              mkdir -p "gh-pages-site/${rol,,}"
+              cp "$SRC"/*.html "gh-pages-site/${rol,,}/" 2>/dev/null || true
+              cp "$SRC"/*.json "gh-pages-site/${rol,,}/" 2>/dev/null || true
+            fi
+          done
+
+          AC_JSON="all-reports/reporte-access-control/access-control-report.json"
+          if [ -f "$AC_JSON" ]; then
+            cp "$AC_JSON" gh-pages-site/access-control-report.json
+            TOTAL=$(jq '.resumen.total_pruebas' "$AC_JSON")
+            PASS_N=$(jq  '.resumen.pasadas'      "$AC_JSON")
+            FAIL=$(jq    '.resumen.fallidas'      "$AC_JSON")
+            CRIT=$(jq    '.resumen.fail_critico'  "$AC_JSON")
+            MENOR=$(jq   '.resumen.fail_menor'    "$AC_JSON")
+          else
+            TOTAL=0; PASS_N=0; FAIL=0; CRIT=0; MENOR=0
+          fi
+
+          if [ "$CRIT" -gt 0 ]; then
+            BADGE_TEXT="VULNERABLE"; BADGE_COLOR="e05d44"; BADGE_BD="#f85149"
+          elif [ "$FAIL" -gt 0 ]; then
+            BADGE_TEXT="WARNINGS";   BADGE_COLOR="fe7d37"; BADGE_BD="#e3b341"
+          else
+            BADGE_TEXT="SECURE";     BADGE_COLOR="238636"; BADGE_BD="#3fb950"
+          fi
+
+          FECHA=$(date -u +"%Y-%m-%d %H:%M UTC")
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          TOTAL=$TOTAL PASS_N=$PASS_N FAIL=$FAIL CRIT=$CRIT MENOR=$MENOR \
+          BADGE_TEXT=$BADGE_TEXT BADGE_COLOR=$BADGE_COLOR BADGE_BD=$BADGE_BD \
+          FECHA="$FECHA" RUN_URL="$RUN_URL" \
+          REPO="${{ github.repository }}" \
+          AC_JSON="gh-pages-site/access-control-report.json" \
+          OUT="gh-pages-site/index.html" \
+          python3 .github/scripts/generate-report.py
+
+      - name: Verificar sitio generado
+        run: |
+          echo "── Archivos en gh-pages-site/ ──"
+          find gh-pages-site -type f | sort
+          echo "── Líneas en index.html ──"
+          wc -l gh-pages-site/index.html 2>/dev/null || echo "no generado"
+
+      - name: Publicar en rama gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./gh-pages-site
+          publish_branch: gh-pages
+          commit_message: "🔐 Security report — run ${{ github.run_id }}"
+          force_orphan: false
+
+  # ===========================================================================
+  # JOB 6: RESUMEN FINAL EN GITHUB UI
+  # ===========================================================================
+  summary:
+    name: 📊 Resumen
+    runs-on: ubuntu-latest
+    needs: [scan-admin, scan-gerente, scan-chofer, access-control-tests, publish-report]
+    if: always()
+
+    steps:
+      - name: Descargar reporte de access control
+        uses: actions/download-artifact@v4
+        with:
+          name: reporte-access-control
+          path: reporte-ac
+        continue-on-error: true
+
+      - name: Generar resumen en GitHub UI
+        run: |
+          echo "## 🔐 Nanutech Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Estado |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛡️ ZAP ADMIN      | ${{ needs.scan-admin.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛡️ ZAP GERENTE    | ${{ needs.scan-gerente.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛡️ ZAP CHOFER     | ${{ needs.scan-chofer.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Access Control | ${{ needs.access-control-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📄 GitHub Pages   | ${{ needs.publish-report.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          JSON="reporte-ac/access-control-report.json"
+          if [ -f "$JSON" ]; then
+            TOTAL=$(jq '.resumen.total_pruebas' "$JSON")
+            PASS=$(jq  '.resumen.pasadas'       "$JSON")
+            FAIL=$(jq  '.resumen.fallidas'       "$JSON")
+            CRIT=$(jq  '.resumen.fail_critico'   "$JSON")
+
+            echo "### 🔒 Access Control: $PASS/$TOTAL pasadas — $FAIL fallidas ($CRIT críticos)" >> $GITHUB_STEP_SUMMARY
+
+            CRITICOS=$(jq -r '
+              .resultados | to_entries[] | .key as $rol | .value[] |
+              select(.resultado == "FAIL_CRITICO") |
+              "| \($rol) | \(.method) \(.endpoint) | \(.http_status) | 🚨 Recibió \(.http_status), debía ser 403 |"
+            ' "$JSON" 2>/dev/null || echo "")
+
+            if [ -n "$CRITICOS" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### 🚨 Broken Access Control detectado" >> $GITHUB_STEP_SUMMARY
+              echo "| Rol | Endpoint | HTTP Real | Problema |" >> $GITHUB_STEP_SUMMARY
+              echo "|-----|----------|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+              echo "$CRITICOS" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ No se detectó Broken Access Control" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            WARNS=$(jq -r '
+              .resultados | to_entries[] | .key as $rol | .value[] |
+              select(.resultado == "FAIL_MENOR") |
+              "| \($rol) | \(.method) \(.endpoint) | \(.http_status) | \(.nota) |"
+            ' "$JSON" 2>/dev/null || echo "")
+
+            if [ -n "$WARNS" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### ⚠️ Warnings" >> $GITHUB_STEP_SUMMARY
+              echo "| Rol | Endpoint | HTTP Real | Nota |" >> $GITHUB_STEP_SUMMARY
+              echo "|-----|----------|-----------|------|" >> $GITHUB_STEP_SUMMARY
+              echo "$WARNS" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⚠️ No se encontró el reporte de access control" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📁 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- \`reporte-ADMIN\` → HTML + JSON ZAP" >> $GITHUB_STEP_SUMMARY
+          echo "- \`reporte-GERENTE\` → HTML + JSON ZAP" >> $GITHUB_STEP_SUMMARY
+          echo "- \`reporte-CHOFER\` → HTML + JSON ZAP" >> $GITHUB_STEP_SUMMARY
+          echo "- \`reporte-access-control\` → JSON matriz rol×endpoint" >> $GITHUB_STEP_SUMMARY

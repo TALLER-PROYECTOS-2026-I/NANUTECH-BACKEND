@@ -1,4 +1,5 @@
 import { getClient } from "../../shared/config/database.mjs";
+import { ALERT_TYPES } from "../../shared/constants/alertTypes.mjs";
 
 /**
  * Columnas base seleccionadas en consultas simples sobre la tabla jornadas.
@@ -62,7 +63,14 @@ const DURATION_SQL = `
  * @param {string} [options.fecha_hasta] - Límite superior de `j.fecha_jornada` (YYYY-MM-DD, inclusive)
  * @returns {{ whereClause: string, params: Array }} Cláusula WHERE lista para interpolación y arreglo de valores
  */
-function buildFilters({ q, conductor_id, fecha_desde, fecha_hasta } = {}) {
+function buildFilters({
+  q,
+  conductor_id,
+  fecha_desde,
+  fecha_hasta,
+  estado_alerta,
+  observaciones,
+} = {}) {
   const conditions = [];
   const params = [];
 
@@ -83,9 +91,16 @@ function buildFilters({ q, conductor_id, fecha_desde, fecha_hasta } = {}) {
     params.push(fecha_hasta);
     conditions.push(`j.fecha_jornada <= $${params.length}`);
   }
+  if (estado_alerta) {
+    params.push(estado_alerta);
+    conditions.push(`a.tipo_alerta = $${params.length}`);
+  }
+  if (observaciones === "true") {
+    conditions.push(`j.observaciones IS NOT NULL AND j.observaciones <> ''`);
+  }
 
   return {
-    whereClause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+    whereClause: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
     params,
   };
 }
@@ -373,7 +388,8 @@ export class JornadaRepository {
     const client = await getClient();
     try {
       const { whereClause, params } = buildFilters(filtros);
-      const result = await client.query(`
+      const result = await client.query(
+        `
         SELECT
           j.id,
           j.fecha_jornada AS fecha,
@@ -387,18 +403,48 @@ export class JornadaRepository {
               THEN TO_CHAR(j.hora_inicio, 'HH:MI AM') || ' - En curso'
             ELSE 'Sin iniciar'
           END AS horario,
-          j.km_recorridos AS km,
+          
+          j.km_estimados,
+          j.km_recorridos,
+
           j.estado,
           j.observaciones,
+
           ${DURATION_SQL} AS duracion_total,
-          (j.observaciones IS NOT NULL AND j.observaciones <> '') AS tiene_observaciones
+
+          (
+            j.observaciones IS NOT NULL
+            AND j.observaciones <> ''
+          ) AS tiene_observaciones,
+
+          a.tipo AS tipo_alerta,
+          a.detalle AS alerta_descripcion,
+          a.fecha_hora AS fecha_alerta,
+          a.latitud,
+          a.longitud,
+          a.estado AS estado_alerta,
+
+          CASE
+            WHEN a.tipo = '${ALERT_TYPES.PANICO}'
+              THEN true
+            ELSE false
+          END AS es_panico,
+
+          CASE
+            WHEN a.tipo = '${ALERT_TYPES.AUXILIO}'
+              THEN true
+            ELSE false
+          END AS es_auxilio
         FROM jornadas j
         JOIN usuarios u ON u.id = j.conductor_id
         JOIN unidades un ON un.id = j.unidad_id
         JOIN contratos c ON c.id = j.contrato_id
+        LEFT JOIN alertas a ON a.jornada_id = j.id
         ${whereClause}
         ORDER BY j.created_at DESC;
-      `, params);
+      `,
+        params
+      );
       return result.rows;
     } finally {
       client.release();
@@ -418,7 +464,8 @@ export class JornadaRepository {
     const client = await getClient();
     try {
       const { whereClause, params } = buildFilters(filtros);
-      const result = await client.query(`
+      const result = await client.query(
+        `
         SELECT
           j.id,
           TO_CHAR(j.fecha_jornada, 'YYYY-MM-DD') AS fecha,
@@ -428,7 +475,9 @@ export class JornadaRepository {
           TO_CHAR(j.hora_inicio, 'YYYY-MM-DD HH24:MI:SS') AS hora_inicio,
           TO_CHAR(j.hora_fin, 'YYYY-MM-DD HH24:MI:SS') AS hora_fin,
           ${DURATION_SQL} AS duracion_total,
+          j.km_estimados,
           j.km_recorridos,
+
           j.estado,
           j.observaciones
         FROM jornadas j
@@ -437,8 +486,106 @@ export class JornadaRepository {
         JOIN contratos c ON c.id = j.contrato_id
         ${whereClause}
         ORDER BY j.created_at DESC;
-      `, params);
+      `,
+        params
+      );
       return result.rows;
+    } finally {
+      client.release();
+    }
+  }
+  /**
+   * Obtiene métricas gerenciales del historial de jornadas.
+   */
+  async getHistorialMetrics(filtros = {}) {
+    const client = await getClient();
+
+    try {
+      const { whereClause, params } = buildFilters(filtros);
+
+      const result = await client.query(
+        `
+        SELECT
+          COUNT(DISTINCT j.id) AS total_jornadas,
+
+          COUNT(
+            DISTINCT CASE
+              WHEN a.tipo = '${ALERT_TYPES.PANICO}'
+              THEN j.id
+            END
+          ) AS alertas_panico,
+
+          COUNT(
+            DISTINCT CASE
+              WHEN a.tipo = '${ALERT_TYPES.AUXILIO}'
+              THEN j.id
+            END
+          ) AS auxilio_mecanico,
+
+          COUNT(
+            DISTINCT CASE
+              WHEN j.observaciones IS NOT NULL
+                AND j.observaciones <> ''
+              THEN j.id
+            END
+          ) AS jornadas_observaciones,
+
+          COALESCE(AVG(j.km_recorridos), 0) AS km_promedio
+
+        FROM jornadas j
+        JOIN usuarios u ON u.id = j.conductor_id
+        JOIN unidades un ON un.id = j.unidad_id
+        JOIN contratos c ON c.id = j.contrato_id
+        LEFT JOIN alertas a ON a.jornada_id = j.id
+
+        ${whereClause};
+      `,
+        params
+      );
+
+      return result.rows[0];
+    } finally {
+      client.release();
+    }
+  }
+  /**
+   * Obtiene detalle completo de una alerta.
+   */
+  async getAlertDetail(jornadaId) {
+    const client = await getClient();
+
+    try {
+      const result = await client.query(
+        `
+        SELECT
+          j.id AS jornada_id,
+          u.nombres || ' ' || u.apellidos AS conductor,
+          un.placa,
+          j.fecha_jornada,
+          j.origen,
+          j.destino,
+
+          a.tipo AS tipo_alerta,
+          a.detalle,
+          a.fecha_hora,
+          a.latitud,
+          a.longitud,
+          a.estado,
+          a.atendida_at,
+          a.detalle_resolucion
+
+        FROM jornadas j
+        JOIN usuarios u ON u.id = j.conductor_id
+        JOIN unidades un ON un.id = j.unidad_id
+        LEFT JOIN alertas a ON a.jornada_id = j.id
+
+        WHERE j.id = $1
+        LIMIT 1;
+      `,
+        [jornadaId]
+      );
+
+      return result.rows[0] || null;
     } finally {
       client.release();
     }

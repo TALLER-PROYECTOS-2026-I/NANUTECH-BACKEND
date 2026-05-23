@@ -1,0 +1,13 @@
+{
+  "placa": "ZAP-XSS-TEST-001",
+  "marca": "<script>alert('XSS')</script>",
+  "modelo": "<img src=x onerror=alert(1)>",
+  "anio": 2022,
+  "capacidad_ton": 10,
+  "vin": "VINZAPXSSTEST001",
+  "color": "<svg onload=alert(1)>",
+  "combustible": "DIESEL",
+  "gps": false,
+  "notas": "javascript:alert('xss')",
+  "kilometraje_actual": 0
+}

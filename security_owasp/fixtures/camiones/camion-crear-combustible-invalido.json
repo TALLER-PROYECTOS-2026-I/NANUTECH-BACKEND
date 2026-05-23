@@ -1,0 +1,12 @@
+{
+  "placa": "ZAP-COMB-INV-01",
+  "marca": "Volvo",
+  "modelo": "FH16",
+  "anio": 2023,
+  "capacidad_ton": 20,
+  "vin": "VINZAPCOMBINV001",
+  "color": "Negro",
+  "combustible": "NAFTA",
+  "gps": true,
+  "kilometraje_actual": 0
+}

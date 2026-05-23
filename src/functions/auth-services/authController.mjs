@@ -1,9 +1,5 @@
-import {
-  errorResponse,
-  successResponse,
-} from "../../shared/utils/response/response.mjs";
+import { errorResponse, successResponse } from "../../shared/utils/response/response.mjs";
 import * as authService from "./authService.mjs";
-
 const parseJsonBody = (body) => {
   if (!body) return {};
 
@@ -21,7 +17,9 @@ const resolveErrorResponse = (error) =>
   errorResponse(error.message, error.statusCode || 500, {
     code: error.code || "AUTH_ERROR",
   });
-
+/**
+ * @see /auth/forgot-password POST
+ */
 export const forgotPassword = async (event) => {
   try {
     const body = parseJsonBody(event.body);
@@ -32,14 +30,16 @@ export const forgotPassword = async (event) => {
     return resolveErrorResponse(error);
   }
 };
-
+/**
+ * @see /auth/forgot-password/confirm POST
+ */
 export const confirmForgotPassword = async (event) => {
   try {
     const body = parseJsonBody(event.body);
     const result = await authService.handleConfirmForgotPassword(
       body.email,
       body.code,
-      body.newPassword,
+      body.newPassword
     );
 
     return successResponse(result, "Contrasena actualizada");
@@ -47,14 +47,13 @@ export const confirmForgotPassword = async (event) => {
     return resolveErrorResponse(error);
   }
 };
-
+/**
+ * @see /auth/login POST
+ */
 export const loginAttempt = async (event) => {
   try {
     const body = parseJsonBody(event.body);
-    const result = await authService.handleLoginAttempt(
-      body.email,
-      body.password,
-    );
+    const result = await authService.handleLoginAttempt(body.email, body.password);
 
     return successResponse(result, "Resultado de login");
   } catch (error) {
@@ -62,10 +61,12 @@ export const loginAttempt = async (event) => {
   }
 };
 
+/**
+ * @see /auth/me GET
+ */
 export const getCurrentSessionController = async (event) => {
   try {
-    const authorizationHeader =
-      event.headers?.Authorization || event.headers?.authorization;
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
     const result = await authService.getCurrentSession(authorizationHeader);
 
     return successResponse(result, "Sesion valida");

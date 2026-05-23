@@ -9,6 +9,7 @@ export const SUCCESS_MESSAGES = {
   // Conductor messages
   CONDUCTOR_RETRIEVED: "Conductor obtenido exitosamente",
   CONDUCTORES_RETRIEVED: "Conductores obtenidos exitosamente",
+  CONDUCTOR_STATISTICS_RETRIEVED: "Estadísticas del conductor obtenidas correctamente",
 
   // Contrato messages
   CONTRATO_CREATED: "Contrato creado exitosamente",

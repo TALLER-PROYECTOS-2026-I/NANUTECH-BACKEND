@@ -1,0 +1,12 @@
+{
+  "placa": "' OR '1'='1' --",
+  "marca": "'; DROP TABLE unidades; --",
+  "modelo": "'; SELECT * FROM usuarios; --",
+  "anio": 2022,
+  "capacidad_ton": 10,
+  "vin": "VINZAPSQLINJ00001",
+  "color": "Blanco",
+  "combustible": "DIESEL",
+  "gps": false,
+  "kilometraje_actual": 0
+}

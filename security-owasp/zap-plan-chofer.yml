@@ -1,0 +1,92 @@
+# =============================================================================
+# zap-plan-chofer.yml — ROL CHOFER
+# Placeholders reemplazados por sed antes de correr ZAP:
+#   API_URL_PLACEHOLDER   → URL real del API Gateway
+#   ZAP_TOKEN_PLACEHOLDER → Bearer token del CHOFER
+# =============================================================================
+env:
+  contexts:
+    - name: "CHOFER"
+      urls:
+        - "API_URL_PLACEHOLDER"
+      includePaths:
+        - "API_URL_PLACEHOLDER/auth/login"
+        - "API_URL_PLACEHOLDER/auth/me"
+        - "API_URL_PLACEHOLDER/auth/forgot-password"
+        - "API_URL_PLACEHOLDER/auth/forgot-password/confirm"
+        - "API_URL_PLACEHOLDER/jornadas/actual/.*"
+        - "API_URL_PLACEHOLDER/jornadas/iniciar"
+        - "API_URL_PLACEHOLDER/jornadas/finalizar"
+      excludePaths:
+        - "API_URL_PLACEHOLDER/camiones.*"
+        - "API_URL_PLACEHOLDER/dashboard.*"
+        - "API_URL_PLACEHOLDER/jornadas$"
+        - "API_URL_PLACEHOLDER/jornadas/exportar"
+        - "API_URL_PLACEHOLDER/conductores.*"
+        - "API_URL_PLACEHOLDER/contratos.*"
+        - "API_URL_PLACEHOLDER/unidades.*"
+        - "API_URL_PLACEHOLDER/gps/.*"
+  parameters:
+    failOnError: false
+    progressToStdout: true
+
+jobs:
+  - type: openapi
+    parameters:
+      apiFile: "/zap/wrk/openapi.run.yml"
+      context: "CHOFER"
+      targetUrl: "API_URL_PLACEHOLDER"
+    name: "ImportarOpenAPI-CHOFER"
+
+  - type: script
+    parameters:
+      action: "add"
+      type: "httpsender"
+      engine: "ECMAScript : Graal.js"
+      name: "InjectarBearer"
+      inline: |
+        function sendingRequest(msg, initiator, helper) {
+          msg.getRequestHeader().setHeader(
+            "Authorization",
+            "Bearer ZAP_TOKEN_PLACEHOLDER"
+          );
+        }
+        function responseReceived(msg, initiator, helper) {}
+    name: "InjectarToken-CHOFER"
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+    name: "PassiveScan-CHOFER"
+
+  - type: activeScan
+    parameters:
+      context: "CHOFER"
+      maxRuleDurationInMins: 5
+      maxScanDurationInMins: 10
+      threadPerHost: 2
+      addQueryParam: true
+    name: "ActiveScan-CHOFER"
+
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "reporte-CHOFER"
+      reportTitle: "Nanutech | ROL CHOFER | Reporte de Seguridad ZAP"
+      reportDescription: >
+        Escaneo activo con token ROL CHOFER.
+        Endpoints: /jornadas/actual/{conductorId}, /jornadas/iniciar,
+        /jornadas/finalizar, /auth/*.
+        Pruebas: SQL Injection en conductorId y jornada_id,
+        XSS en observaciones, Path Traversal en conductorId,
+        CORS, Headers HTTP.
+    name: "ReporteHTML-CHOFER"
+
+  - type: report
+    parameters:
+      template: "traditional-json"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "reporte-CHOFER-json"
+      reportTitle: "Nanutech | ROL CHOFER | JSON CI/CD"
+    name: "ReporteJSON-CHOFER"

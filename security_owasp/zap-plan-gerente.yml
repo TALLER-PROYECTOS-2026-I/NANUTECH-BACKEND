@@ -1,0 +1,101 @@
+# =============================================================================
+# zap-plan-gerente.yml — ROL GERENTE
+#
+# Placeholders reemplazados por sed en el workflow:
+#   API_URL_PLACEHOLDER   → URL real del API Gateway
+#   ZAP_TOKEN_PLACEHOLDER → Bearer token del GERENTE
+#
+# Cubre: XSS, SQLi, CORS, Path Traversal, Security Headers
+# Usa Default Policy de ZAP (no requiere XML externo)
+# =============================================================================
+env:
+  contexts:
+    - name: "GERENTE"
+      urls:
+        - "API_URL_PLACEHOLDER"
+      includePaths:
+        - "API_URL_PLACEHOLDER/auth/login"
+        - "API_URL_PLACEHOLDER/auth/me"
+        - "API_URL_PLACEHOLDER/auth/forgot-password"
+        - "API_URL_PLACEHOLDER/auth/forgot-password/confirm"
+        - "API_URL_PLACEHOLDER/dashboard/gerencial"
+        - "API_URL_PLACEHOLDER/jornadas"
+        - "API_URL_PLACEHOLDER/jornadas/exportar"
+        - "API_URL_PLACEHOLDER/conductores"
+        - "API_URL_PLACEHOLDER/contratos"
+        - "API_URL_PLACEHOLDER/contratos/.*"
+        - "API_URL_PLACEHOLDER/contratos/vigentes"
+        - "API_URL_PLACEHOLDER/contratos/indicadores"
+        - "API_URL_PLACEHOLDER/unidades/disponibles"
+      excludePaths:
+        - "API_URL_PLACEHOLDER/camiones.*"
+        - "API_URL_PLACEHOLDER/dashboard$"
+        - "API_URL_PLACEHOLDER/gps/.*"
+        - "API_URL_PLACEHOLDER/jornadas/actual/.*"
+        - "API_URL_PLACEHOLDER/jornadas/iniciar"
+        - "API_URL_PLACEHOLDER/jornadas/finalizar"
+  parameters:
+    failOnError: false
+    progressToStdout: true
+
+jobs:
+  # ── 1. Importar spec OpenAPI ──────────────────────────────────────────────
+  - type: openapi
+    parameters:
+      apiFile: "/zap/wrk/openapi.run.yml"
+      context: "GERENTE"
+      targetUrl: "API_URL_PLACEHOLDER"
+    name: "ImportarOpenAPI-GERENTE"
+
+  # ── 2. Inyectar Bearer token ──────────────────────────────────────────────
+  #    FIX: era "matchStrings" (incorrecto) → token nunca se inyectaba
+  #    CORRECTO: "rules" (lista de objetos con description, matchType, etc.)
+  - type: replacer
+    parameters:
+      rules:
+        - description: "Bearer token ROL GERENTE"
+          matchType: "REQ_HEADER"
+          matchString: "Authorization"
+          matchRegex: false
+          replacement: "Bearer ZAP_TOKEN_PLACEHOLDER"
+          initiators: []
+    name: "InjectarToken-GERENTE"
+
+  # ── 3. Escaneo pasivo ─────────────────────────────────────────────────────
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+    name: "PassiveScan-GERENTE"
+
+  # ── 4. Escaneo activo — Default Policy ────────────────────────────────────
+  - type: activeScan
+    parameters:
+      context: "GERENTE"
+      maxRuleDurationInMins: 5
+      maxScanDurationInMins: 20
+      threadPerHost: 2
+      addQueryParam: true
+    name: "ActiveScan-GERENTE"
+
+  # ── 5. Reporte HTML ───────────────────────────────────────────────────────
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "reporte-GERENTE"
+      reportTitle: "Nanutech | ROL GERENTE | Reporte de Seguridad ZAP"
+      reportDescription: >
+        Escaneo activo con token ROL GERENTE.
+        Endpoints: /dashboard/gerencial, /jornadas, /conductores,
+        /contratos, /unidades/disponibles, /auth/*.
+        Pruebas: SQL Injection, XSS, CORS, Path Traversal, Headers HTTP.
+    name: "ReporteHTML-GERENTE"
+
+  # ── 6. Reporte JSON ───────────────────────────────────────────────────────
+  - type: report
+    parameters:
+      template: "traditional-json"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "reporte-GERENTE-json"
+      reportTitle: "Nanutech | ROL GERENTE | JSON CI/CD"
+    name: "ReporteJSON-GERENTE"

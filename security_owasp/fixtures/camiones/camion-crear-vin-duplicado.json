@@ -1,0 +1,12 @@
+{
+  "placa": "ZAP-VIN-DUPL-01",
+  "marca": "Scania",
+  "modelo": "R500",
+  "anio": 2021,
+  "capacidad_ton": 18,
+  "vin": "VINVOLVO0001",
+  "color": "Rojo",
+  "combustible": "DIESEL",
+  "gps": false,
+  "kilometraje_actual": 0
+}

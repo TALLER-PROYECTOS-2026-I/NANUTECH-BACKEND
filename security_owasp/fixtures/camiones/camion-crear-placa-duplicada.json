@@ -1,0 +1,12 @@
+{
+  "placa": "ABC-123",
+  "marca": "Mercedes-Benz",
+  "modelo": "Actros",
+  "anio": 2022,
+  "capacidad_ton": 20,
+  "vin": "VINDUPLICADOTEST01",
+  "color": "Gris",
+  "combustible": "DIESEL",
+  "gps": true,
+  "kilometraje_actual": 0
+}

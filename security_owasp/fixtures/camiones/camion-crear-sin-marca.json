@@ -1,0 +1,11 @@
+{
+  "placa": "ZAP-SIN-MARCA",
+  "modelo": "FH16",
+  "anio": 2022,
+  "capacidad_ton": 20,
+  "vin": "VINZAPSINMARCA001",
+  "color": "Blanco",
+  "combustible": "DIESEL",
+  "gps": true,
+  "kilometraje_actual": 0
+}

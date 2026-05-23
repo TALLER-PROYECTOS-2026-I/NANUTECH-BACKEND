@@ -17,7 +17,7 @@ permissions:
 jobs:
 
   # ============================================
-  # UNIT TESTS & COVERAGE
+  # UNIT TEST & COVERAGE
   # ============================================
 
   unit-tests:

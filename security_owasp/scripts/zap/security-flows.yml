@@ -1,0 +1,1165 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# security-flows.yml — Nanutech Backend
+#
+# Flujos de seguridad con lógica de negocio real.
+# Los tokens los inyecta el workflow desde GITHUB_ENV después del login.
+#
+# Convención de respuestas esperadas:
+#   401 → no tiene sesión (sin token o token inválido)
+#   403 → tiene sesión pero no tiene permiso (rol incorrecto)
+#   400 → input inválido / malicioso
+#   500 → NUNCA debe aparecer (fuga de error interno)
+#
+# Roles del sistema:
+#   ADMIN   → admin@nanutech.com    / Admin123!
+#   CHOFER  → chofer@nanutech.com   / Chofer123!  (ID: 22222222-2222-2222-2222-222222222222)
+#   GERENTE → gerente@nanutech.com  / Gerente123!
+# ─────────────────────────────────────────────────────────────────────────────
+
+target:
+  url: "${API_URL_TESTING}"
+  ready_timeout: 30
+
+flows:
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 00 — Auth: Login para los 3 roles
+  # Extrae tokens que alimentan todos los flujos posteriores.
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "00-auth-login"
+    description: "Login real para ADMIN, CHOFER y GERENTE. Extrae tokens."
+
+    steps:
+      - name: login-admin
+        method: POST
+        path: /auth/login
+        auth: none
+        body:
+          email: "admin@nanutech.com"
+          password: "Admin123!"
+        extract:
+          - variable: TOKEN_ADMIN
+            jsonpath: $.data.session.accessToken
+          - variable: ADMIN_USER_ID
+            jsonpath: $.data.user.id
+        expect:
+          status: 200
+          body_contains: ["accessToken", "role"]
+          body_not_contains: ["password", "hash", "cognito_sub"]
+        owasp_tags: [A07]
+
+      - name: login-chofer
+        method: POST
+        path: /auth/login
+        auth: none
+        body:
+          email: "chofer@nanutech.com"
+          password: "Chofer123!"
+        extract:
+          - variable: TOKEN_CHOFER
+            jsonpath: $.data.session.accessToken
+          - variable: CHOFER_USER_ID
+            jsonpath: $.data.user.id
+        expect:
+          status: 200
+          body_contains: ["accessToken", "role"]
+          body_not_contains: ["password", "hash", "cognito_sub"]
+        owasp_tags: [A07]
+
+      - name: login-gerente
+        method: POST
+        path: /auth/login
+        auth: none
+        body:
+          email: "gerente@nanutech.com"
+          password: "Gerente123!"
+        extract:
+          - variable: TOKEN_GERENTE
+            jsonpath: $.data.session.accessToken
+          - variable: GERENTE_USER_ID
+            jsonpath: $.data.user.id
+        expect:
+          status: 200
+          body_contains: ["accessToken", "role"]
+          body_not_contains: ["password", "hash", "cognito_sub"]
+        owasp_tags: [A07]
+
+      # ── Casos negativos ───────────────────────────────────────────────────
+
+      - name: login-sin-token-email-invalido
+        method: POST
+        path: /auth/login
+        auth: none
+        body:
+          email: "esto-no-es-un-email"
+          password: "cualquier"
+        expect:
+          status: 400
+          not_status: [200, 500]
+          body_not_contains: ["accessToken", "stack", "pg_", "SQL"]
+        owasp_tags: [A07, A04]
+
+      - name: login-password-incorrecto
+        method: POST
+        path: /auth/login
+        auth: none
+        body:
+          email: "admin@nanutech.com"
+          password: "WrongPassword999!"
+        expect:
+          status: 401
+          not_status: [200, 500]
+          # No debe revelar si el email existe (user enumeration)
+          body_not_contains: ["email correcto", "usuario existe", "password incorrecto", "stack", "pg_"]
+        owasp_tags: [A07]
+
+      - name: login-sql-injection-email
+        method: POST
+        path: /auth/login
+        auth: none
+        body:
+          email: "' OR '1'='1"
+          password: "' OR '1'='1' --"
+        expect:
+          not_status: [200, 500]
+          body_not_contains: ["syntax error", "SQL", "postgres", "pg_", "stack trace", "DROP"]
+        owasp_tags: [A03, A07]
+
+      - name: login-body-vacio
+        method: POST
+        path: /auth/login
+        auth: none
+        body: "{}"
+        expect:
+          status: 400
+          not_status: [200, 500]
+        owasp_tags: [A04]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 01 — /auth/me por cada rol
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "01-auth-me"
+    description: "Verifica /auth/me: 200 con token válido, 401 sin token, 401 con token basura."
+
+    steps:
+      - name: me-admin-debe-ser-200
+        method: GET
+        path: /auth/me
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          body_contains: ["user", "session", "role", "isAuthenticated"]
+          body_not_contains: ["password", "hash", "cognito_sub"]
+        owasp_tags: [A01, A07]
+
+      - name: me-chofer-debe-ser-200
+        method: GET
+        path: /auth/me
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 200
+          body_contains: ["user", "role"]
+          body_not_contains: ["password", "hash", "cognito_sub"]
+        owasp_tags: [A01, A07]
+
+      - name: me-gerente-debe-ser-200
+        method: GET
+        path: /auth/me
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          status: 200
+          body_contains: ["user", "role"]
+          body_not_contains: ["password", "hash", "cognito_sub"]
+        owasp_tags: [A01, A07]
+
+      - name: me-sin-token-debe-ser-401
+        method: GET
+        path: /auth/me
+        auth: none
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+          body_not_contains: ["user", "accessToken", "stack"]
+        owasp_tags: [A01, A07]
+
+      - name: me-token-basura-debe-ser-401
+        method: GET
+        path: /auth/me
+        auth: raw_header
+        headers:
+          Authorization: "Bearer esto.no.es.un.jwt.valido"
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+          body_not_contains: ["secret", "stack", "Error:", "at Object", "pg_"]
+        owasp_tags: [A01, A07]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 02 — Forgot Password (anti user-enumeration)
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "02-auth-forgot-password"
+    description: "forgot-password no debe revelar si el email existe."
+
+    steps:
+      - name: forgot-email-existente-debe-ser-200
+        method: POST
+        path: /auth/forgot-password
+        auth: none
+        body:
+          email: "chofer@nanutech.com"
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_", "SQL"]
+        owasp_tags: [A07]
+
+      - name: forgot-email-inexistente-debe-ser-200-igual
+        method: POST
+        path: /auth/forgot-password
+        auth: none
+        body:
+          email: "no-existe-jamas@nanutech.com"
+        expect:
+          # DEBE devolver 200 igual que el email existente
+          # Si devuelve 404 está revelando que el email no existe (user enumeration)
+          status: 200
+          not_status: [404, 500]
+          body_not_contains: ["no encontrado", "not found", "no existe", "stack", "pg_"]
+        owasp_tags: [A07]
+
+      - name: forgot-confirm-codigo-invalido-debe-ser-401
+        method: POST
+        path: /auth/forgot-password/confirm
+        auth: none
+        body:
+          email: "chofer@nanutech.com"
+          code: "000000"
+          newPassword: "NuevoPassword123!"
+        expect:
+          status: 401
+          not_status: [200, 500]
+          body_not_contains: ["stack", "postgres", "pg_", "SQL"]
+        owasp_tags: [A07]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 03 — Camiones: CRUD con ADMIN (único rol autorizado)
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "03-camiones-crud-admin"
+    description: "ADMIN crea y consulta camiones. Extrae ID para flujos posteriores."
+
+    steps:
+      - name: admin-listar-camiones-debe-ser-200
+        method: GET
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          body_not_contains: ["stack", "pg_", "SQL", "password"]
+        owasp_tags: [A01, A05]
+
+      - name: admin-panel-camiones-debe-ser-200
+        method: GET
+        path: /camiones/panel
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01, A05]
+
+      - name: admin-exportar-csv-debe-ser-200
+        method: GET
+        path: /camiones/exportar/csv
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          headers:
+            Content-Type: "text/csv"
+        owasp_tags: [A01, A05]
+
+      - name: admin-crear-camion-debe-ser-201
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body:
+          placa: "TST-999"
+          marca: "Volvo"
+          modelo: "FH16"
+          anio: 2023
+          capacidad: 25000
+          vin: "VINSECURITY9999"
+          color: "Blanco"
+          tipo_combustible: "DIESEL"
+        extract:
+          - variable: CAMION_TEST_ID
+            jsonpath: $.data.id
+        expect:
+          status: 201
+          body_contains: ["id", "placa"]
+          body_not_contains: ["stack", "pg_", "duplicate key", "SQL"]
+        owasp_tags: [A01, A03, A05]
+
+      - name: admin-obtener-camion-por-id-debe-ser-200
+        method: GET
+        path: /camiones/${CAMION_TEST_ID}
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          body_contains: ["id", "placa"]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01, A05]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 04 — Camiones: RBAC
+  # 401 → sin token
+  # 403 → token válido pero rol incorrecto
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "04-camiones-rbac"
+    description: "Solo ADMIN accede a /camiones. CHOFER y GERENTE reciben 403. Sin token → 401."
+
+    steps:
+      # Sin token → 401 (no hay sesión)
+      - name: sin-token-lista-camiones-debe-ser-401
+        method: GET
+        path: /camiones
+        auth: none
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+          body_not_contains: ["placa", "marca", "stack"]
+        owasp_tags: [A01, A07]
+
+      # CHOFER con sesión válida → 403 (sin permiso)
+      - name: chofer-lista-camiones-debe-ser-403
+        method: GET
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+          body_not_contains: ["placa", "marca", "modelo", "stack"]
+        owasp_tags: [A01]
+
+      - name: chofer-crea-camion-debe-ser-403
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_CHOFER
+        body:
+          placa: "HAK-001"
+          marca: "Hack"
+          modelo: "Test"
+          anio: 2024
+          capacidad: 1000
+          vin: "HACKVIN001"
+        expect:
+          status: 403
+          not_status: [200, 201, 401, 500]
+        owasp_tags: [A01]
+
+      - name: chofer-panel-camiones-debe-ser-403
+        method: GET
+        path: /camiones/panel
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      - name: chofer-exportar-csv-debe-ser-403
+        method: GET
+        path: /camiones/exportar/csv
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      # GERENTE con sesión válida → 403
+      - name: gerente-lista-camiones-debe-ser-403
+        method: GET
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+          body_not_contains: ["placa", "marca", "stack"]
+        owasp_tags: [A01]
+
+      - name: gerente-crea-camion-debe-ser-403
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_GERENTE
+        body:
+          placa: "HAK-002"
+          marca: "Hack"
+          modelo: "Test"
+          anio: 2024
+          capacidad: 1000
+          vin: "HACKVIN002"
+        expect:
+          status: 403
+          not_status: [200, 201, 401, 500]
+        owasp_tags: [A01]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 05 — Camiones: Input malicioso (solo con ADMIN que sí tiene acceso)
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "05-camiones-input-malicioso"
+    description: "SQL Injection, XSS y datos inválidos. Nunca debe retornar 200/201/500."
+
+    steps:
+      - name: sql-injection-en-placa
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body:
+          placa: "'; DROP TABLE camiones; --"
+          marca: "Test"
+          modelo: "SQLi"
+          anio: 2024
+          capacidad: 1000
+          vin: "SQLINJ001"
+        expect:
+          status: 400
+          not_status: [200, 201, 500]
+          body_not_contains: ["syntax error", "SQL", "postgres", "pg_", "stack", "DROP TABLE"]
+        owasp_tags: [A03]
+
+      - name: xss-en-marca
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body:
+          placa: "XSS-001"
+          marca: "<script>alert('XSS')</script>"
+          modelo: "XSS Test"
+          anio: 2024
+          capacidad: 1000
+          vin: "XSSVIN001"
+        expect:
+          status: 400
+          not_status: [200, 201, 500]
+          body_not_contains: ["<script>", "alert(", "javascript:", "onerror="]
+        owasp_tags: [A03]
+
+      - name: anio-fuera-de-rango-1800
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body:
+          placa: "VAL-001"
+          marca: "Test"
+          modelo: "Test"
+          anio: 1800
+          capacidad: 1000
+          vin: "VALVIN001"
+        expect:
+          status: 400
+          not_status: [200, 201, 500]
+        owasp_tags: [A04]
+
+      - name: capacidad-negativa
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body:
+          placa: "VAL-002"
+          marca: "Test"
+          modelo: "Test"
+          anio: 2023
+          capacidad: -500
+          vin: "VALVIN002"
+        expect:
+          status: 400
+          not_status: [200, 201, 500]
+        owasp_tags: [A04]
+
+      - name: placa-duplicada-del-seed
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body:
+          placa: "ABC-123"       # Existe en el seed (unidades)
+          marca: "Duplicado"
+          modelo: "Test"
+          anio: 2023
+          capacidad: 1000
+          vin: "DUPVIN001"
+        expect:
+          status: 400
+          not_status: [200, 201, 500]
+          body_not_contains: ["duplicate key", "unique constraint", "pg_", "SQL"]
+        owasp_tags: [A04]
+
+      - name: vin-duplicado-del-seed
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body:
+          placa: "NUE-999"
+          marca: "Test"
+          modelo: "Test"
+          anio: 2023
+          capacidad: 1000
+          vin: "VINVOLVO0001"    # Existe en el seed
+        expect:
+          status: 400
+          not_status: [200, 201, 500]
+          body_not_contains: ["duplicate key", "unique constraint", "pg_"]
+        owasp_tags: [A04]
+
+      - name: combustible-valor-invalido
+        method: POST
+        path: /camiones
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body:
+          placa: "VAL-003"
+          marca: "Test"
+          modelo: "Test"
+          anio: 2023
+          capacidad: 1000
+          vin: "VALVIN003"
+          tipo_combustible: "PLUTONIO"
+        expect:
+          status: 400
+          not_status: [200, 201, 500]
+        owasp_tags: [A04]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 06 — Dashboard: RBAC
+  # GET /dashboard          → solo ADMIN
+  # GET /dashboard/gerencial → solo GERENTE
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "06-dashboard-rbac"
+    description: "Dashboard separado por rol. Acceso cruzado → 403."
+
+    steps:
+      - name: admin-dashboard-debe-ser-200
+        method: GET
+        path: /dashboard
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01]
+
+      - name: sin-token-dashboard-debe-ser-401
+        method: GET
+        path: /dashboard
+        auth: none
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+        owasp_tags: [A01, A07]
+
+      - name: chofer-dashboard-admin-debe-ser-403
+        method: GET
+        path: /dashboard
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      - name: gerente-dashboard-admin-debe-ser-403
+        method: GET
+        path: /dashboard
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      - name: gerente-dashboard-gerencial-debe-ser-200
+        method: GET
+        path: /dashboard/gerencial
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01]
+
+      - name: sin-token-dashboard-gerencial-debe-ser-401
+        method: GET
+        path: /dashboard/gerencial
+        auth: none
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+        owasp_tags: [A01, A07]
+
+      - name: admin-dashboard-gerencial-debe-ser-403
+        method: GET
+        path: /dashboard/gerencial
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      - name: chofer-dashboard-gerencial-debe-ser-403
+        method: GET
+        path: /dashboard/gerencial
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 07 — Jornadas: RBAC completo
+  # POST/GET /jornadas           → ADMIN, GERENTE
+  # GET /jornadas/actual/{id}    → CHOFER (solo la suya)
+  # POST /jornadas/iniciar       → CHOFER
+  # POST /jornadas/finalizar     → CHOFER
+  # GET /jornadas/exportar       → ADMIN, GERENTE
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "07-jornadas-rbac"
+    description: "Jornadas: acceso por rol y IDOR entre choferes."
+
+    steps:
+      # Listado: ADMIN y GERENTE pueden
+      - name: admin-lista-jornadas-debe-ser-200
+        method: GET
+        path: /jornadas
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01]
+
+      - name: gerente-lista-jornadas-debe-ser-200
+        method: GET
+        path: /jornadas
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01]
+
+      - name: sin-token-lista-jornadas-debe-ser-401
+        method: GET
+        path: /jornadas
+        auth: none
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+        owasp_tags: [A01, A07]
+
+      - name: chofer-lista-jornadas-debe-ser-403
+        method: GET
+        path: /jornadas
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+          body_not_contains: ["conductor_id", "origen", "destino"]
+        owasp_tags: [A01]
+
+      # Jornada actual: CHOFER solo puede ver la suya propia
+      - name: chofer-jornada-actual-propia
+        method: GET
+        path: /jornadas/actual/22222222-2222-2222-2222-222222222222
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          # 200 si tiene jornada activa, 404 si no — ambos válidos
+          not_status: [401, 403, 500]
+        owasp_tags: [A01]
+
+      # IDOR: chofer intenta ver jornada de otro chofer (33333333 tiene jornada EN_PROCESO en seed)
+      - name: chofer-jornada-de-otro-chofer-debe-ser-403
+        method: GET
+        path: /jornadas/actual/33333333-3333-3333-3333-333333333333
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+          body_not_contains: ["conductor_id", "unidad_id", "origen", "destino", "placa"]
+        owasp_tags: [A01, A04]
+
+      # Iniciar jornada: solo CHOFER
+      - name: admin-iniciar-jornada-debe-ser-403
+        method: POST
+        path: /jornadas/iniciar
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body:
+          jornada_id: "cccc0003-0000-0000-0000-000000000003"
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      - name: gerente-iniciar-jornada-debe-ser-403
+        method: POST
+        path: /jornadas/iniciar
+        auth: token
+        token_variable: TOKEN_GERENTE
+        body:
+          jornada_id: "cccc0003-0000-0000-0000-000000000003"
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      - name: sin-token-iniciar-jornada-debe-ser-401
+        method: POST
+        path: /jornadas/iniciar
+        auth: none
+        body:
+          jornada_id: "cccc0003-0000-0000-0000-000000000003"
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+        owasp_tags: [A01, A07]
+
+      # Finalizar jornada: solo CHOFER
+      - name: admin-finalizar-jornada-debe-ser-403
+        method: POST
+        path: /jornadas/finalizar
+        auth: token
+        token_variable: TOKEN_ADMIN
+        body:
+          jornada_id: "cccc0002-0000-0000-0000-000000000002"
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      - name: sin-token-finalizar-jornada-debe-ser-401
+        method: POST
+        path: /jornadas/finalizar
+        auth: none
+        body:
+          jornada_id: "cccc0002-0000-0000-0000-000000000002"
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+        owasp_tags: [A01, A07]
+
+      # Exportar: solo ADMIN y GERENTE
+      - name: admin-exporta-jornadas
+        method: GET
+        path: /jornadas/exportar
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          not_status: [401, 403, 500]
+        owasp_tags: [A01]
+
+      - name: gerente-exporta-jornadas
+        method: GET
+        path: /jornadas/exportar
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          not_status: [401, 403, 500]
+        owasp_tags: [A01]
+
+      - name: chofer-exporta-jornadas-debe-ser-403
+        method: GET
+        path: /jornadas/exportar
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      - name: sin-token-exporta-jornadas-debe-ser-401
+        method: GET
+        path: /jornadas/exportar
+        auth: none
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+        owasp_tags: [A01, A07]
+
+      # CHOFER no puede crear jornadas (solo ADMIN y GERENTE)
+      - name: chofer-crea-jornada-debe-ser-403
+        method: POST
+        path: /jornadas
+        auth: token
+        token_variable: TOKEN_CHOFER
+        body:
+          conductor_id: "22222222-2222-2222-2222-222222222222"
+          unidad_id: "aaaa0001-0000-0000-0000-000000000001"
+          contrato_id: "bbbb0001-0000-0000-0000-000000000001"
+        expect:
+          status: 403
+          not_status: [200, 201, 401, 500]
+        owasp_tags: [A01]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 08 — GPS: solo ADMIN
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "08-gps-rbac"
+    description: "Todos los endpoints GPS son exclusivos de ADMIN."
+
+    steps:
+      - name: admin-gps-proveedores-debe-ser-200
+        method: GET
+        path: /gps/proveedores
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01]
+
+      - name: admin-gps-plantilla-debe-ser-200
+        method: GET
+        path: /gps/plantilla
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          not_status: [401, 403, 500]
+        owasp_tags: [A01]
+
+      - name: admin-gps-resumen-debe-ser-200
+        method: GET
+        path: /gps/resumen
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01]
+
+      - name: admin-gps-registros-debe-ser-200
+        method: GET
+        path: /gps/registros
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01]
+
+      # Sin token → 401
+      - name: sin-token-gps-proveedores-debe-ser-401
+        method: GET
+        path: /gps/proveedores
+        auth: none
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+        owasp_tags: [A01, A07]
+
+      # CHOFER → 403
+      - name: chofer-gps-proveedores-debe-ser-403
+        method: GET
+        path: /gps/proveedores
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      - name: chofer-gps-registros-debe-ser-403
+        method: GET
+        path: /gps/registros
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      # GERENTE → 403
+      - name: gerente-gps-proveedores-debe-ser-403
+        method: GET
+        path: /gps/proveedores
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      # SQL injection en path de proveedor
+      - name: admin-gps-plantilla-sql-injection-path
+        method: GET
+        path: "/gps/plantilla/' OR '1'='1"
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 400
+          not_status: [200, 500]
+          body_not_contains: ["SQL", "syntax error", "postgres", "pg_", "stack"]
+        owasp_tags: [A03]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 09 — Conductores: ADMIN y GERENTE
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "09-conductores-rbac"
+    description: "GET /conductores: ADMIN y GERENTE. CHOFER y sin token → denegado."
+
+    steps:
+      - name: admin-lista-conductores-debe-ser-200
+        method: GET
+        path: /conductores
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          not_status: [500]
+          # cognito_sub nunca debe exponerse en respuestas
+          body_not_contains: ["cognito_sub", "password", "hash", "stack", "pg_"]
+        owasp_tags: [A01, A02, A05]
+
+      - name: gerente-lista-conductores-debe-ser-200
+        method: GET
+        path: /conductores
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["cognito_sub", "password", "hash", "stack"]
+        owasp_tags: [A01]
+
+      - name: sin-token-conductores-debe-ser-401
+        method: GET
+        path: /conductores
+        auth: none
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+        owasp_tags: [A01, A07]
+
+      - name: chofer-lista-conductores-debe-ser-403
+        method: GET
+        path: /conductores
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+          body_not_contains: ["dni", "telefono", "direccion", "cognito_sub"]
+        owasp_tags: [A01]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 10 — Contratos: RBAC
+  # GET /contratos, /contratos/{id}, POST /contratos,
+  # GET /contratos/indicadores  → GERENTE
+  # GET /contratos/vigentes     → ADMIN, GERENTE
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "10-contratos-rbac"
+    description: "Contratos: GERENTE completo. ADMIN solo vigentes. CHOFER → 403."
+
+    steps:
+      - name: gerente-lista-contratos-debe-ser-200
+        method: GET
+        path: /contratos
+        auth: token
+        token_variable: TOKEN_GERENTE
+        extract:
+          - variable: CONTRATO_TEST_ID
+            jsonpath: $.data[0].id
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01]
+
+      - name: gerente-contrato-por-id-debe-ser-200
+        method: GET
+        path: /contratos/${CONTRATO_TEST_ID}
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          not_status: [401, 403, 500]
+        owasp_tags: [A01]
+
+      - name: gerente-indicadores-contratos-debe-ser-200
+        method: GET
+        path: /contratos/indicadores
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01]
+
+      - name: gerente-contratos-vigentes-debe-ser-200
+        method: GET
+        path: /contratos/vigentes
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          status: 200
+          not_status: [500]
+        owasp_tags: [A01]
+
+      - name: admin-contratos-vigentes-debe-ser-200
+        method: GET
+        path: /contratos/vigentes
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          not_status: [500]
+        owasp_tags: [A01]
+
+      # ADMIN no puede listar todos los contratos (solo vigentes)
+      - name: admin-lista-contratos-debe-ser-403
+        method: GET
+        path: /contratos
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+      - name: sin-token-contratos-debe-ser-401
+        method: GET
+        path: /contratos
+        auth: none
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+        owasp_tags: [A01, A07]
+
+      - name: chofer-lista-contratos-debe-ser-403
+        method: GET
+        path: /contratos
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+          body_not_contains: ["cliente", "tarifa", "ruc", "stack"]
+        owasp_tags: [A01]
+
+      # IDOR: CHOFER intenta acceder a contrato por ID directo del seed
+      - name: chofer-contrato-por-id-idor-debe-ser-403
+        method: GET
+        path: /contratos/bbbb0001-0000-0000-0000-000000000001
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+          body_not_contains: ["cliente", "tarifa", "ruc", "fecha_inicio"]
+        owasp_tags: [A01, A04]
+
+      # SQL injection en ID de contrato
+      - name: gerente-contrato-id-sql-injection
+        method: GET
+        path: "/contratos/' UNION SELECT * FROM usuarios --"
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          status: 400
+          not_status: [200, 500]
+          body_not_contains: ["cognito_sub", "password", "SQL", "pg_", "stack"]
+        owasp_tags: [A03]
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FLUJO 11 — Unidades disponibles: ADMIN y GERENTE
+  # ══════════════════════════════════════════════════════════════════════════
+  - name: "11-unidades-rbac"
+    description: "GET /unidades/disponibles: ADMIN y GERENTE. CHOFER → 403."
+
+    steps:
+      - name: admin-unidades-disponibles-debe-ser-200
+        method: GET
+        path: /unidades/disponibles
+        auth: token
+        token_variable: TOKEN_ADMIN
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01]
+
+      - name: gerente-unidades-disponibles-debe-ser-200
+        method: GET
+        path: /unidades/disponibles
+        auth: token
+        token_variable: TOKEN_GERENTE
+        expect:
+          status: 200
+          not_status: [500]
+          body_not_contains: ["stack", "pg_"]
+        owasp_tags: [A01]
+
+      - name: sin-token-unidades-debe-ser-401
+        method: GET
+        path: /unidades/disponibles
+        auth: none
+        expect:
+          status: 401
+          not_status: [200, 403, 500]
+        owasp_tags: [A01, A07]
+
+      - name: chofer-unidades-disponibles-debe-ser-403
+        method: GET
+        path: /unidades/disponibles
+        auth: token
+        token_variable: TOKEN_CHOFER
+        expect:
+          status: 403
+          not_status: [200, 401, 500]
+        owasp_tags: [A01]
+
+# ─── Exclusiones ──────────────────────────────────────────────────────────────
+exclude:
+  paths:
+    - /health
+    - /metrics
+    - /docs
+    - /swagger
+    - /favicon.ico
+
+# ─── Umbrales (solo para reporting, nada bloquea el pipeline) ─────────────────
+alerts:
+  fail_on: NONE         # Todo va al reporte, nada falla el pipeline
+  warn_on: MEDIUM
+  ignore:
+    - rule_id: 10038    # Content Security Policy (no aplica a REST APIs)
+    - rule_id: 10055    # CSP Scanner
+    - rule_id: 90003    # Sub Resource Integrity

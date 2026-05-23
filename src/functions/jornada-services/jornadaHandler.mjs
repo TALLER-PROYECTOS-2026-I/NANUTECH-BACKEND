@@ -1,29 +1,34 @@
-import {
-  createJornadaController,
-  getAllJornadasController,
-  exportCsvController,
-  getCurrentJornadaController,
-  startTurnController,
-  finishTurnController,
-} from "./jornadaController.mjs";
+import * as jornadaController from "./jornadaController.mjs";
 import { errorResponse } from "../../shared/utils/response/response.mjs";
 
 /**
  * Tabla de rutas del módulo de jornadas.
  * Mapea cada combinación "METHOD /ruta" al controller correspondiente.
  * El orden importa: rutas específicas (/exportar, /actual/{id}, /iniciar, /finalizar)
- * deben estar definidas antes de la ruta genérica (/jornadas) para evitar colisiones
- * si el router del API Gateway no diferencia por especificidad.
+ * y rutas del historial gerencial deben estar definidas antes de la ruta genérica
+ * (/jornadas) para evitar colisiones si el router del API Gateway no diferencia
+ * por especificidad.
  *
  * @type {Object.<string, Function>}
  */
 const ROUTES = {
-  "POST /jornadas": createJornadaController,
-  "GET /jornadas/exportar": exportCsvController,
-  "GET /jornadas/actual/{conductorId}": getCurrentJornadaController,
-  "GET /jornadas": getAllJornadasController,
-  "POST /jornadas/iniciar": startTurnController,
-  "POST /jornadas/finalizar": finishTurnController,
+  "POST /jornadas": jornadaController.createJornadaController,
+
+  "GET /jornadas/exportar": jornadaController.exportCsvController,
+
+  "GET /jornadas/actual/{conductorId}": jornadaController.getCurrentJornadaController,
+
+  "GET /jornadas/historial-gerencial": jornadaController.getManagerHistoryController,
+
+  "GET /jornadas/historial-gerencial/metrics": jornadaController.getHistorialMetricsController,
+
+  "GET /jornadas/alerta/{jornadaId}": jornadaController.getAlertDetailController,
+
+  "GET /jornadas": jornadaController.getAllJornadasController,
+
+  "POST /jornadas/iniciar": jornadaController.startTurnController,
+
+  "POST /jornadas/finalizar": jornadaController.finishTurnController,
 };
 
 /**
@@ -48,6 +53,7 @@ export const handler = async (event) => {
   const routeKey = `${method} ${resource}`;
 
   const routeHandler = ROUTES[routeKey];
+
   if (!routeHandler) {
     return errorResponse("Ruta no encontrada", 404, {
       code: "ROUTE_NOT_FOUND",

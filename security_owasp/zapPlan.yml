@@ -1,0 +1,303 @@
+# =============================================================================
+# OWASP ZAP - Automation Framework Plan
+# Nanutech Backend API Security Testing
+#
+# Scope: /auth/** y /camiones/**
+#
+# Estrategia de Broken Access Control (OWASP A01):
+#   1. SIN TOKEN     → detecta endpoints privados expuestos públicamente
+#   2. ROL CHOFER    → detecta si puede acceder a rutas de ADMIN/GERENTE
+#   3. ROL GERENTE   → detecta si puede acceder a rutas de solo ADMIN (/camiones)
+#   4. ROL ADMIN     → baseline, flujo normal esperado
+# =============================================================================
+
+env:
+  contexts:
+
+    # ------------------------------------------------------------------
+    # Contexto 1: SIN TOKEN — prueba acceso anónimo
+    # Detecta: endpoints que deberian requerir auth pero responden 200
+    # ------------------------------------------------------------------
+    - name: "Nanutech-SINTOKEN"
+      urls:
+        - "${API_URL_TESTING}"
+      includePaths:
+        - "${API_URL_TESTING}/auth.*"
+        - "${API_URL_TESTING}/camiones.*"
+      excludePaths: []
+      authentication:
+        method: "http"   # sin autenticación real
+      sessionManagement:
+        method: "httpAuthSessionManagement"
+      users:
+        - name: "anonimo"
+          credentials: {}
+
+    # ------------------------------------------------------------------
+    # Contexto 2: CHOFER — no deberia acceder a /camiones
+    # Detecta: escalada de privilegios horizontal/vertical
+    # ------------------------------------------------------------------
+    - name: "Nanutech-CHOFER"
+      urls:
+        - "${API_URL_TESTING}"
+      includePaths:
+        - "${API_URL_TESTING}/auth.*"
+        - "${API_URL_TESTING}/camiones.*"
+      excludePaths: []
+      authentication:
+        method: "script"
+        parameters:
+          script: "scripts/auth-chofer.js"
+          scriptEngine: "Graal.js"
+        verification:
+          method: "response"
+          loggedInRegex: '"role"\s*:\s*"chofer"'
+          loggedOutRegex: '"code"\s*:\s*"TOKEN_REQUIRED"'
+      sessionManagement:
+        method: "httpAuthSessionManagement"
+      users:
+        - name: "chofer"
+          credentials:
+            username: "chofer@nanutech.com"
+            password: "Admin123!"
+
+    # ------------------------------------------------------------------
+    # Contexto 3: GERENTE — no deberia acceder a /camiones (solo ADMIN)
+    # Detecta: escalada de privilegios vertical
+    # ------------------------------------------------------------------
+    - name: "Nanutech-GERENTE"
+      urls:
+        - "${API_URL_TESTING}"
+      includePaths:
+        - "${API_URL_TESTING}/auth.*"
+        - "${API_URL_TESTING}/camiones.*"
+      excludePaths: []
+      authentication:
+        method: "script"
+        parameters:
+          script: "scripts/auth-gerente.js"
+          scriptEngine: "Graal.js"
+        verification:
+          method: "response"
+          loggedInRegex: '"role"\s*:\s*"gerente"'
+          loggedOutRegex: '"code"\s*:\s*"TOKEN_REQUIRED"'
+      sessionManagement:
+        method: "httpAuthSessionManagement"
+      users:
+        - name: "gerente"
+          credentials:
+            username: "gerente@nanutech.com"
+            password: "Admin123!"
+
+    # ------------------------------------------------------------------
+    # Contexto 4: ADMIN — baseline, acceso legitimo a todo
+    # ------------------------------------------------------------------
+    - name: "Nanutech-ADMIN"
+      urls:
+        - "${API_URL_TESTING}"
+      includePaths:
+        - "${API_URL_TESTING}/auth.*"
+        - "${API_URL_TESTING}/camiones.*"
+      excludePaths: []
+      authentication:
+        method: "script"
+        parameters:
+          script: "scripts/auth-admin.js"
+          scriptEngine: "Graal.js"
+        verification:
+          method: "response"
+          loggedInRegex: '"role"\s*:\s*"admin"'
+          loggedOutRegex: '"code"\s*:\s*"TOKEN_REQUIRED"'
+      sessionManagement:
+        method: "httpAuthSessionManagement"
+      users:
+        - name: "admin"
+          credentials:
+            username: "admin@nanutech.com"
+            password: "Admin123!"
+
+  parameters:
+    failOnError: false
+    progressToStdout: true
+
+jobs:
+  # ====================================================================
+  # FASE 0 - Importar definición OpenAPI (contexto ADMIN como referencia)
+  # ====================================================================
+  - type: openapi
+    parameters:
+      apiFile: "openapi.yaml"
+      apiUrl: ""
+      context: "Nanutech-ADMIN"
+      targetUrl: "${API_URL_TESTING}"
+
+  # ====================================================================
+  # FASE 1 - Spider por cada contexto
+  # ====================================================================
+  - type: spider
+    parameters:
+      context: "Nanutech-SINTOKEN"
+      user: "anonimo"
+      url: "${API_URL_TESTING}"
+      maxDuration: 2
+      maxDepth: 5
+      acceptCookies: false
+    name: "Spider-SINTOKEN"
+
+  - type: spider
+    parameters:
+      context: "Nanutech-CHOFER"
+      user: "chofer"
+      url: "${API_URL_TESTING}"
+      maxDuration: 2
+      maxDepth: 5
+      acceptCookies: false
+    name: "Spider-CHOFER"
+
+  - type: spider
+    parameters:
+      context: "Nanutech-GERENTE"
+      user: "gerente"
+      url: "${API_URL_TESTING}"
+      maxDuration: 2
+      maxDepth: 5
+      acceptCookies: false
+    name: "Spider-GERENTE"
+
+  - type: spider
+    parameters:
+      context: "Nanutech-ADMIN"
+      user: "admin"
+      url: "${API_URL_TESTING}"
+      maxDuration: 2
+      maxDepth: 5
+      acceptCookies: false
+    name: "Spider-ADMIN"
+
+  - type: spiderAjax
+    parameters:
+      context: "Nanutech-ADMIN"
+      user: "admin"
+      url: "${API_URL_TESTING}"
+      maxDuration: 2
+    name: "AjaxSpider-ADMIN"
+
+  # ====================================================================
+  # FASE 2 - Passive Scan (analiza todo el trafico capturado)
+  # ====================================================================
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+    name: "PassiveScan"
+
+  # ====================================================================
+  # FASE 3 - Active Scan por cada contexto
+  # Incluye: XSS, SQLi, CORS, path traversal, header injection
+  # El resultado mas critico: si SINTOKEN/CHOFER/GERENTE obtienen 200
+  # en endpoints que deberian devolver 401/403
+  # ====================================================================
+  - type: activeScan
+    parameters:
+      context: "Nanutech-SINTOKEN"
+      user: "anonimo"
+      policy: "nanutech-scan-policy"
+      maxRuleDurationInMins: 5
+      maxScanDurationInMins: 15
+      threadPerHost: 2
+      addQueryParam: true
+      defaultPolicy: false
+    name: "ActiveScan-SINTOKEN"
+
+  - type: activeScan
+    parameters:
+      context: "Nanutech-CHOFER"
+      user: "chofer"
+      policy: "nanutech-scan-policy"
+      maxRuleDurationInMins: 5
+      maxScanDurationInMins: 15
+      threadPerHost: 2
+      addQueryParam: true
+      defaultPolicy: false
+    name: "ActiveScan-CHOFER"
+
+  - type: activeScan
+    parameters:
+      context: "Nanutech-GERENTE"
+      user: "gerente"
+      policy: "nanutech-scan-policy"
+      maxRuleDurationInMins: 5
+      maxScanDurationInMins: 15
+      threadPerHost: 2
+      addQueryParam: true
+      defaultPolicy: false
+    name: "ActiveScan-GERENTE"
+
+  - type: activeScan
+    parameters:
+      context: "Nanutech-ADMIN"
+      user: "admin"
+      policy: "nanutech-scan-policy"
+      maxRuleDurationInMins: 5
+      maxScanDurationInMins: 30
+      threadPerHost: 2
+      addQueryParam: true
+      defaultPolicy: false
+    name: "ActiveScan-ADMIN"
+
+  # ====================================================================
+  # FASE 4 - Reportes por contexto
+  # Revisar alertas en SINTOKEN/CHOFER/GERENTE con codigo 200:
+  # eso indica Broken Access Control real en el backend
+  # ====================================================================
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "reports"
+      reportFile: "nanutech-report-sintoken"
+      reportTitle: "Nanutech - Acceso ANONIMO (sin token)"
+      reportDescription: "Detecta endpoints de /auth y /camiones accesibles sin autenticacion. Un 200 aqui es Broken Access Control critico."
+      contexts:
+        - "Nanutech-SINTOKEN"
+    name: "Report-SINTOKEN"
+
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "reports"
+      reportFile: "nanutech-report-chofer"
+      reportTitle: "Nanutech - Escalada de privilegios ROL CHOFER"
+      reportDescription: "Detecta si CHOFER puede acceder a /camiones (solo ADMIN). Un 200 aqui es escalada de privilegios."
+      contexts:
+        - "Nanutech-CHOFER"
+    name: "Report-CHOFER"
+
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "reports"
+      reportFile: "nanutech-report-gerente"
+      reportTitle: "Nanutech - Escalada de privilegios ROL GERENTE"
+      reportDescription: "Detecta si GERENTE puede acceder a /camiones (solo ADMIN). Un 200 aqui es escalada de privilegios."
+      contexts:
+        - "Nanutech-GERENTE"
+    name: "Report-GERENTE"
+
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "reports"
+      reportFile: "nanutech-report-admin"
+      reportTitle: "Nanutech - Baseline ROL ADMIN"
+      reportDescription: "Acceso legitimo a /auth y /camiones. Sirve como referencia para comparar con los otros roles."
+      contexts:
+        - "Nanutech-ADMIN"
+    name: "Report-ADMIN"
+
+  - type: report
+    parameters:
+      template: "traditional-json"
+      reportDir: "reports"
+      reportFile: "nanutech-report-full"
+      reportTitle: "Nanutech Full Report - Auth & Camiones (todos los roles)"
+      reportDescription: "Reporte JSON consolidado para integracion CI/CD."
+    name: "Report-JSON-Full"
