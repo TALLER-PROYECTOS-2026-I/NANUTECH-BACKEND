@@ -1,12 +1,8 @@
 # =============================================================================
 # zap-plan-admin.yml — ROL ADMIN
-#
-# Placeholders reemplazados por sed en el workflow:
+# Placeholders reemplazados por sed antes de correr ZAP:
 #   API_URL_PLACEHOLDER   → URL real del API Gateway
 #   ZAP_TOKEN_PLACEHOLDER → Bearer token del ADMIN
-#
-# Cubre: XSS, SQLi, CORS, Path Traversal, SSRF, Security Headers
-# Usa Default Policy de ZAP (no requiere XML externo)
 # =============================================================================
 env:
   contexts:
@@ -47,7 +43,6 @@ env:
     progressToStdout: true
 
 jobs:
-  # ── 1. Importar spec OpenAPI ──────────────────────────────────────────────
   - type: openapi
     parameters:
       apiFile: "/zap/wrk/openapi.run.yml"
@@ -55,11 +50,11 @@ jobs:
       targetUrl: "API_URL_PLACEHOLDER"
     name: "ImportarOpenAPI-ADMIN"
 
-  # ── 2. Inyectar Bearer token en TODAS las requests ────────────────────────
-  #    CRÍTICO: el parámetro correcto es "rules" (lista), NO "matchStrings"
+  # FIX: el addon replacer en versiones recientes usa "matchStrings" (lista)
+  # NO "rules". Con "rules" ZAP lo ignora silenciosamente → sin token → 401 en todo.
   - type: replacer
     parameters:
-      rules:
+      matchStrings:
         - description: "Bearer token ROL ADMIN"
           matchType: "REQ_HEADER"
           matchString: "Authorization"
@@ -68,15 +63,11 @@ jobs:
           initiators: []
     name: "InjectarToken-ADMIN"
 
-  # ── 3. Escaneo pasivo (mientras ZAP arma el árbol de URLs) ───────────────
   - type: passiveScan-wait
     parameters:
       maxDuration: 5
     name: "PassiveScan-ADMIN"
 
-  # ── 4. Escaneo activo — usa Default Policy de ZAP ─────────────────────────
-  #    Cubre automáticamente: SQLi, XSS reflejado/almacenado, CORS,
-  #    Path Traversal, SSRF, Command Injection, Security Headers, etc.
   - type: activeScan
     parameters:
       context: "ADMIN"
@@ -86,7 +77,6 @@ jobs:
       addQueryParam: true
     name: "ActiveScan-ADMIN"
 
-  # ── 5. Reporte HTML (para revisión humana) ────────────────────────────────
   - type: report
     parameters:
       template: "traditional-html"
@@ -100,7 +90,6 @@ jobs:
         Pruebas: SQL Injection, XSS, CORS, Path Traversal, SSRF, Headers HTTP.
     name: "ReporteHTML-ADMIN"
 
-  # ── 6. Reporte JSON (para CI/CD y parseo automático) ─────────────────────
   - type: report
     parameters:
       template: "traditional-json"
