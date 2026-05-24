@@ -132,7 +132,10 @@ export class DashboardConductoresRepository {
       SELECT
         u.id AS id,
         CONCAT(u.nombres, ' ', u.apellidos) AS nombre,
+        u.correo AS email,
+        u.dni,
         lc.numero_licencia AS licencia,
+        u.telefono AS contacto,
 
         CASE
           WHEN c.estado_operacional = 'DESCANSO' THEN 'DESCANSANDO'

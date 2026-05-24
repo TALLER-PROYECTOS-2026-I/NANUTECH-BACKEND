@@ -12,6 +12,22 @@ Lee datos desde:
 """
 import os
 import json
+import sys
+import os.path
+
+# ── Cargar diccionario de traducciones ZAP ───────────────────────────────────
+# Se intenta importar desde el mismo directorio del script.
+# Si no está disponible, se usa un dict vacío y los textos quedan en inglés.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _SCRIPT_DIR)
+try:
+    from zap_translations import ZAP_TRANSLATIONS, ZAP_TRANSLATIONS_BY_NAME, translate_alert
+except ImportError:
+    ZAP_TRANSLATIONS = {}
+    ZAP_TRANSLATIONS_BY_NAME = {}
+    def translate_alert(plugin_id, name):
+        return None
+
 
 # ── Variables de entorno ──────────────────────────────────────────────────────
 FECHA       = os.environ.get("FECHA", "")
@@ -81,6 +97,33 @@ def load_zap_alerts(filepath):
     alerts.sort(key=lambda a: int(a["riskcode"]) if a["riskcode"].isdigit() else 0, reverse=True)
     return alerts
 
+def get_translated_field(alert, field, original_value):
+    """
+    Busca la traducción al español de un campo de un hallazgo ZAP.
+    Prioridad: Plugin ID → nombre normalizado → texto original en inglés.
+    """
+    plugin_id = str(alert.get("pluginid", alert.get("alertRef", "")))
+    name      = alert.get("name", "")
+    t = translate_alert(plugin_id, name)
+    if t and field in t and t[field]:
+        return t[field]
+    # Fallback: texto original limpio
+    if original_value:
+        cleaned = original_value.replace("<p>", "").replace("</p>", " ").strip()
+        return cleaned
+    return ""
+
+
+def get_translated_name(alert):
+    """Devuelve el nombre del hallazgo traducido al español."""
+    plugin_id = str(alert.get("pluginid", alert.get("alertRef", "")))
+    name      = alert.get("name", "")
+    t = translate_alert(plugin_id, name)
+    if t and t.get("name"):
+        return t["name"]
+    return name
+
+
 def build_zap_table(alerts, rol_label):
     if not alerts:
         return f'''<div class="empty-state">
@@ -90,29 +133,58 @@ def build_zap_table(alerts, rol_label):
         </div>'''
     rows = ""
     for alert in alerts:
-        riskcode = alert["riskcode"]
+        riskcode   = alert["riskcode"]
         risk_label, risk_class = RISK_LABELS.get(riskcode, ("🔵 Info", "riesgo-info"))
-        cwe = f'<code>CWE-{alert["cweid"]}</code>' if alert["cweid"] else "N/A"
-        instances = alert["instances"][:3]
+        cwe        = f'<code>CWE-{alert["cweid"]}</code>' if alert["cweid"] else "N/A"
+
+        # Nombre traducido
+        name_es    = get_translated_name(alert)
+
+        # Endpoints afectados (máximo 3)
+        instances  = alert["instances"][:3]
         endpoints_html = "<br>".join(
             f'<code>{inst.get("method","?")} {inst.get("uri","?")}</code>'
             for inst in instances
         )
         if len(alert["instances"]) > 3:
             endpoints_html += f'<br><span style="color:#8b949e;font-size:11px">+{len(alert["instances"])-3} más</span>'
-        solution = alert["solution"].replace("<p>", "").replace("</p>", " ").strip()
-        solution = solution[:200] + "..." if len(solution) > 200 else solution
+
+        # Descripción traducida (truncada a 300 chars en la tabla)
+        desc_es    = get_translated_field(alert, "description", alert.get("desc", ""))
+        desc_short = desc_es[:300] + "..." if len(desc_es) > 300 else desc_es
+
+        # Solución traducida (truncada a 250 chars en la tabla)
+        sol_es     = get_translated_field(alert, "solution", alert.get("solution", ""))
+        sol_short  = sol_es[:250] + "..." if len(sol_es) > 250 else sol_es
+
+        # Otra info traducida
+        other_raw  = alert.get("otherinfo", alert.get("other_info", ""))
+        other_es   = get_translated_field(alert, "other_info", other_raw)
+        other_short = other_es[:200] + "..." if len(other_es) > 200 else other_es
+
+        # Indicador de traducción disponible
+        plugin_id  = str(alert.get("pluginid", alert.get("alertRef", "")))
+        t_available = translate_alert(plugin_id, alert.get("name", "")) is not None
+        lang_badge  = '<span style="font-size:9px;background:#3fb95022;color:#3fb950;padding:1px 5px;border-radius:3px;margin-left:4px">ES</span>' if t_available else '<span style="font-size:9px;background:#58a6ff22;color:#58a6ff;padding:1px 5px;border-radius:3px;margin-left:4px">EN</span>'
+
         rows += f'''<tr>
           <td><span class="{risk_class}">{risk_label}</span></td>
-          <td><strong>{alert["name"]}</strong></td>
+          <td><strong>{name_es}</strong>{lang_badge}</td>
           <td>{cwe}</td>
-          <td>{endpoints_html or "N/A"}</td>
-          <td style="font-size:12px;color:#8b949e">{solution or "Ver reporte completo."}</td>
+          <td style="font-size:12px">{endpoints_html or "N/A"}</td>
+          <td style="font-size:12px;color:#c9d1d9">{desc_short or "Ver reporte completo."}</td>
+          <td style="font-size:12px;color:#8b949e">{sol_short or "Ver reporte completo."}</td>
+          <td style="font-size:11px;color:#8b949e;font-style:italic">{other_short}</td>
         </tr>'''
     return f'''<table class="hallazgos-table">
       <thead><tr>
-        <th>Riesgo</th><th>Vulnerabilidad</th><th>CWE</th>
-        <th>Endpoints afectados</th><th>Acción recomendada</th>
+        <th>Riesgo</th>
+        <th>Vulnerabilidad</th>
+        <th>CWE</th>
+        <th>Endpoints afectados</th>
+        <th>Descripción</th>
+        <th>Solución recomendada</th>
+        <th>Otra información</th>
       </tr></thead>
       <tbody>{rows}</tbody>
     </table>'''
