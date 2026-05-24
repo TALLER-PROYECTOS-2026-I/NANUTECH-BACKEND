@@ -1,90 +1,113 @@
+// conductorController.mjs
+
 import { ConductorService } from "./conductorService.mjs";
 
-// Utilidades para construir respuestas HTTP estandarizadas
+// Utilidades para respuestas HTTP
 import {
   successResponse,
   errorResponse
 } from "../../shared/utils/response/response.mjs";
 
-// Mensajes constantes de éxito utilizados en las respuestas
+// Mensajes constantes
 import {
   SUCCESS_MESSAGES
 } from "../../shared/constants/successMessages.mjs";
 
 /**
- * Controller encargado de obtener todos los conductores activos.
- *
- * Flujo:
- * Handler -> Controller -> Service -> Repository -> Base de datos
+ * Controller encargado de obtener
+ * todos los conductores activos.
  */
-export const getAllConductoresController = async (event) => {
+export const getAllConductoresController =
+  async (event) => {
 
-  try {
+    try {
 
-    // Se instancia el servicio de conductores
-    const conductorService = new ConductorService();
+      /**
+       * LÓGICA PRINCIPAL
+       */
 
-    // Obtiene la lista de conductores activos desde la capa service
-    const conductores =
-      await conductorService.getAllActiveConductores();
+      // Instancia del service
+      const conductorService =
+        new ConductorService();
 
-    // Retorna respuesta exitosa HTTP 200
-    return successResponse(
-      conductores,
-      SUCCESS_MESSAGES.CONDUCTORES_RETRIEVED
-    );
+      // Obtiene lista de conductores
+      const conductores =
+        await conductorService
+          .getAllActiveConductores();
 
-  } catch (error) {
+      // Respuesta HTTP exitosa
+      return successResponse(
+        conductores,
+        SUCCESS_MESSAGES
+          .CONDUCTORES_RETRIEVED
+      );
 
-    // Log de errores para debugging
-    console.error(
-      "Error en getAllConductoresController:",
-      error
-    );
+    } catch (error) {
 
-    // Retorna respuesta HTTP de error
-    return errorResponse(
-      error.message,
-      500
-    );
-  }
-};
+      // Log de errores
+      console.error(
+        "Error en getAllConductoresController:",
+        error
+      );
+
+      /**
+       * IMPORTANTE:
+       * No exponer errores internos
+       */
+      return errorResponse(
+        "Error interno del servidor",
+        500
+      );
+    }
+  };
 
 /**
- * Controller encargado de obtener las estadísticas
- * agregadas de un conductor específico.
- *
- * Endpoint:
- * GET /conductores/{id}/estadisticas
- *
- * Funcionalidades:
- * - Total de jornadas
- * - Jornadas completadas
- * - Jornadas activas
- * - Horas totales trabajadas
- * - Promedio de horas por jornada
- * - Estado actual del conductor
+ * Controller encargado de obtener
+ * estadísticas del conductor.
  */
 export const getConductorStatisticsController =
   async (event) => {
 
     try {
 
-      // Obtiene el parámetro dinámico "id"
-      // desde la URL del endpoint
-      const { id } = event.pathParameters;
+      /**
+       * OBTENER ID
+       * desde pathParameters
+       */
 
-      // Instancia del servicio
+      const { id } =
+        event.pathParameters;
+
+      /**
+       * VALIDACIÓN UUID
+       */
+
+      const uuidRegex =
+        /^[0-9a-fA-F-]{36}$/;
+
+      // Valida formato UUID
+      if (!uuidRegex.test(id)) {
+
+        return errorResponse(
+          "ID inválido",
+          400
+        );
+      }
+
+      /**
+       * LÓGICA PRINCIPAL
+       */
+
+      // Instancia del service
       const conductorService =
         new ConductorService();
 
-      // Obtiene estadísticas del conductor
-      // desde la capa service
+      // Obtiene estadísticas
       const statistics =
         await conductorService
           .getConductorStatistics(id);
 
-      // Retorna respuesta exitosa HTTP 200
+      // Respuesta HTTP exitosa
       return successResponse(
         statistics,
         SUCCESS_MESSAGES
@@ -93,16 +116,19 @@ export const getConductorStatisticsController =
 
     } catch (error) {
 
-      // Log del error para debugging
+      // Log de errores
       console.error(
         "Error getConductorStatisticsController:",
         error
       );
 
-      // Retorna respuesta HTTP de error
+      /**
+       * IMPORTANTE:
+       * No devolver detalles internos
+       */
       return errorResponse(
         error.message,
-        500
+        error.statusCode || 500
       );
     }
   };
