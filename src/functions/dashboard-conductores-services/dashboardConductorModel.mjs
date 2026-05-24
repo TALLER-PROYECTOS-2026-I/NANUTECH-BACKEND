@@ -3,43 +3,49 @@ export class DashboardConductor {
   constructor(
     id,
     nombre,
-    email,
-    dni,
     licencia,
-    contacto,
     estadoOperacional,
     camionAsignado,
-    estado
+    estado,
+    datosSensibles = null
   ) {
     this.id = id;
     this.nombre = nombre;
-    this.email = email;
-    this.dni = dni;
     this.licencia = licencia;
-    this.contacto = contacto;
     this.estadoOperacional = estadoOperacional;
     this.camionAsignado = camionAsignado;
     this.estado = estado;
+
+    // SOLO ADMIN VE DATOS SENSIBLES
+    if (datosSensibles) {
+      this.email = datosSensibles.email;
+      this.dni = datosSensibles.dni;
+      this.contacto = datosSensibles.contacto;
+    }
   }
 
-
   // Convierte una fila de la base de datos al modelo usado por el frontend
-  static fromDatabase(row) {
+  static fromDatabase(row, incluirDatosSensibles = false) {
     return new DashboardConductor(
       row.id,
       row.nombre,
-      row.email,
-      row.dni,
       row.licencia,
-      row.contacto,
       row.estado_operacional,
       row.camion_asignado,
-      row.estado
+      row.estado,
+
+      incluirDatosSensibles
+        ? {
+            email: row.email,
+            dni: row.dni,
+            contacto: row.contacto,
+          }
+        : null
     );
   }
 
   // Convierte una lista de filas de BD a una lista de conductores
-  static fromDatabaseList(rows) {
-    return rows.map((row) => DashboardConductor.fromDatabase(row));
+  static fromDatabaseList(rows, incluirDatosSensibles = false) {
+    return rows.map((row) => DashboardConductor.fromDatabase(row, incluirDatosSensibles));
   }
 }

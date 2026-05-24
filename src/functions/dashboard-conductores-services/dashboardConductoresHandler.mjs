@@ -3,6 +3,8 @@ import {
   getDashboardConductoresListadoController,
 } from "./dashboardConductoresController.mjs";
 
+import { errorResponse } from "../../shared/utils/response/response.mjs";
+
 // Rutas disponibles para este módulo
 const routes = {
    "GET /conductores/dashboard/resumen":
@@ -21,13 +23,11 @@ export const handler = async (event) => {
     const controller = routes[routeKey];
 
     // Si la ruta no existe, retorna 404
-    if (!controller) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({
-          message: `Ruta ${routeKey} no encontrada`,
-        }),
-      };
+     if (!controller) {
+      return errorResponse(
+        "Recurso no encontrado",
+        404
+      );
     }
 
     // Ejecuta el controlador encontrado
@@ -35,11 +35,9 @@ export const handler = async (event) => {
   } catch (error) {
     console.error("Error inesperado en handler:", error);
     // Error inesperado del handler
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        message: error.message,
-      }),
-    };
+     return errorResponse(
+      "Error interno del servidor",
+      500
+    );
   }
 };

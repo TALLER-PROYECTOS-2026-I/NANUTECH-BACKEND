@@ -55,7 +55,7 @@ export class DashboardConductoresService {
     const total = await this.repository.countConductores(filtros);
 
     // Convierte filas de PostgreSQL
-    const conductores = DashboardConductor.fromDatabaseList(conductoresRows);
+    const conductores = DashboardConductor.fromDatabaseList(conductoresRows, true);
 
     return {
       // Lista de conductores
