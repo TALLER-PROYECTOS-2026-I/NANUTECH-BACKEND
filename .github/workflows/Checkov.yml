@@ -35,20 +35,24 @@ jobs:
       - name: Generar reporte detallado
         run: |
           echo "📁 Archivos generados por Checkov:"
-          ls -la checkov-results* 2>/dev/null || echo "No se encontraron archivos checkov-results*"
-          
-          # Buscar el SARIF generado
+          ls -la checkov-results/ 2>/dev/null || echo "No se encontró el directorio checkov-results/"
+
+          # ✅ FIX: Checkov genera el SARIF dentro del subdirectorio checkov-results/
           SARIF_FILE=""
-          if [ -f "checkov-results.sarif" ]; then
+          if [ -f "checkov-results/results_sarif.sarif" ]; then
+            SARIF_FILE="checkov-results/results_sarif.sarif"
+          elif [ -f "checkov-results/results.sarif" ]; then
+            SARIF_FILE="checkov-results/results.sarif"
+          elif [ -f "checkov-results.sarif" ]; then
             SARIF_FILE="checkov-results.sarif"
           elif [ -f "results.sarif" ]; then
             SARIF_FILE="results.sarif"
           elif [ -f "checkov_output.sarif" ]; then
             SARIF_FILE="checkov_output.sarif"
           fi
-          
-          # Si no existe SARIF, creamos uno vacío con estructura válida
+
           if [ -z "$SARIF_FILE" ] || [ ! -f "$SARIF_FILE" ]; then
+            echo "⚠️ No se encontró archivo SARIF. Creando estructura vacía válida..."
             echo '{
               "version": "2.1.0",
               "runs": [{
@@ -66,128 +70,123 @@ jobs:
             echo "✅ Creado archivo SARIF vacío con estructura válida"
           else
             cp "$SARIF_FILE" checkov-output.sarif
-            echo "✅ Copiado SARIF existente: $SARIF_FILE"
+            echo "✅ Copiado SARIF desde: $SARIF_FILE"
           fi
-          
+
           # ============================================
           # GENERAR REPORTE DETALLADO COMPLETO
           # ============================================
-          
-          # Crear cabecera del reporte
+
           cat > checkov-report.txt << EOF
           ============================================================
           🔒 CHECKOV - INFRAESTRUCTURE AS CODE SECURITY REPORT
           ============================================================
-          
+
           FECHA: $(date '+%Y-%m-%d %H:%M:%S')
           REPOSITORIO: ${{ github.repository }}
           RAMA: ${{ github.ref_name }}
           COMMIT: ${{ github.sha }}
-          
+
           ============================================================
-          
+
           EOF
-          
-          # Generar reporte con Node.js
+
           node << 'NODESCRIPT' >> checkov-report.txt
           const fs = require('fs');
-          
+
           let sarif;
           try {
             sarif = JSON.parse(fs.readFileSync("checkov-output.sarif", "utf8"));
           } catch(e) {
             sarif = { runs: [{ tool: { driver: { name: "checkov" } }, results: [] }] };
           }
-          
+
           const runs = sarif.runs || [];
           let results = [];
           for (const run of runs) {
             results = results.concat(run.results || []);
           }
-          
-          // Diccionario de descripciones y soluciones
+
           const descriptions = {
-            "CKV_AWS_76": "API Gateway sin Access Logging habilitado",
+            "CKV_AWS_76":  "API Gateway sin Access Logging habilitado",
             "CKV_AWS_120": "API Gateway sin caching habilitado",
             "CKV_AWS_173": "Variables de entorno Lambda sin encriptación KMS",
             "CKV_AWS_115": "Lambda sin límite de concurrencia configurado",
             "CKV_AWS_116": "Lambda sin Dead Letter Queue configurada",
-            "CKV_AWS_1": "Política IAM con permisos excesivos (*)",
-            "CKV_AWS_40": "Usuario IAM con política inline (usar managed)",
+            "CKV_AWS_1":   "Política IAM con permisos excesivos (*)",
+            "CKV_AWS_40":  "Usuario IAM con política inline (usar managed)",
             "CKV_AWS_274": "Lambda con rol de administrador",
-            "CKV_AWS_50": "Lambda sin X-Ray tracing habilitado",
+            "CKV_AWS_50":  "Lambda sin X-Ray tracing habilitado",
             "CKV_AWS_117": "Lambda fuera de VPC (exposición a internet)"
           };
-          
+
           const getDescription = (ruleId, message) => {
             if (descriptions[ruleId]) return descriptions[ruleId];
             if (message && message.text) return message.text.split("\n")[0];
             return ruleId;
           };
-          
+
           const getSeverity = (level) => {
-            if (level === "error") return "🔴 CRITICAL";
+            if (level === "error")   return "🔴 CRITICAL";
             if (level === "warning") return "🟡 HIGH";
             return "⚪ MEDIUM";
           };
-          
+
           const getRecommendation = (ruleId) => {
             const recs = {
               "CKV_AWS_173": "Agregar propiedad KmsKeyArn en Environment.Variables",
               "CKV_AWS_115": "Agregar ReservedConcurrentExecutions: <numero> en cada función",
               "CKV_AWS_116": "Agregar DeadLetterQueue con TargetArn a SQS",
-              "CKV_AWS_76": "Agregar AccessLogSetting en ApiGateway",
+              "CKV_AWS_76":  "Agregar AccessLogSetting en ApiGateway",
               "CKV_AWS_120": "Agregar MethodSettings con CachingEnabled: true",
               "CKV_AWS_117": "Configurar VpcConfig con SecurityGroupIds y SubnetIds"
             };
             return recs[ruleId] || "Revisar documentación de Checkov para este check";
           };
-          
-          // Estadísticas
+
           let critical = 0, high = 0, medium = 0;
           for (const r of results) {
-            if (r.level === "error") critical++;
+            if (r.level === "error")        critical++;
             else if (r.level === "warning") high++;
-            else medium++;
+            else                            medium++;
           }
-          
-          const total = results.length;
+
+          const total  = results.length;
           const passed = total === 0;
-          
+
           console.log(`
           ╔══════════════════════════════════════════════════════════════╗
           ║                    ESTADÍSTICAS GENERALES                    ║
           ╚══════════════════════════════════════════════════════════════╝
-          
+
           🔴 CRITICAL (error):   ${critical}
           🟡 HIGH (warning):     ${high}
           ⚪ MEDIUM:              ${medium}
           ────────────────────────────────────────────────────────────────
           📊 TOTAL ISSUES:        ${total}
           ✅ PASÓ TODOS LOS CHECKS: ${passed ? "SÍ ✓" : "NO ✗"}
-          
+
           ============================================================
           📋 LISTADO DETALLADO DE ISSUES
           ============================================================
           `);
-          
+
           if (total === 0) {
             console.log("\n✨ ¡No se encontraron issues de seguridad! Todo está correcto. ✨\n");
           } else {
             for (let i = 0; i < results.length; i++) {
-              const r = results[i];
-              const location = r.locations?.[0]?.physicalLocation?.artifactLocation?.uri || "template.yaml";
-              const line = r.locations?.[0]?.physicalLocation?.region?.startLine || "N/A";
+              const r           = results[i];
+              const location    = r.locations?.[0]?.physicalLocation?.artifactLocation?.uri || "template.yaml";
+              const line        = r.locations?.[0]?.physicalLocation?.region?.startLine || "N/A";
               const description = getDescription(r.ruleId, r.message);
-              const severity = getSeverity(r.level);
+              const severity    = getSeverity(r.level);
               const recommendation = getRecommendation(r.ruleId);
-              
-              // Obtener snippet de código si existe
+
               let snippet = "";
               if (r.locations?.[0]?.physicalLocation?.region?.snippet?.text) {
                 snippet = r.locations[0].physicalLocation.region.snippet.text;
               }
-              
+
               console.log(`
           [${i+1}] ${severity}
           ┌─────────────────────────────────────────────────────────────┐
@@ -200,7 +199,7 @@ jobs:
               `);
             }
           }
-          
+
           console.log(`
           ============================================================
           📚 REFERENCIAS ÚTILES
@@ -208,53 +207,50 @@ jobs:
           • Documentación Checkov: https://www.checkov.io/
           • Guía AWS SAM Security: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-security.html
           • Guía de remediación: https://www.checkov.io/4.Examples/AWS-examples.html
-          
+
           ============================================================
           🏁 FIN DEL REPORTE
           ============================================================
           `);
           NODESCRIPT
-          
-          # Crear archivo JSON con el detalle completo de resultados
+
           if [ -f "checkov-output.sarif" ]; then
             cp checkov-output.sarif checkov-results-detailed.json
             echo "✅ Copiado SARIF a JSON"
           else
             echo '{"results":[], "summary": {"critical": 0, "high": 0, "total": 0}}' > checkov-results-detailed.json
           fi
-          
-          # Crear un resumen ejecutivo en markdown
+
           cat > REPORT-SUMMARY.md << 'EOFMD'
           # 📊 Checkov Security Scan Report
-          
+
           ## 📈 Resumen Ejecutivo
-          
+
           EOFMD
-          
-          # Agregar estadísticas al resumen
+
           echo '```' >> REPORT-SUMMARY.md
           grep -A 15 "ESTADÍSTICAS GENERALES" checkov-report.txt >> REPORT-SUMMARY.md 2>/dev/null || echo "No stats found" >> REPORT-SUMMARY.md
           echo '```' >> REPORT-SUMMARY.md
-          
+
           echo "" >> REPORT-SUMMARY.md
           echo "## 📋 Issues Encontrados" >> REPORT-SUMMARY.md
           echo "" >> REPORT-SUMMARY.md
           echo '```' >> REPORT-SUMMARY.md
           grep -A 500 "LISTADO DETALLADO DE ISSUES" checkov-report.txt | head -200 >> REPORT-SUMMARY.md 2>/dev/null || echo "No issues found" >> REPORT-SUMMARY.md
           echo '```' >> REPORT-SUMMARY.md
-          
+
           echo "✅ Reportes generados:"
           echo "   📄 checkov-report.txt - Reporte completo detallado"
           echo "   📄 checkov-results-detailed.json - Resultados en formato JSON"
           echo "   📄 checkov-output.sarif - Formato SARIF estándar"
           echo "   📄 REPORT-SUMMARY.md - Resumen ejecutivo"
-          
-          # Mostrar resumen en consola
+
           echo ""
           echo "========== RESUMEN DEL ESCANEO =========="
           grep -A 10 "ESTADÍSTICAS GENERALES" checkov-report.txt | head -15
           echo "=========================================="
 
+      # ✅ FIX: ruta correcta al SARIF generado por Checkov
       - name: Subir resultados a GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4
         if: always()
