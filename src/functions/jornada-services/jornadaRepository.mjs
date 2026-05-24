@@ -93,7 +93,7 @@ function buildFilters({
   }
   if (estado_alerta) {
     params.push(estado_alerta);
-    conditions.push(`a.tipo_alerta = $${params.length}`);
+    conditions.push(`a.tipo = $${params.length}`);
   }
   if (observaciones === "true") {
     conditions.push(`j.observaciones IS NOT NULL AND j.observaciones <> ''`);
@@ -439,7 +439,7 @@ export class JornadaRepository {
         JOIN usuarios u ON u.id = j.conductor_id
         JOIN unidades un ON un.id = j.unidad_id
         JOIN contratos c ON c.id = j.contrato_id
-        LEFT JOIN alertas a ON a.jornada_id = j.id
+        LEFT JOIN alertas_jornada a ON a.jornada_id = j.id
         ${whereClause}
         ORDER BY j.created_at DESC;
       `,
@@ -536,7 +536,7 @@ export class JornadaRepository {
         JOIN usuarios u ON u.id = j.conductor_id
         JOIN unidades un ON un.id = j.unidad_id
         JOIN contratos c ON c.id = j.contrato_id
-        LEFT JOIN alertas a ON a.jornada_id = j.id
+        LEFT JOIN alertas_jornada a ON a.jornada_id = j.id
 
         ${whereClause};
       `,
@@ -577,7 +577,7 @@ export class JornadaRepository {
         FROM jornadas j
         JOIN usuarios u ON u.id = j.conductor_id
         JOIN unidades un ON un.id = j.unidad_id
-        LEFT JOIN alertas a ON a.jornada_id = j.id
+        LEFT JOIN alertas_jornada a ON a.jornada_id = j.id
 
         WHERE j.id = $1
         LIMIT 1;
