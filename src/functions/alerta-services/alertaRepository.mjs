@@ -80,21 +80,22 @@ export class AlertaRepository {
   }
 
   /**
-   * Busca todas las alertas que NO están resueltas,
-   * aplicando filtros opcionales por tipo y estado.
-   * Ordena primero las ACTIVAS, luego EN_PROCESO, y dentro
-   * de cada grupo por fecha_hora descendente.
+   * Busca todas las alertas aplicando filtros opcionales por tipo y estado.
+   * Si no se proporcionan filtros, retorna todas las alertas sin importar
+   * el estado operativo, incluyendo RESUELTA y FALSA_ALARMA.
+   * Ordena primero las ACTIVAS, luego EN_PROCESO, RESUELTA y FALSA_ALARMA,
+   * dentro de cada grupo por fecha_hora descendente.
    *
    * @param {Object} [options={}] - Filtros opcionales
    * @param {string} [options.tipo] - PANICO | AUXILIO_MECANICO | OBSERVACION
-   * @param {string} [options.estado] - ACTIVA | EN_PROCESO
+   * @param {string} [options.estado] - ACTIVA | EN_PROCESO | RESUELTA | FALSA_ALARMA
    * @returns {Promise<Object[]>} Filas con campos de alerta, conductor y unidad
    */
   async findActivas(options = {}) {
     const client = await getClient();
 
     try {
-      const conditions = ["a.estado IN ('ACTIVA', 'EN_PROCESO')"];
+      const conditions = [];
       const params = [];
 
       if (options.tipo) {
@@ -107,7 +108,7 @@ export class AlertaRepository {
         conditions.push(`a.estado = $${params.length}`);
       }
 
-      const whereClause = `WHERE ${conditions.join(" AND ")}`;
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
       const result = await client.query(
         `
@@ -117,7 +118,9 @@ export class AlertaRepository {
             CASE a.estado
               WHEN 'ACTIVA' THEN 0
               WHEN 'EN_PROCESO' THEN 1
-              ELSE 2
+              WHEN 'RESUELTA' THEN 2
+              WHEN 'FALSA_ALARMA' THEN 3
+              ELSE 4
             END,
             a.fecha_hora DESC;
         `,
