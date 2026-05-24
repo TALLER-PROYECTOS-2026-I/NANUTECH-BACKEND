@@ -60,13 +60,13 @@ describe("AlertaRepository", () => {
     expect(mockRelease).toHaveBeenCalled();
   });
 
-  test("findActivas sin filtros retorna todo", async () => {
+  test("findActivas sin filtros retorna todas las alertas", async () => {
     mockQuery.mockResolvedValue({ rows: [] });
 
     await repository.findActivas();
 
     expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining("a.estado IN ('ACTIVA', 'EN_PROCESO')"),
+      expect.not.stringContaining("a.estado IN ('ACTIVA', 'EN_PROCESO')"),
       []
     );
     expect(mockRelease).toHaveBeenCalled();

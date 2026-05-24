@@ -12,11 +12,12 @@ const validarAdmin = async (event) => {
 
   // Solo ADMIN puede acceder al dashboard
   if (session.role !== "admin" && session.role !== "ADMIN") {
-    const error = new Error("No tiene permisos para acceder al panel de conductores");
+    const error = new Error("Acceso no autorizado");
     // Código HTTP
     error.statusCode = 403;
     throw error;
   }
+  return session;
 };
 
 // GET /conductores/dashboard/resumen
@@ -42,9 +43,9 @@ export const getDashboardConductoresResumenController = async (event) => {
     console.error("Error en getDashboardConductoresResumenController:", error);
     // Retorna error controlado
     return errorResponse(
-      error.statusCode === 403
-        ? error.message
-        : "No se pudo obtener el resumen del panel de conductores",
+      error.statusCode === 403 || error.statusCode === 401
+        ? "Acceso no autorizado"
+        : "No se pudo procesar la solicitud",
       error.statusCode || 500
     );
   }
@@ -89,7 +90,9 @@ export const getDashboardConductoresListadoController = async (event) => {
 
     // Retorna error controlado
     return errorResponse(
-      error.statusCode === 403 ? error.message : "No se pudo obtener el listado de conductores",
+      error.statusCode === 403 || error.statusCode === 401
+        ? "Acceso no autorizado"
+        : "No se pudo procesar la solicitud",
       error.statusCode || 500
     );
   }
