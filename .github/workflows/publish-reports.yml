@@ -100,11 +100,6 @@ jobs:
 
           # ── 2. Helpers ────────────────────────────────────────────────────────────────
           def safe_pct(covered, total):
-              """Calcula porcentaje exactamente como istanbul:
-                 - 0/0  → 100  (sin código que cubrir = perfecto)
-                 - n/0  → 0    (no debería ocurrir)
-                 - c/t  → c/t*100
-              """
               if total == 0:
                   return 100.0 if covered == 0 else 0.0
               return round(covered / total * 100, 2)
@@ -116,41 +111,22 @@ jobs:
               return "good" if pct >= 70 else "medium" if pct >= 50 else "bad"
 
           def extract_module(file_path):
-              """
-              Extrae el nombre de módulo desde rutas como:
-                /home/runner/work/nanutech-backend/nanutech-backend/src/functions/auth-services/authService.mjs
-                src/functions/camion-services/camionController.mjs
-                src/shared/config/database.mjs
-                src/shared/utils/response/response.mjs
-                src/shared/constants/errorMessages.mjs
-
-              Devuelve tuplas (grupo, modulo):
-                ("functions", "auth-services")
-                ("shared",    "config")
-                ("shared",    "utils")        ← utils/response y utils/validators se unen aquí
-                ("shared",    "constants")
-              """
               p = file_path.replace("\\", "/")
-
-              # Buscar ancla "src/" en la ruta
               if "/src/" in p:
-                  after_src = p.split("/src/")[-1]   # e.g. "functions/auth-services/authService.mjs"
+                  after_src = p.split("/src/")[-1]
               elif p.startswith("src/"):
                   after_src = p[4:]
               else:
-                  after_src = p                        # fallback
-
+                  after_src = p
               parts = after_src.split("/")
-              # parts[0] = "functions" | "shared"
-              # parts[1] = "auth-services" | "config" | "utils" | "constants" ...
               if len(parts) >= 2:
-                  grupo   = parts[0]   # functions / shared
-                  modulo  = parts[1]   # auth-services / config / utils / constants
+                  grupo  = parts[0]
+                  modulo = parts[1]
                   return grupo, modulo
               return "otros", parts[0] if parts else "otros"
 
-          # ── 3. Métricas globales (directamente desde clave "total") ───────────────────
-          total_key = data.get("total", {})
+          # ── 3. Métricas globales ───────────────────────────────────────────────────────
+          total_key  = data.get("total", {})
           lines_pct  = total_key.get("lines",      {}).get("pct", 0)
           stmt_pct   = total_key.get("statements", {}).get("pct", 0)
           branch_pct = total_key.get("branches",   {}).get("pct", 0)
@@ -158,8 +134,7 @@ jobs:
 
           print(f"📊 Totales: líneas={lines_pct}% stmts={stmt_pct}% branches={branch_pct}% funcs={func_pct}%")
 
-          # ── 4. Agrupar archivos por módulo acumulando covered/total ───────────────────
-          # Usamos acumulación de covered+total para calcular % del módulo igual que istanbul
+          # ── 4. Agrupar archivos por módulo ────────────────────────────────────────────
           module_acc = defaultdict(lambda: {
               "s_cov": 0, "s_tot": 0,
               "b_cov": 0, "b_tot": 0,
@@ -172,10 +147,8 @@ jobs:
           for file_path, vals in data.items():
               if file_path == "total":
                   continue
-
               grupo, modulo = extract_module(file_path)
               file_name = file_path.split("/")[-1]
-
               s_cov = vals.get("statements", {}).get("covered", 0)
               s_tot = vals.get("statements", {}).get("total",   0)
               b_cov = vals.get("branches",   {}).get("covered", 0)
@@ -184,14 +157,12 @@ jobs:
               f_tot = vals.get("functions",  {}).get("total",   0)
               l_cov = vals.get("lines",      {}).get("covered", 0)
               l_tot = vals.get("lines",      {}).get("total",   0)
-
               acc = module_acc[modulo]
               acc["s_cov"] += s_cov;  acc["s_tot"] += s_tot
               acc["b_cov"] += b_cov;  acc["b_tot"] += b_tot
               acc["f_cov"] += f_cov;  acc["f_tot"] += f_tot
               acc["l_cov"] += l_cov;  acc["l_tot"] += l_tot
               acc["grupo"]  = grupo
-
               acc["files"].append({
                   "name":           file_name,
                   "stmt":           safe_pct(s_cov, s_tot),
@@ -241,7 +212,6 @@ jobs:
           for modulo_name in sorted(module_acc.keys()):
               acc   = module_acc[modulo_name]
               files = acc["files"]
-
               files_rows = ""
               for f in sorted(files, key=lambda x: x["name"]):
                   files_rows += f"""
@@ -269,13 +239,11 @@ jobs:
                   <a class="back-link" href="index.html">← Volver al Dashboard</a>
                   <h1>📁 {modulo_name}</h1>
                   <div class="sub">Detalle de cobertura por archivo · {len(files)} archivo(s)</div>
-
                   <div class="legend">
                       <div><span class="legend-color" style="background:#22c55e"></span>≥ 70% — Excelente</div>
                       <div><span class="legend-color" style="background:#eab308"></span>50%–69% — Aceptable</div>
                       <div><span class="legend-color" style="background:#ef4444"></span>&lt; 50% — Necesita mejora</div>
                   </div>
-
                   <div class="table-container">
                   <table>
                       <thead>
@@ -291,7 +259,6 @@ jobs:
                       <tbody>{files_rows}</tbody>
                   </table>
                   </div>
-
                   <div class="footer">Generado automáticamente por CI/CD Pipeline</div>
               </div>
               </body></html>"""
@@ -304,19 +271,15 @@ jobs:
           # ── 7. Página principal con tabla de módulos ──────────────────────────────────
           table_rows = ""
           for modulo_name in sorted(module_acc.keys()):
-              acc   = module_acc[modulo_name]
-              grupo = acc["grupo"]
-
-              # Porcentajes del módulo: acumulado covered/total (igual que istanbul)
+              acc        = module_acc[modulo_name]
+              grupo      = acc["grupo"]
               avg_stmt   = safe_pct(acc["s_cov"], acc["s_tot"])
               avg_branch = safe_pct(acc["b_cov"], acc["b_tot"])
               avg_func   = safe_pct(acc["f_cov"], acc["f_tot"])
               avg_line   = safe_pct(acc["l_cov"], acc["l_tot"])
               n_files    = len(acc["files"])
-
-              tag_label = "functions" if grupo == "functions" else "shared"
-              tag_class = "tag-functions" if grupo == "functions" else "tag-shared"
-
+              tag_label  = "functions" if grupo == "functions" else "shared"
+              tag_class  = "tag-functions" if grupo == "functions" else "tag-shared"
               table_rows += f"""
               <tr>
                   <td style="font-weight:700">
@@ -345,13 +308,11 @@ jobs:
           <div class="container">
               <h1>📊 NANUTECH — Reporte de Cobertura</h1>
               <div class="sub">Generado: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}</div>
-
               <div class="legend">
                   <div><span class="legend-color" style="background:#22c55e"></span>≥ 70% — Excelente</div>
                   <div><span class="legend-color" style="background:#eab308"></span>50%–69% — Aceptable</div>
                   <div><span class="legend-color" style="background:#ef4444"></span>&lt; 50% — Necesita mejora</div>
               </div>
-
               <div class="stats">
                   <div class="stat-card">
                       <div class="stat-number" style="color:{get_color(lines_pct)}">{lines_pct:.2f}%</div>
@@ -370,7 +331,6 @@ jobs:
                       <div class="stat-label">⚙️ Funciones</div>
                   </div>
               </div>
-
               <h2 style="margin:30px 0 20px">📦 Módulos</h2>
               <div class="table-container">
               <table>
@@ -389,7 +349,6 @@ jobs:
                   </tbody>
               </table>
               </div>
-
               <div class="footer">
                   <p>💡 Haz clic en cualquier módulo para ver el detalle de sus archivos</p>
                   <p style="margin-top:8px">Reporte generado automáticamente por CI/CD Pipeline</p>
@@ -410,6 +369,8 @@ jobs:
           SPRINT=$(date '+%Y-%m')
           DATETIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
           RUN_ID=${{ steps.run.outputs.run_id }}
+          OWNER=${{ github.repository_owner }}
+          REPO_NAME=${{ github.event.repository.name }}
 
           mkdir -p docs/reports/latest
 
@@ -426,11 +387,12 @@ jobs:
                   .container{max-width:1000px;margin:0 auto}
                   .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:24px;padding:40px;margin-bottom:30px}
                   .header h1{font-size:42px;margin-bottom:10px}
-                  .card{background:#1e293b;border-radius:20px;padding:40px;text-align:center;cursor:pointer;transition:transform 0.2s;text-decoration:none;display:block;color:#e2e8f0}
+                  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;margin-top:20px}
+                  .card{background:#1e293b;border-radius:20px;padding:32px;text-align:center;cursor:pointer;transition:transform 0.2s;text-decoration:none;display:block;color:#e2e8f0}
                   .card:hover{transform:translateY(-4px);background:#243044}
-                  .icon{font-size:64px;margin-bottom:16px}
-                  .title{font-size:24px;font-weight:700;margin-bottom:8px}
-                  .desc{font-size:14px;color:#94a3b8;margin-bottom:16px}
+                  .icon{font-size:56px;margin-bottom:14px}
+                  .title{font-size:20px;font-weight:700;margin-bottom:8px}
+                  .desc{font-size:13px;color:#94a3b8;margin-bottom:16px}
                   .badge{display:inline-block;background:#22c55e20;color:#22c55e;padding:8px 20px;border-radius:30px;font-weight:600}
                   .footer{margin-top:40px;padding:20px;text-align:center;color:#475569;border-top:1px solid #334155}
               </style>
@@ -443,12 +405,26 @@ jobs:
                   <p style="font-size:12px;color:#64748b;margin-top:4px">Run ID: $RUN_ID</p>
               </div>
 
-              <a href="coverage/index.html" class="card">
-                  <div class="icon">📈</div>
-                  <div class="title">Cobertura de Código</div>
-                  <div class="desc">Reporte interactivo de cobertura. Haz clic en cada módulo para ver el detalle de sus archivos.</div>
-                  <span class="badge">Ver reporte →</span>
-              </a>
+              <div class="grid">
+                  <a href="coverage/index.html" class="card">
+                      <div class="icon">📈</div>
+                      <div class="title">Reporte de Nanutech</div>
+                      <div class="desc">Cobertura de código por módulo y archivos</div>
+                      <span class="badge">Ver reporte →</span>
+                  </a>
+                  <a href="https://$OWNER.github.io/$REPO_NAME/security/" class="card">
+                      <div class="icon">🛡️</div>
+                      <div class="title">OWASP ZAP Security</div>
+                      <div class="desc">Reporte OWASP ZAP por rol — Admin, Gerente, Chofer y Broken Access Control</div>
+                      <span class="badge">Ver reporte →</span>
+                  </a>
+                  <a href="https://$OWNER.github.io/$REPO_NAME/checkov/" class="card">
+                      <div class="icon">🏗️</div>
+                      <div class="title">Checkov IaC</div>
+                      <div class="desc">Seguridad de infraestructura como código — CloudFormation / SAM</div>
+                      <span class="badge">Ver reporte →</span>
+                  </a>
+              </div>
 
               <div class="footer">Reportes generados automáticamente por CI/CD Pipeline</div>
           </div>
@@ -484,4 +460,6 @@ jobs:
           echo "=========================================="
           echo "📊 Dashboard: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
           echo "📈 Cobertura: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/latest/coverage/"
+          echo "🛡️ Security:  https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/security/"
+          echo "🏗️ Checkov:   https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/checkov/"
           echo ""
