@@ -1,0 +1,395 @@
+{
+	"@programName": "ZAP",
+	"@version": "2.17.0",
+	"@generated": "Sun, 24 May 2026 00:38:18",
+	"created": "2026-05-24T00:38:18.743588449Z",
+	"insights":[
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
+			"key": "insight.code.2xx",
+			"description": "Percentage of responses with status code 2xx",
+			"statistic": "7"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
+			"key": "insight.code.4xx",
+			"description": "Percentage of responses with status code 4xx",
+			"statistic": "71"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
+			"key": "insight.code.5xx",
+			"description": "Percentage of responses with status code 5xx",
+			"statistic": "21"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
+			"key": "insight.endpoint.ctype.application/json",
+			"description": "Percentage of endpoints with content type application/json",
+			"statistic": "100"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
+			"key": "insight.endpoint.method.GET",
+			"description": "Percentage of endpoints with method GET",
+			"statistic": "22"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
+			"key": "insight.endpoint.method.POST",
+			"description": "Percentage of endpoints with method POST",
+			"statistic": "77"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
+			"key": "insight.endpoint.total",
+			"description": "Count of total endpoints",
+			"statistic": "9"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
+			"key": "insight.response.slow",
+			"description": "Percentage of slow responses",
+			"statistic": "64"
+		}
+	],
+	"site":[ 
+		{
+			"@name": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
+			"@host": "q26dwk17da.execute-api.us-east-1.amazonaws.com",
+			"@port": "443",
+			"@ssl": "true",
+			"alerts": [ 
+				{
+					"pluginid": "10098",
+					"alertRef": "10098",
+					"alert": "Cross-Domain Misconfiguration",
+					"name": "Cross-Domain Misconfiguration",
+					"riskcode": "2",
+					"confidence": "2",
+					"riskdesc": "Medium (Medium)",
+					"desc": "<p>Web browser data loading may be possible, due to a Cross Origin Resource Sharing (CORS) misconfiguration on the web server.</p>",
+					"instances":[ 
+						{
+							"id": "9",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/me",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/me",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "Access-Control-Allow-Origin: *",
+							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
+						},
+						{
+							"id": "8",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/actual/22222222-2222-2222-2222-222222222222",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/actual\/22222222-2222-2222-2222-222222222222",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "Access-Control-Allow-Origin: *",
+							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
+						},
+						{
+							"id": "6",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password ()({email})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "Access-Control-Allow-Origin: *",
+							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
+						},
+						{
+							"id": "10",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "Access-Control-Allow-Origin: *",
+							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
+						},
+						{
+							"id": "2",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "Access-Control-Allow-Origin: *",
+							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
+						}
+					],
+					"count": "5",
+					"systemic": true,
+					"solution": "<p>Ensure that sensitive data is not available in an unauthenticated manner (using IP address white-listing, for instance).</p><p>Configure the \"Access-Control-Allow-Origin\" HTTP header to a more restrictive set of domains, or remove all CORS headers entirely, to allow the web browser to enforce the Same Origin Policy (SOP) in a more restrictive manner.</p>",
+					"otherinfo": "<p>The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing.</p>",
+					"reference": "<p>https://vulncat.fortify.com/en/detail?category=HTML5&subcategory=Overly%20Permissive%20CORS%20Policy</p>",
+					"cweid": "264",
+					"wascid": "14",
+					"sourceid": "8"
+				},
+				{
+					"pluginid": "10035",
+					"alertRef": "10035-1",
+					"alert": "Strict-Transport-Security Header Not Set",
+					"name": "Strict-Transport-Security Header Not Set",
+					"riskcode": "1",
+					"confidence": "3",
+					"riskdesc": "Low (High)",
+					"desc": "<p>HTTP Strict Transport Security (HSTS) is a web security policy mechanism whereby a web server declares that complying user agents (such as a web browser) are to interact with it using only secure HTTPS connections (i.e. HTTP layered over TLS/SSL). HSTS is an IETF standards track protocol and is specified in RFC 6797.</p>",
+					"instances":[ 
+						{
+							"id": "13",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/me",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/me",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": ""
+						},
+						{
+							"id": "12",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/actual/22222222-2222-2222-2222-222222222222",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/actual\/22222222-2222-2222-2222-222222222222",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": ""
+						},
+						{
+							"id": "7",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password ()({email})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": ""
+						},
+						{
+							"id": "14",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": ""
+						},
+						{
+							"id": "3",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": ""
+						}
+					],
+					"count": "5",
+					"systemic": true,
+					"solution": "<p>Ensure that your web server, application server, load balancer, etc. is configured to enforce Strict-Transport-Security.</p>",
+					"otherinfo": "",
+					"reference": "<p>https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Strict_Transport_Security_Cheat_Sheet.html</p><p>https://owasp.org/www-community/Security_Headers</p><p>https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security</p><p>https://caniuse.com/stricttransportsecurity</p><p>https://datatracker.ietf.org/doc/html/rfc6797</p>",
+					"cweid": "319",
+					"wascid": "15",
+					"sourceid": "8"
+				},
+				{
+					"pluginid": "10111",
+					"alertRef": "10111",
+					"alert": "Authentication Request Identified",
+					"name": "Authentication Request Identified",
+					"riskcode": "0",
+					"confidence": "1",
+					"riskdesc": "Informational (Low)",
+					"desc": "<p>The given request has been identified as an authentication request. The 'Other Info' field contains a set of key=value lines which identify any relevant fields. If the request is in a context which has an Authentication Method set to \"Auto-Detect\" then this rule will change the authentication to match the request identified.</p>",
+					"instances":[ 
+						{
+							"id": "5",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
+							"method": "POST",
+							"param": "email",
+							"attack": "",
+							"evidence": "newPassword",
+							"otherinfo": "userParam=email\nuserValue=admin@nanutech.com\npasswordParam=newPassword"
+						},
+						{
+							"id": "0",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
+							"method": "POST",
+							"param": "email",
+							"attack": "",
+							"evidence": "password",
+							"otherinfo": "userParam=email\nuserValue=admin@nanutech.com\npasswordParam=password"
+						}
+					],
+					"count": "2",
+					"systemic": false,
+					"solution": "<p>This is an informational alert rather than a vulnerability and so there is nothing to fix.</p>",
+					"otherinfo": "<p>userParam=email</p><p>userValue=admin@nanutech.com</p><p>passwordParam=newPassword</p>",
+					"reference": "<p>https://www.zaproxy.org/docs/desktop/addons/authentication-helper/auth-req-id/</p>",
+					"cweid": "-1",
+					"wascid": "-1",
+					"sourceid": "6"
+				},
+				{
+					"pluginid": "10049",
+					"alertRef": "10049-1",
+					"alert": "Non-Storable Content",
+					"name": "Non-Storable Content",
+					"riskcode": "0",
+					"confidence": "2",
+					"riskdesc": "Informational (Medium)",
+					"desc": "<p>The response contents are not storable by caching components such as proxy servers. If the response does not contain sensitive, personal or user-specific information, it may benefit from being stored and cached, to improve performance.</p>",
+					"instances":[ 
+						{
+							"id": "17",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/me",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/me",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "401",
+							"otherinfo": ""
+						},
+						{
+							"id": "16",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/actual/22222222-2222-2222-2222-222222222222",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/actual\/22222222-2222-2222-2222-222222222222",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "401",
+							"otherinfo": ""
+						},
+						{
+							"id": "11",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password ()({email})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "502",
+							"otherinfo": ""
+						},
+						{
+							"id": "15",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "502",
+							"otherinfo": ""
+						},
+						{
+							"id": "26",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/iniciar",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/iniciar ()({jornada_id})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "401",
+							"otherinfo": ""
+						}
+					],
+					"count": "5",
+					"systemic": true,
+					"solution": "<p>The content may be marked as storable by ensuring that the following conditions are satisfied:</p><p>The request method must be understood by the cache and defined as being cacheable (\"GET\", \"HEAD\", and \"POST\" are currently defined as cacheable)</p><p>The response status code must be understood by the cache (one of the 1XX, 2XX, 3XX, 4XX, or 5XX response classes are generally understood)</p><p>The \"no-store\" cache directive must not appear in the request or response header fields</p><p>For caching by \"shared\" caches such as \"proxy\" caches, the \"private\" response directive must not appear in the response</p><p>For caching by \"shared\" caches such as \"proxy\" caches, the \"Authorization\" header field must not appear in the request, unless the response explicitly allows it (using one of the \"must-revalidate\", \"public\", or \"s-maxage\" Cache-Control response directives)</p><p>In addition to the conditions above, at least one of the following conditions must also be satisfied by the response:</p><p>It must contain an \"Expires\" header field</p><p>It must contain a \"max-age\" response directive</p><p>For \"shared\" caches such as \"proxy\" caches, it must contain a \"s-maxage\" response directive</p><p>It must contain a \"Cache Control Extension\" that allows it to be cached</p><p>It must have a status code that is defined as cacheable by default (200, 203, 204, 206, 300, 301, 404, 405, 410, 414, 501).</p>",
+					"otherinfo": "",
+					"reference": "<p>https://datatracker.ietf.org/doc/html/rfc7234</p><p>https://datatracker.ietf.org/doc/html/rfc7231</p><p>https://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html</p>",
+					"cweid": "524",
+					"wascid": "13",
+					"sourceid": "8"
+				},
+				{
+					"pluginid": "10112",
+					"alertRef": "10112",
+					"alert": "Session Management Response Identified",
+					"name": "Session Management Response Identified",
+					"riskcode": "0",
+					"confidence": "2",
+					"riskdesc": "Informational (Medium)",
+					"desc": "<p>The given response has been identified as containing a session management token. The 'Other Info' field contains a set of header tokens that can be used in the Header Based Session Management Method. If the request is in a context which has a Session Management Method set to \"Auto-Detect\" then this rule will change the session management to use the tokens identified.</p>",
+					"instances":[ 
+						{
+							"id": "1",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
+							"method": "POST",
+							"param": "data.session.accessToken",
+							"attack": "",
+							"evidence": "data.session.accessToken",
+							"otherinfo": "json:data.session.accessToken"
+						}
+					],
+					"count": "1",
+					"systemic": false,
+					"solution": "<p>This is an informational alert rather than a vulnerability and so there is nothing to fix.</p>",
+					"otherinfo": "<p>json:data.session.accessToken</p>",
+					"reference": "<p>https://www.zaproxy.org/docs/desktop/addons/authentication-helper/session-mgmt-id/</p>",
+					"cweid": "-1",
+					"wascid": "-1",
+					"sourceid": "1"
+				},
+				{
+					"pluginid": "10049",
+					"alertRef": "10049-3",
+					"alert": "Storable and Cacheable Content",
+					"name": "Storable and Cacheable Content",
+					"riskcode": "0",
+					"confidence": "2",
+					"riskdesc": "Informational (Medium)",
+					"desc": "<p>The response contents are storable by caching components such as proxy servers, and may be retrieved directly from the cache, rather than from the origin server by the caching servers, in response to similar requests from other users. If the response data is sensitive, personal or user-specific, this may result in sensitive information being leaked. In some cases, this may even result in a user gaining complete control of the session of another user, depending on the configuration of the caching components in use in their environment. This is primarily an issue where \"shared\" caching servers such as \"proxy\" caches are configured on the local network. This configuration is typically found in corporate or educational environments, for instance.</p>",
+					"instances":[ 
+						{
+							"id": "4",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": "In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234."
+						}
+					],
+					"count": "1",
+					"systemic": false,
+					"solution": "<p>Validate that the response does not contain sensitive, personal or user-specific information. If it does, consider the use of the following HTTP response headers, to limit, or prevent the content being stored and retrieved from the cache by another user:</p><p>Cache-Control: no-cache, no-store, must-revalidate, private</p><p>Pragma: no-cache</p><p>Expires: 0</p><p>This configuration directs both HTTP 1.0 and HTTP 1.1 compliant caching servers to not store the response, and to not retrieve the response (without validation) from the cache, in response to a similar request.</p>",
+					"otherinfo": "<p>In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234.</p>",
+					"reference": "<p>https://datatracker.ietf.org/doc/html/rfc7234</p><p>https://datatracker.ietf.org/doc/html/rfc7231</p><p>https://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html</p>",
+					"cweid": "524",
+					"wascid": "13",
+					"sourceid": "1"
+				}
+			]
+		}
+	],
+	"sequences":[
+	]
+
+}

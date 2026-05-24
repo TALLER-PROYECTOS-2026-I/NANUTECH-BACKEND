@@ -1,11 +1,11 @@
 {
-  "generado_en": "2026-05-24T00:00:58Z",
+  "generado_en": "2026-05-24T00:22:02Z",
   "resumen": {
     "total_pruebas": 141,
-    "pasadas": 77,
-    "fallidas": 64,
-    "fail_critico": 47,
-    "fail_menor": 17
+    "pasadas": 76,
+    "fallidas": 65,
+    "fail_critico": 45,
+    "fail_menor": 20
   },
   "resultados": {
     "PUBLICO": [
@@ -25,10 +25,10 @@
         "method": "POST",
         "endpoint": "/auth/forgot-password",
         "expected": "PUBLIC",
-        "http_status": "200",
-        "resultado": "PASS",
-        "nota": "",
-        "detalle": "",
+        "http_status": "502",
+        "resultado": "FAIL_MENOR",
+        "nota": "Endpoint público devolvió 502 (esperaba 2xx/400/404)",
+        "detalle": "Roles con acceso: TODOS",
         "roles_permitidos": "TODOS"
       },
       {
@@ -36,9 +36,9 @@
         "method": "POST",
         "endpoint": "/auth/forgot-password/confirm",
         "expected": "PUBLIC",
-        "http_status": "401",
+        "http_status": "502",
         "resultado": "FAIL_MENOR",
-        "nota": "Endpoint público devolvió 401 (esperaba 2xx/400/404)",
+        "nota": "Endpoint público devolvió 502 (esperaba 2xx/400/404)",
         "detalle": "Roles con acceso: TODOS",
         "roles_permitidos": "TODOS"
       }
@@ -71,10 +71,10 @@
         "method": "POST",
         "endpoint": "/camiones",
         "expected": "200",
-        "http_status": "201",
-        "resultado": "PASS",
-        "nota": "",
-        "detalle": "",
+        "http_status": "400",
+        "resultado": "FAIL_MENOR",
+        "nota": "Rol ADMIN debía tener acceso pero recibió 400",
+        "detalle": "Roles autorizados: ADMIN",
         "roles_permitidos": "ADMIN"
       },
       {
@@ -390,10 +390,10 @@
         "method": "POST",
         "endpoint": "/jornadas/iniciar",
         "expected": "403",
-        "http_status": "200",
-        "resultado": "FAIL_CRITICO",
-        "nota": "Broken Access Control: ADMIN recibió 200 — acceso indebido",
-        "detalle": "Solo deberían acceder: CHOFER",
+        "http_status": "400",
+        "resultado": "PASS",
+        "nota": "Recibió 400 (aceptable como rechazo)",
+        "detalle": "",
         "roles_permitidos": "CHOFER"
       },
       {
@@ -401,10 +401,10 @@
         "method": "POST",
         "endpoint": "/jornadas/finalizar",
         "expected": "403",
-        "http_status": "200",
-        "resultado": "FAIL_CRITICO",
-        "nota": "Broken Access Control: ADMIN recibió 200 — acceso indebido",
-        "detalle": "Solo deberían acceder: CHOFER",
+        "http_status": "400",
+        "resultado": "PASS",
+        "nota": "Recibió 400 (aceptable como rechazo)",
+        "detalle": "",
         "roles_permitidos": "CHOFER"
       },
       {
@@ -489,10 +489,10 @@
         "method": "PATCH",
         "endpoint": "/alertas/dddd0001-0000-0000-0000-000000000001/resolver",
         "expected": "200",
-        "http_status": "200",
-        "resultado": "PASS",
-        "nota": "",
-        "detalle": "",
+        "http_status": "400",
+        "resultado": "FAIL_MENOR",
+        "nota": "Rol ADMIN debía tener acceso pero recibió 400",
+        "detalle": "Roles autorizados: ADMIN",
         "roles_permitidos": "ADMIN"
       },
       {
