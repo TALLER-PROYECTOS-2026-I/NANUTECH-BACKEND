@@ -486,7 +486,7 @@ jobs:
   # Corre siempre aunque algún scan haya fallado o sido skipped.
   # Lee los JSON reales de ZAP y el JSON de access control para generar
   # el index.html dinámico con hallazgos reales y traducciones al español.
-  # URL: https://<org>.github.io/<repo>/
+  # URL: https://<org>.github.io/<repo>/security/
   # Requiere: Settings → Pages → Branch: gh-pages → / (root)
   #
   # PYTHONPATH=".github/scripts" permite que generate-report.py importe
@@ -517,7 +517,7 @@ jobs:
 
       - name: Construir sitio de reportes
         run: |
-          mkdir -p gh-pages-site
+          mkdir -p gh-pages-site/security
 
           # ── Copiar reportes ZAP por rol (HTML + JSON) ──────────────────────
           for rol in ADMIN GERENTE CHOFER; do
@@ -575,7 +575,7 @@ jobs:
           ZAP_ADMIN_JSON="gh-pages-site/admin/reporte-ADMIN-json.json" \
           ZAP_GERENTE_JSON="gh-pages-site/gerente/reporte-GERENTE-json.json" \
           ZAP_CHOFER_JSON="gh-pages-site/chofer/reporte-CHOFER-json.json" \
-          OUT="gh-pages-site/index.html" \
+          OUT="gh-pages-site/security/index.html" \
           PYTHONPATH=".github/scripts" \
           python3 .github/scripts/generate-report.py
 
@@ -585,7 +585,7 @@ jobs:
           find gh-pages-site -type f | sort
           echo ""
           echo "── Tamaño index.html ──"
-          wc -l gh-pages-site/index.html 2>/dev/null || echo "❌ index.html no generado"
+          wc -l gh-pages-site/security/index.html 2>/dev/null || echo "❌ index.html no generado"
 
       - name: Publicar en rama gh-pages
         uses: peaceiris/actions-gh-pages@v4
