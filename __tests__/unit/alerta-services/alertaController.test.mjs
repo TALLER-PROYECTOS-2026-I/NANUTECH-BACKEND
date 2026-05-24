@@ -96,6 +96,39 @@ describe("AlertaController", () => {
     expect(body.data[0].tipo).toBe("PANICO");
   });
 
+  test("getAlertasActivasController sin filtros retorna todas las alertas incluyendo resueltas", async () => {
+    const mockGetAlertasActivas = jest.fn().mockResolvedValue([
+      {
+        id: "alert-1",
+        tipo: "PANICO",
+        estado: "ACTIVA",
+        severidad: "CRITICA",
+      },
+      {
+        id: "alert-2",
+        tipo: "AUXILIO_MECANICO",
+        estado: "RESUELTA",
+        severidad: "ALTA",
+        detalle_resolucion: "Cambio de bateria",
+      },
+    ]);
+
+    AlertaService.mockImplementation(() => ({
+      getAlertasActivas: mockGetAlertasActivas,
+    }));
+
+    const result = await getAlertasActivasController(withAuth());
+
+    expect(result.statusCode).toBe(200);
+    expect(mockGetAlertasActivas).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: undefined, estado: undefined })
+    );
+
+    const body = JSON.parse(result.body);
+    expect(body.data).toHaveLength(2);
+    expect(body.data[1].estado).toBe("RESUELTA");
+  });
+
   test("getAlertasActivasController filtra por tipo", async () => {
     const mockGetAlertasActivas = jest.fn().mockResolvedValue([]);
 
