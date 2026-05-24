@@ -2,6 +2,11 @@
 
 import { ConductorService } from "./conductorService.mjs";
 
+// Servicio de autenticación
+import {
+  getCurrentSession
+} from "../auth-services/authService.mjs";
+
 // Utilidades para respuestas HTTP
 import {
   successResponse,
@@ -14,8 +19,7 @@ import {
 } from "../../shared/constants/successMessages.mjs";
 
 /**
- * Controller encargado de obtener
- * todos los conductores activos.
+ * Controller encargado de obtener todos los conductores activos.
  */
 export const getAllConductoresController =
   async (event) => {
@@ -23,19 +27,43 @@ export const getAllConductoresController =
     try {
 
       /**
+       * VALIDACIÓN JWT
+       */
+
+      const authorizationHeader =
+        event.headers?.Authorization ||
+        event.headers?.authorization;
+
+      // Valida token y obtiene sesión
+      const session =
+        await getCurrentSession(
+          authorizationHeader
+        );
+
+      /**
+       * VALIDACIÓN DE ROLES
+       *
+       * Solo ADMIN puede acceder
+       */
+      if (session.role !== "admin") {
+
+        return errorResponse(
+          "Acceso denegado",
+          403
+        );
+      }
+
+      /**
        * LÓGICA PRINCIPAL
        */
 
-      // Instancia del service
       const conductorService =
         new ConductorService();
 
-      // Obtiene lista de conductores
       const conductores =
         await conductorService
           .getAllActiveConductores();
 
-      // Respuesta HTTP exitosa
       return successResponse(
         conductores,
         SUCCESS_MESSAGES
@@ -44,16 +72,11 @@ export const getAllConductoresController =
 
     } catch (error) {
 
-      // Log de errores
       console.error(
         "Error en getAllConductoresController:",
         error
       );
 
-      /**
-       * IMPORTANTE:
-       * No exponer errores internos
-       */
       return errorResponse(
         "Error interno del servidor",
         500
@@ -62,8 +85,7 @@ export const getAllConductoresController =
   };
 
 /**
- * Controller encargado de obtener
- * estadísticas del conductor.
+ * Controller encargado de obtener estadísticas del conductor.
  */
 export const getConductorStatisticsController =
   async (event) => {
@@ -71,8 +93,34 @@ export const getConductorStatisticsController =
     try {
 
       /**
+       * VALIDACIÓN JWT
+       */
+
+      const authorizationHeader =
+        event.headers?.Authorization ||
+        event.headers?.authorization;
+
+      // Valida token y obtiene sesión
+      const session =
+        await getCurrentSession(
+          authorizationHeader
+        );
+
+      /**
+       * VALIDACIÓN DE ROLES
+       *
+       * Solo ADMIN puede acceder
+       */
+      if (session.role !== "admin") {
+
+        return errorResponse(
+          "Acceso denegado",
+          403
+        );
+      }
+
+      /**
        * OBTENER ID
-       * desde pathParameters
        */
 
       const { id } =
@@ -85,7 +133,6 @@ export const getConductorStatisticsController =
       const uuidRegex =
         /^[0-9a-fA-F-]{36}$/;
 
-      // Valida formato UUID
       if (!uuidRegex.test(id)) {
 
         return errorResponse(
@@ -98,16 +145,13 @@ export const getConductorStatisticsController =
        * LÓGICA PRINCIPAL
        */
 
-      // Instancia del service
       const conductorService =
         new ConductorService();
 
-      // Obtiene estadísticas
       const statistics =
         await conductorService
           .getConductorStatistics(id);
 
-      // Respuesta HTTP exitosa
       return successResponse(
         statistics,
         SUCCESS_MESSAGES
@@ -116,19 +160,14 @@ export const getConductorStatisticsController =
 
     } catch (error) {
 
-      // Log de errores
       console.error(
         "Error getConductorStatisticsController:",
         error
       );
 
-      /**
-       * IMPORTANTE:
-       * No devolver detalles internos
-       */
       return errorResponse(
-        error.message,
-        error.statusCode || 500
+        "Error interno del servidor",
+        500
       );
     }
   };
