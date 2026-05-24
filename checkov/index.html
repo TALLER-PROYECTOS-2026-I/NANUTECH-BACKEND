@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkov IaC Report — TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap');
+
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --bg:          #0d1117;
+      --bg2:         #161b22;
+      --bg3:         #21262d;
+      --border:      #30363d;
+      --border2:     #21262d;
+      --text:        #c9d1d9;
+      --text-dim:    #8b949e;
+      --text-bright: #f0f6fc;
+      --blue:        #58a6ff;
+      --green:       #3fb950;
+      --yellow:      #e3b341;
+      --red:         #f85149;
+      --purple:      #a371f7;
+      --orange:      #ffa657;
+      --font-mono:   'JetBrains Mono', monospace;
+      --font-ui:     'Syne', sans-serif;
+    }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--bg2);
+      border-bottom: 2px solid #f85149;
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-icon {
+      font-size: 1.6rem;
+      filter: drop-shadow(0 0 8px #f8514966);
+    }
+    .header-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .header-title h1 {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--text-bright);
+      letter-spacing: -0.3px;
+    }
+    .header-meta {
+      color: var(--text-dim);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .header-meta span { display: flex; align-items: center; gap: 4px; }
+    .header-badge {
+      margin-left: auto;
+      background: #f8514922;
+      color: #f85149;
+      border: 1px solid #f85149;
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      font-family: var(--font-mono);
+      text-shadow: 0 0 12px #f8514966;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+    }
+    nav a {
+      color: var(--text-dim);
+      padding: 11px 18px;
+      font-size: 12px;
+      font-weight: 600;
+      border-bottom: 2px solid transparent;
+      display: block;
+      white-space: nowrap;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    nav a:hover { color: var(--text-bright); border-bottom-color: var(--blue); }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 32px 28px;
+    }
+
+    /* ── Sections ── */
+    section { margin-bottom: 48px; }
+    section > h2 {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-bright);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 0.3px;
+    }
+    .section-desc {
+      color: var(--text-dim);
+      font-size: 12px;
+      margin-bottom: 20px;
+      line-height: 1.7;
+    }
+
+    /* ── Metric cards ── */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .metric {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 16px;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+    .metric:hover { border-color: var(--blue); }
+    .metric.m-red    { border-color: var(--red);    background: #f8514910; }
+    .metric.m-yellow { border-color: var(--yellow); background: #e3b34110; }
+    .metric.m-green  { border-color: var(--green);  background: #3fb95010; }
+    .metric.m-blue   { border-color: var(--blue);   background: #58a6ff10; }
+    .metric .num {
+      font-size: 2.8rem;
+      font-weight: 800;
+      display: block;
+      line-height: 1;
+      margin-bottom: 8px;
+      font-family: var(--font-mono);
+    }
+    .metric .lbl {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+    .c-red    { color: var(--red); }
+    .c-yellow { color: var(--yellow); }
+    .c-green  { color: var(--green); }
+    .c-blue   { color: var(--blue); }
+    .c-gray   { color: var(--text-dim); }
+
+    /* ── Progress bar ── */
+    .progress-wrap {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin-bottom: 20px;
+    }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .progress-bar {
+      height: 8px;
+      border-radius: 4px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--green), #2ea043);
+      transition: width 0.5s ease;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-bright);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-lbl {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-right: 4px;
+    }
+    .fbtn {
+      padding: 5px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg3);
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--font-ui);
+      transition: all 0.15s;
+    }
+    .fbtn.active            { background: #58a6ff22; border-color: var(--blue);   color: var(--blue);   }
+    .fbtn.active.btn-high   { background: #f8514922; border-color: var(--red);    color: var(--red);    }
+    .fbtn.active.btn-medium { background: #e3b34122; border-color: var(--yellow); color: var(--yellow); }
+    .fbtn.active.btn-low    { background: #3fb95022; border-color: var(--green);  color: var(--green);  }
+    .fbtn:hover:not(.active) { background: var(--border); color: var(--text); }
+
+    /* ── Tables ── */
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th {
+      background: var(--bg3);
+      color: var(--text-dim);
+      padding: 9px 12px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border2);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #ffffff05; }
+    tr.hidden { display: none !important; }
+
+    /* ── Severity badges ── */
+    .sev-high   { background:#f8514933; color:var(--red);    padding:3px 9px; border-radius:4px; font-size:10px; font-weight:700; font-family:var(--font-mono); white-space:nowrap; }
+    .sev-medium { background:#e3b34133; color:var(--yellow); padding:3px 9px; border-radius:4px; font-size:10px; font-weight:700; font-family:var(--font-mono); white-space:nowrap; }
+    .sev-low    { background:#3fb95022; color:var(--green);  padding:3px 9px; border-radius:4px; font-size:10px; font-weight:700; font-family:var(--font-mono); white-space:nowrap; }
+    .sev-info   { background:#58a6ff22; color:var(--blue);   padding:3px 9px; border-radius:4px; font-size:10px; font-weight:700; font-family:var(--font-mono); white-space:nowrap; }
+    .sev-pass   { background:#3fb95033; color:var(--green);  padding:3px 9px; border-radius:4px; font-size:10px; font-weight:700; font-family:var(--font-mono); white-space:nowrap; }
+
+    /* ── Inline code ── */
+    code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .rule-id {
+      background: #58a6ff15;
+      color: var(--blue);
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid #58a6ff30;
+    }
+    .resource-tag {
+      background: #a371f715;
+      color: var(--purple);
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid #a371f730;
+      display: inline-block;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-tag {
+      background: var(--bg3);
+      color: var(--text-dim);
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    .line-tag {
+      color: var(--text-dim);
+      font-size: 10px;
+      font-family: var(--font-mono);
+    }
+    .count-badge {
+      background: #f8514922;
+      color: var(--red);
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+    .ref-link {
+      color: var(--blue);
+      font-size: 11px;
+      text-decoration: none;
+      display: inline-block;
+      margin-top: 4px;
+    }
+    .ref-link:hover { text-decoration: underline; }
+
+    /* ── Cell widths ── */
+    .rule-name-cell { min-width: 220px; color: var(--text-bright); font-weight: 600; }
+    .desc-cell { min-width: 260px; color: var(--text); line-height: 1.6; }
+    .fix-cell  { min-width: 260px; color: var(--text-dim); line-height: 1.6; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 48px;
+      color: var(--text-dim);
+    }
+    .empty-state .icon { font-size: 3rem; display: block; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+
+    /* ── Timeline del commit ── */
+    .commit-strip {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 20px;
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .commit-strip span { color: var(--text-dim); }
+    .commit-strip strong { color: var(--text-bright); }
+    .commit-strip a { color: var(--blue); text-decoration: none; }
+    .commit-strip a:hover { text-decoration: underline; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-dim);
+      font-size: 11px;
+      border-top: 1px solid var(--border2);
+      margin-top: 48px;
+    }
+    footer a { color: var(--blue); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ════════════════════════════════════════════════════════════ -->
+<header>
+  <span class="header-icon">🏗️</span>
+  <div class="header-title">
+    <h1>Checkov — IaC Security Report</h1>
+    <div class="header-meta">
+      <span>📦 <strong>TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND</strong></span>
+      <span>🌿 <strong>develop</strong></span>
+      <span>🔖 <strong>0025d58</strong></span>
+      <span>🕒 2026-05-24 01:19 UTC</span>
+    </div>
+  </div>
+  <span class="header-badge">FAILED</span>
+</header>
+
+<!-- ═══ NAV ══════════════════════════════════════════════════════════════ -->
+<nav>
+  <a href="#resumen">📊 Resumen</a>
+  <a href="#por-regla">📋 Por regla</a>
+  <a href="#detalle-fallos">❌ Fallos (38)</a>
+  <a href="#detalle-pasados">✅ Pasados (0)</a>
+</nav>
+
+<div class="container">
+
+  <!-- Commit strip -->
+  <div class="commit-strip">
+    <span>Scan: <strong>2026-05-24 01:19 UTC</strong></span>
+    <span>·</span>
+    <span>Framework: <strong>CloudFormation / SAM</strong></span>
+    <span>·</span>
+    <span>Herramienta: <strong>Checkov 3.x</strong></span>
+    <span>·</span>
+    <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26348373885" target="_blank">Ver ejecución en GitHub Actions →</a>
+  </div>
+
+  <!-- ═══ RESUMEN ═══════════════════════════════════════════════════════ -->
+  <section id="resumen">
+    <h2>📊 Resumen ejecutivo</h2>
+    <p class="section-desc">
+      Checkov escaneó la infraestructura como código (IaC) con CloudFormation/SAM
+      y encontró <strong style="color:var(--text-bright)">38</strong> checks fallidos
+      y <strong style="color:var(--green)">0</strong> checks aprobados
+      de un total de <strong style="color:var(--text-bright)">38</strong> revisiones.
+    </p>
+
+    <div class="metrics-grid">
+      <div class="metric m-red">
+        <span class="num c-red">38</span>
+        <span class="lbl">🔴 HIGH</span>
+      </div>
+      <div class="metric m-yellow">
+        <span class="num c-yellow">0</span>
+        <span class="lbl">🟡 MEDIUM</span>
+      </div>
+      <div class="metric">
+        <span class="num c-green">0</span>
+        <span class="lbl">🟢 LOW</span>
+      </div>
+      <div class="metric m-red">
+        <span class="num c-red">38</span>
+        <span class="lbl">❌ Fallidos</span>
+      </div>
+      <div class="metric m-green">
+        <span class="num c-green">0</span>
+        <span class="lbl">✅ Aprobados</span>
+      </div>
+      <div class="metric m-blue">
+        <span class="num c-blue">38</span>
+        <span class="lbl">📊 Total checks</span>
+      </div>
+    </div>
+
+    <!-- Barra de progreso -->
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>Tasa de aprobación</span>
+        <span style="color:var(--text-bright);font-family:var(--font-mono)">
+          0/38 (0%)
+        </span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ RESUMEN POR REGLA ═════════════════════════════════════════════ -->
+  <section id="por-regla">
+    <h2>📋 Resumen por regla</h2>
+    <p class="section-desc">
+      Agrupación de los checks fallidos por ID de regla.
+      El número en rojo indica cuántos recursos distintos fueron afectados por esa regla.
+    </p>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:100px">Severidad</th>
+            <th style="width:160px">Check ID</th>
+            <th>Descripción de la regla</th>
+            <th style="width:70px;text-align:center">Recursos</th>
+            <th>Afectados</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_76</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-logging-policies/logging-17" target="_blank" class="ref-link">📖</a></td>
+          <td class="rule-name-cell">Ensure API Gateway has Access Logging enabled</td>
+          <td style="text-align:center"><span class="count-badge">1</span></td>
+          <td style="font-size:11px;color:#8b949e">—</td>
+        </tr>
+<tr>
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_120</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-api-gateway-caching-is-enabled" target="_blank" class="ref-link">📖</a></td>
+          <td class="rule-name-cell">Ensure API Gateway caching is enabled</td>
+          <td style="text-align:center"><span class="count-badge">1</span></td>
+          <td style="font-size:11px;color:#8b949e">—</td>
+        </tr>
+<tr>
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖</a></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td style="text-align:center"><span class="count-badge">12</span></td>
+          <td style="font-size:11px;color:#8b949e">—</td>
+        </tr>
+<tr>
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖</a></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td style="text-align:center"><span class="count-badge">12</span></td>
+          <td style="font-size:11px;color:#8b949e">—</td>
+        </tr>
+<tr>
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖</a></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td style="text-align:center"><span class="count-badge">12</span></td>
+          <td style="font-size:11px;color:#8b949e">—</td>
+        </tr>
+
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ DETALLE FALLOS ════════════════════════════════════════════════ -->
+  <section id="detalle-fallos">
+    <h2>❌ Detalle de checks fallidos (38)</h2>
+    <p class="section-desc">
+      Cada fila representa un recurso individual que no superó el check de seguridad.
+      Usa los filtros para priorizar por severidad.
+    </p>
+
+    <div class="filter-bar">
+      <span class="filter-lbl">Filtrar:</span>
+      <button class="fbtn active"         onclick="filterTable('failed','ALL',this)">Todos (38)</button>
+      <button class="fbtn btn-high"       onclick="filterTable('failed','error',this)">🔴 HIGH (38)</button>
+      <button class="fbtn btn-medium"     onclick="filterTable('failed','warning',this)">🟡 MEDIUM (0)</button>
+      <button class="fbtn btn-low"        onclick="filterTable('failed','note',this)">🟢 LOW (0)</button>
+    </div>
+
+    <div class="card">
+      
+      <table id="table-failed">
+        <thead>
+          <tr>
+            <th style="width:100px">Severidad</th>
+            <th style="width:140px">Check ID</th>
+            <th>Regla</th>
+            <th>Recurso</th>
+            <th>Archivo / Línea</th>
+            <th>Problema</th>
+            <th>Solución recomendada</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-level="error" data-rule="CKV_AWS_76">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_76</code></td>
+          <td class="rule-name-cell">Ensure API Gateway has Access Logging enabled</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L93–105</span></td>
+          <td class="desc-cell">La API Gateway no tiene Access Logging habilitado. Sin logging es imposible auditar quién accedió y cuándo.</td>
+          <td class="fix-cell">Agregar AccessLogSetting con DestinationArn apuntando a un Log Group de CloudWatch en el recurso AWS::Serverless::Api.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-logging-policies/logging-17" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_120">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_120</code></td>
+          <td class="rule-name-cell">Ensure API Gateway caching is enabled</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L93–105</span></td>
+          <td class="desc-cell">API Gateway no tiene caching habilitado. El caching reduce latencia y protege backends de sobrecarga.</td>
+          <td class="fix-cell">Agregar MethodSettings con CachingEnabled: true y CacheDataEncrypted: true en la definición del stage.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-api-gateway-caching-is-enabled" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L112–165</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L112–165</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L112–165</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L176–235</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L176–235</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L176–235</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L245–280</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L245–280</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L245–280</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L286–318</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L286–318</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L286–318</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L324–353</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L324–353</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L324–353</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L367–445</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L367–445</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L367–445</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L457–523</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L457–523</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L457–523</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L530–565</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L530–565</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L530–565</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L577–643</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L577–643</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L577–643</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L649–678</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L649–678</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L649–678</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L687–743</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L687–743</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L687–743</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L748–761</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_116">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_116</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L748–761</span></td>
+          <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
+          <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_173">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_173</code></td>
+          <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L748–761</span></td>
+          <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
+          <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ DETALLE PASADOS ═══════════════════════════════════════════════ -->
+  <section id="detalle-pasados">
+    <h2>✅ Checks aprobados (0)</h2>
+    <p class="section-desc">
+      Recursos que superaron satisfactoriamente los checks de seguridad.
+    </p>
+    <div class="card">
+      <div class='empty-state'><span class='icon'>🔍</span><p>No hay resultados aprobados registrados.</p></div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  🏗️ Checkov IaC Security Report &nbsp;·&nbsp;
+  <a href="https://www.checkov.io/" target="_blank">Checkov</a> &nbsp;·&nbsp;
+  <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26348373885" target="_blank">GitHub Actions Run</a> &nbsp;·&nbsp;
+  Generado automáticamente · 2026-05-24 01:19 UTC
+</footer>
+
+<script>
+  function filterTable(tableId, level, btn) {
+    const table = document.getElementById('table-' + tableId);
+    if (!table) return;
+    table.querySelectorAll('tbody tr').forEach(row => {
+      if (level === 'ALL') {
+        row.classList.remove('hidden');
+      } else {
+        row.classList.toggle('hidden', row.dataset.level !== level);
+      }
+    });
+    const bar = btn.closest('.filter-bar');
+    bar.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+</script>
+
+</body>
+</html>
