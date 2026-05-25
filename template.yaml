@@ -164,15 +164,36 @@ Resources:
         EntryPoints:
           - src/functions/camion-services/camionHandler.mjs
 
-  # ===========================================================================
-  # ALERTAS — ADMIN y CHOFER
-  # GET /alertas/indicadores    → ADMIN
-  # GET /alertas/activas        → ADMIN
-  # POST /alertas/sos           → CHOFER
-  # POST /alertas/auxilio       → CHOFER
-  # PATCH /alertas/{id}/resolver → ADMIN
-  # PATCH /alertas/{id}/estado  → ADMIN
-  # ===========================================================================
+  AuditoriaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-auditoria"
+      CodeUri: .
+      Handler: src/functions/auditoria-services/auditoriaHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        GetAuditoria:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /dashboard/auditoria
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: auditoria
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/auditoria-services/auditoriaHandler.mjs
   AlertaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -258,13 +279,13 @@ Resources:
         GetDashboardConductoresResumen:
           Type: Api
           Properties:
-            RestApiId: !Ref NanutechApi  # ← FALTABA ESTO en el original
+            RestApiId: !Ref NanutechApi # ← FALTABA ESTO en el original
             Path: /conductores/dashboard/resumen
             Method: GET
         GetDashboardConductoresListado:
           Type: Api
           Properties:
-            RestApiId: !Ref NanutechApi  # ← FALTABA ESTO en el original
+            RestApiId: !Ref NanutechApi # ← FALTABA ESTO en el original
             Path: /conductores/dashboard/listado
             Method: GET
       Tags:
@@ -833,3 +854,6 @@ Outputs:
   GpsFunctionArn:
     Description: "ARN de la función GPS"
     Value: !GetAtt GpsFunction.Arn
+  AuditoriaFunctionArn:
+    Description: "ARN de la función Auditoría"
+    Value: !GetAtt AuditoriaFunction.Arn
