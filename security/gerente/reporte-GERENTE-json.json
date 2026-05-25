@@ -1,8 +1,8 @@
 {
 	"@programName": "ZAP",
 	"@version": "2.17.0",
-	"@generated": "Sun, 24 May 2026 02:06:11",
-	"created": "2026-05-24T02:06:11.779611289Z",
+	"@generated": "Mon, 25 May 2026 01:13:41",
+	"created": "2026-05-25T01:13:41.908103018Z",
 	"insights":[
 		{
 			"level": "Info",
@@ -10,7 +10,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.code.2xx",
 			"description": "Percentage of responses with status code 2xx",
-			"statistic": "35"
+			"statistic": "10"
 		},
 		{
 			"level": "Info",
@@ -18,7 +18,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.code.4xx",
 			"description": "Percentage of responses with status code 4xx",
-			"statistic": "15"
+			"statistic": "52"
 		},
 		{
 			"level": "Info",
@@ -26,7 +26,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.code.5xx",
 			"description": "Percentage of responses with status code 5xx",
-			"statistic": "48"
+			"statistic": "36"
 		},
 		{
 			"level": "Info",
@@ -42,7 +42,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.endpoint.method.GET",
 			"description": "Percentage of endpoints with method GET",
-			"statistic": "64"
+			"statistic": "66"
 		},
 		{
 			"level": "Info",
@@ -50,7 +50,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.endpoint.method.POST",
 			"description": "Percentage of endpoints with method POST",
-			"statistic": "28"
+			"statistic": "23"
 		},
 		{
 			"level": "Info",
@@ -58,7 +58,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.endpoint.method.PUT",
 			"description": "Percentage of endpoints with method PUT",
-			"statistic": "8"
+			"statistic": "9"
 		},
 		{
 			"level": "Info",
@@ -66,7 +66,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.endpoint.total",
 			"description": "Count of total endpoints",
-			"statistic": "25"
+			"statistic": "21"
 		},
 		{
 			"level": "Info",
@@ -74,7 +74,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.response.slow",
 			"description": "Percentage of slow responses",
-			"statistic": "51"
+			"statistic": "84"
 		}
 	],
 	"site":[ 
@@ -95,7 +95,7 @@
 					"desc": "<p>By manipulating the padding on an encrypted string, an attacker is able to generate an error message that indicates a likely 'padding oracle' vulnerability. Such a vulnerability can affect any application or framework that uses encryption improperly, such as some versions of ASP.net, Java Server Faces, and Mono. An attacker may exploit this issue to decrypt data and recover encryption keys, potentially viewing and modifying confidential data. This rule should detect the MS10-070 padding oracle vulnerability in ASP.net if CustomErrors are enabled for that.</p>",
 					"instances":[ 
 						{
-							"id": "87",
+							"id": "77",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos/bbbb0001-0000-0000-0000-0000000000w1",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos\/bbbb0001-0000-0000-0000-0000000000w1",
 							"method": "GET",
@@ -105,7 +105,17 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "86",
+							"id": "78",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/alerta/cccc0001-0000-0000-0000-0000000000w1",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/alerta\/cccc0001-0000-0000-0000-0000000000w1",
+							"method": "GET",
+							"param": "\u00ABjornadaId\u00BB",
+							"attack": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/alerta/cccc0001-0000-0000-0000-0000000000w1",
+							"evidence": "Internal Server Error",
+							"otherinfo": ""
+						},
+						{
+							"id": "76",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos/bbbb0001-0000-0000-0000-000000000001/unidades",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos\/bbbb0001-0000-0000-0000-000000000001\/unidades ()({unidades:[]})",
 							"method": "PUT",
@@ -115,7 +125,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "85",
+							"id": "75",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos/bbbb0001-0000-0000-0000-0000000000w1/unidades",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos\/bbbb0001-0000-0000-0000-0000000000w1\/unidades ()({unidades:[]})",
 							"method": "PUT",
@@ -125,54 +135,14 @@
 							"otherinfo": ""
 						}
 					],
-					"count": "3",
+					"count": "4",
 					"systemic": false,
 					"solution": "<p>Update the affected server software, or modify the scripts so that they properly validate encrypted data before attempting decryption.</p>",
 					"otherinfo": "",
 					"reference": "<p>https://learn.microsoft.com/en-us/security-updates/securitybulletins/2010/ms10-070</p><p>https://www.mono-project.com/docs/about-mono/vulnerabilities/</p><p>https://bugzilla.redhat.com/show_bug.cgi?id=623799</p>",
 					"cweid": "209",
 					"wascid": "20",
-					"sourceid": "60"
-				},
-				{
-					"pluginid": "6",
-					"alertRef": "6-5",
-					"alert": "Path Traversal",
-					"name": "Path Traversal",
-					"riskcode": "3",
-					"confidence": "1",
-					"riskdesc": "High (Low)",
-					"desc": "<p>The Path Traversal attack technique allows an attacker access to files, directories, and commands that potentially reside outside the web document root directory. An attacker may manipulate a URL in such a way that the web site will execute or reveal the contents of arbitrary files anywhere on the web server. Any device that exposes an HTTP-based interface is potentially vulnerable to Path Traversal.</p><p></p><p>Most web sites restrict user access to a specific portion of the file-system, typically called the \"web document root\" or \"CGI root\" directory. These directories contain the files intended for user access and the executable necessary to drive web application functionality. To access files or execute commands anywhere on the file-system, Path Traversal attacks will utilize the ability of special-characters sequences.</p><p></p><p>The most basic Path Traversal attack uses the \"../\" special-character sequence to alter the resource location requested in the URL. Although most popular web servers will prevent this technique from escaping the web document root, alternate encodings of the \"../\" sequence may help bypass the security filters. These method variations include valid and invalid Unicode-encoding (\"..%u2216\" or \"..%c0%af\") of the forward slash character, backslash characters (\"..\\\") on Windows-based servers, URL encoded characters \"%2e%2e%2f\"), and double URL encoding (\"..%255c\") of the backslash character.</p><p></p><p>Even if the web server properly restricts Path Traversal attempts in the URL path, a web application itself may still be vulnerable due to improper handling of user-supplied input. This is a common problem of web applications that use template mechanisms or load static text from files. In variations of the attack, the original URL parameter value is substituted with the file name of one of the web application's dynamic scripts. Consequently, the results can reveal source code because the file is interpreted as text instead of an executable script. These techniques often employ additional special characters such as the dot (\".\") to reveal the listing of the current working directory, or \"%00\" NULL characters in order to bypass rudimentary file extension checks.</p>",
-					"instances":[ 
-						{
-							"id": "73",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos?q=Minera&estado=VIGENTE&page=contratos&limit=10",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos (estado,limit,page,q)",
-							"method": "GET",
-							"param": "page",
-							"attack": "contratos",
-							"evidence": "",
-							"otherinfo": ""
-						},
-						{
-							"id": "74",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/dashboard/gerencial?tiempo=gerencial&search=ABC",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/dashboard\/gerencial (search,tiempo)",
-							"method": "GET",
-							"param": "tiempo",
-							"attack": "gerencial",
-							"evidence": "",
-							"otherinfo": ""
-						}
-					],
-					"count": "2",
-					"systemic": false,
-					"solution": "<p>Assume all input is malicious. Use an \"accept known good\" input validation strategy, i.e., use an allow list of acceptable inputs that strictly conform to specifications. Reject any input that does not strictly conform to specifications, or transform it into something that does. Do not rely exclusively on looking for malicious or malformed inputs (i.e., do not rely on a deny list). However, deny lists can be useful for detecting potential attacks or determining which inputs are so malformed that they should be rejected outright.</p><p></p><p>When performing input validation, consider all potentially relevant properties, including length, type of input, the full range of acceptable values, missing or extra inputs, syntax, consistency across related fields, and conformance to business rules. As an example of business rule logic, \"boat\" may be syntactically valid because it only contains alphanumeric characters, but it is not valid if you are expecting colors such as \"red\" or \"blue.\"</p><p></p><p>For filenames, use stringent allow lists that limit the character set to be used. If feasible, only allow a single \".\" character in the filename to avoid weaknesses, and exclude directory separators such as \"/\". Use an allow list of allowable file extensions.</p><p></p><p>Warning: if you attempt to cleanse your data, then do so that the end result is not in the form that can be dangerous. A sanitizing mechanism can remove characters such as '.' and ';' which may be required for some exploits. An attacker can try to fool the sanitizing mechanism into \"cleaning\" data into a dangerous form. Suppose the attacker injects a '.' inside a filename (e.g. \"sensi.tiveFile\") and the sanitizing mechanism removes the character resulting in the valid filename, \"sensitiveFile\". If the input data are now assumed to be safe, then the file may be compromised. </p><p></p><p>Inputs should be decoded and canonicalized to the application's current internal representation before being validated. Make sure that your application does not decode the same input twice. Such errors could be used to bypass allow list schemes by introducing dangerous inputs after they have been checked.</p><p></p><p>Use a built-in path canonicalization function (such as realpath() in C) that produces the canonical version of the pathname, which effectively removes \"..\" sequences and symbolic links.</p><p></p><p>Run your code using the lowest privileges that are required to accomplish the necessary tasks. If possible, create isolated accounts with limited privileges that are only used for a single task. That way, a successful attack will not immediately give the attacker access to the rest of the software or its environment. For example, database applications rarely need to run as the database administrator, especially in day-to-day operations.</p><p></p><p>When the set of acceptable objects, such as filenames or URLs, is limited or known, create a mapping from a set of fixed input values (such as numeric IDs) to the actual filenames or URLs, and reject all other inputs.</p><p></p><p>Run your code in a \"jail\" or similar sandbox environment that enforces strict boundaries between the process and the operating system. This may effectively restrict which files can be accessed in a particular directory or which commands can be executed by your software.</p><p></p><p>OS-level examples include the Unix chroot jail, AppArmor, and SELinux. In general, managed code may provide some protection. For example, java.io.FilePermission in the Java SecurityManager allows you to specify restrictions on file operations.</p><p></p><p>This may not be a feasible solution, and it only limits the impact to the operating system; the rest of your application may still be subject to compromise.</p><p></p>",
-					"otherinfo": "",
-					"reference": "<p>https://owasp.org/www-community/attacks/Path_Traversal</p><p>https://cwe.mitre.org/data/definitions/22.html</p>",
-					"cweid": "22",
-					"wascid": "33",
-					"sourceid": "46"
+					"sourceid": "50"
 				},
 				{
 					"pluginid": "40018",
@@ -185,7 +155,7 @@
 					"desc": "<p>SQL injection may be possible.</p>",
 					"instances":[ 
 						{
-							"id": "80",
+							"id": "73",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/dashboard/gerencial?tiempo=hoy&search=%27",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/dashboard\/gerencial (search,tiempo)",
 							"method": "GET",
@@ -195,37 +165,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "81",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/exportar?q=q&conductor_id=%3B&fecha_desde=fecha_desde&fecha_hasta=fecha_hasta",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/exportar (conductor_id,fecha_desde,fecha_hasta,q)",
-							"method": "GET",
-							"param": "conductor_id",
-							"attack": ";",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": ""
-						},
-						{
-							"id": "82",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/exportar?q=q&conductor_id=conductor_id&fecha_desde=%27&fecha_hasta=fecha_hasta",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/exportar (conductor_id,fecha_desde,fecha_hasta,q)",
-							"method": "GET",
-							"param": "fecha_desde",
-							"attack": "'",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": ""
-						},
-						{
-							"id": "83",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/exportar?q=q&conductor_id=conductor_id&fecha_desde=fecha_desde&fecha_hasta=%27",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/exportar (conductor_id,fecha_desde,fecha_hasta,q)",
-							"method": "GET",
-							"param": "fecha_hasta",
-							"attack": "'",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": ""
-						},
-						{
-							"id": "84",
+							"id": "74",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/historial-gerencial?conductor=Carlos&estado_alerta=PANICO&fecha_desde=fecha_desde&fecha_hasta=fecha_hasta%27&observaciones=observaciones",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/historial-gerencial (conductor,estado_alerta,fecha_desde,fecha_hasta,observaciones)",
 							"method": "GET",
@@ -233,156 +173,16 @@
 							"attack": "fecha_hasta'",
 							"evidence": "HTTP/1.1 500 Internal Server Error",
 							"otherinfo": ""
-						},
-						{
-							"id": "77",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "fecha_fin",
-							"attack": "'(",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": ""
-						},
-						{
-							"id": "78",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "origen",
-							"attack": "'",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": ""
-						},
-						{
-							"id": "76",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas ()({conductor_id,unidad_id,contrato_id,creado_por,fecha_jornada,origen,destino,km_estimados})",
-							"method": "POST",
-							"param": "conductor_id",
-							"attack": "'",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": ""
-						},
-						{
-							"id": "79",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/me?query=query+AND+1%3D1+--+",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/me (query)",
-							"method": "GET",
-							"param": "query",
-							"attack": "query AND 1=1 -- ",
-							"evidence": "",
-							"otherinfo": "The page results were successfully manipulated using the boolean conditions [query AND 1=1 -- ] and [query AND 1=2 -- ]\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison.\nData was returned for the original parameter.\nThe vulnerability was detected by successfully restricting the data originally returned, by manipulating the parameter."
-						},
-						{
-							"id": "75",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "cliente",
-							"attack": "Empresa Test SA OR 1=1 -- ",
-							"evidence": "",
-							"otherinfo": "The page results were successfully manipulated using the boolean conditions [Empresa Test SA AND 1=1 -- ] and [Empresa Test SA OR 1=1 -- ]\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison.\nData was NOT returned for the original parameter.\nThe vulnerability was detected by successfully retrieving more data than originally returned, by manipulating the parameter."
 						}
 					],
-					"count": "10",
+					"count": "2",
 					"systemic": false,
 					"solution": "<p>Do not trust client side input, even if there is client side validation in place.</p><p>In general, type check all data on the server side.</p><p>If the application uses JDBC, use PreparedStatement or CallableStatement, with parameters passed by '?'</p><p>If the application uses ASP, use ADO Command Objects with strong type checking and parameterized queries.</p><p>If database Stored Procedures can be used, use them.</p><p>Do *not* concatenate strings into queries in the stored procedure, or use 'exec', 'exec immediate', or equivalent functionality!</p><p>Do not create dynamic SQL queries using simple string concatenation.</p><p>Escape all data received from the client.</p><p>Apply an 'allow list' of allowed characters, or a 'deny list' of disallowed characters in user input.</p><p>Apply the principle of least privilege by using the least privileged database user possible.</p><p>In particular, avoid using the 'sa' or 'db-owner' database users. This does not eliminate SQL injection, but minimizes its impact.</p><p>Grant the minimum database access that is necessary for the application.</p>",
 					"otherinfo": "",
 					"reference": "<p>https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html</p>",
 					"cweid": "89",
 					"wascid": "19",
-					"sourceid": "53"
-				},
-				{
-					"pluginid": "43",
-					"alertRef": "43",
-					"alert": "Source Code Disclosure - File Inclusion",
-					"name": "Source Code Disclosure - File Inclusion",
-					"riskcode": "3",
-					"confidence": "2",
-					"riskdesc": "High (Medium)",
-					"desc": "<p>The Path Traversal attack technique allows an attacker access to files, directories, and commands that potentially reside outside the web document root directory. An attacker may manipulate a URL in such a way that the web site will execute or reveal the contents of arbitrary files anywhere on the web server. Any device that exposes an HTTP-based interface is potentially vulnerable to Path Traversal.</p><p></p><p>Most web sites restrict user access to a specific portion of the file-system, typically called the \"web document root\" or \"CGI root\" directory. These directories contain the files intended for user access and the executable necessary to drive web application functionality. To access files or execute commands anywhere on the file-system, Path Traversal attacks will utilize the ability of special-characters sequences.</p><p></p><p>The most basic Path Traversal attack uses the \"../\" special-character sequence to alter the resource location requested in the URL. Although most popular web servers will prevent this technique from escaping the web document root, alternate encodings of the \"../\" sequence may help bypass the security filters. These method variations include valid and invalid Unicode-encoding (\"..%u2216\" or \"..%c0%af\") of the forward slash character, backslash characters (\"..\\\") on Windows-based servers, URL encoded characters \"%2e%2e%2f\"), and double URL encoding (\"..%255c\") of the backslash character.</p><p></p><p>Even if the web server properly restricts Path Traversal attempts in the URL path, a web application itself may still be vulnerable due to improper handling of user-supplied input. This is a common problem of web applications that use template mechanisms or load static text from files. In variations of the attack, the original URL parameter value is substituted with the file name of one of the web application's dynamic scripts. Consequently, the results can reveal source code because the file is interpreted as text instead of an executable script. These techniques often employ additional special characters such as the dot (\".\") to reveal the listing of the current working directory, or \"%00\" NULL characters in order to bypass rudimentary file extension checks.</p>",
-					"instances":[ 
-						{
-							"id": "282",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login (query)({email,password})",
-							"method": "POST",
-							"param": "query",
-							"attack": "login",
-							"evidence": "",
-							"otherinfo": "The output for the source code filename [login] differs sufficiently from that of the random parameter [pjgmyvotqgrbjhdpwystfinuclgipuotkpolfp], at [71%], compared to a threshold of [75%]"
-						},
-						{
-							"id": "283",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos/bbbb0001-0000-0000-0000-000000000001/unidades",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos\/bbbb0001-0000-0000-0000-000000000001\/unidades ()({unidades:[]})",
-							"method": "PUT",
-							"param": "unidades[0]",
-							"attack": "unidades",
-							"evidence": "",
-							"otherinfo": "The output for the source code filename [unidades] differs sufficiently from that of the random parameter [pjgmyvotqgrbjhdpwystfinuclgipuotkpolfp], at [73%], compared to a threshold of [75%]"
-						}
-					],
-					"count": "2",
-					"systemic": false,
-					"solution": "<p>Assume all input is malicious. Use an \"accept known good\" input validation strategy, i.e., use an allow list of acceptable inputs that strictly conform to specifications. Reject any input that does not strictly conform to specifications, or transform it into something that does. Do not rely exclusively on looking for malicious or malformed inputs (i.e., do not rely on a deny list). However, deny lists can be useful for detecting potential attacks or determining which inputs are so malformed that they should be rejected outright.</p><p></p><p>When performing input validation, consider all potentially relevant properties, including length, type of input, the full range of acceptable values, missing or extra inputs, syntax, consistency across related fields, and conformance to business rules. As an example of business rule logic, \"boat\" may be syntactically valid because it only contains alphanumeric characters, but it is not valid if you are expecting colors such as \"red\" or \"blue.\"</p><p></p><p>For filenames, use stringent allow lists that limit the character set to be used. If feasible, only allow a single \".\" character in the filename to avoid weaknesses, and exclude directory separators such as \"/\". Use an allow list of allowable file extensions.</p><p></p><p>Warning: if you attempt to cleanse your data, then do so that the end result is not in the form that can be dangerous. A sanitizing mechanism can remove characters such as '.' and ';' which may be required for some exploits. An attacker can try to fool the sanitizing mechanism into \"cleaning\" data into a dangerous form. Suppose the attacker injects a '.' inside a filename (e.g. \"sensi.tiveFile\") and the sanitizing mechanism removes the character resulting in the valid filename, \"sensitiveFile\". If the input data are now assumed to be safe, then the file may be compromised. </p><p></p><p>Inputs should be decoded and canonicalized to the application's current internal representation before being validated. Make sure that your application does not decode the same input twice. Such errors could be used to bypass allow list schemes by introducing dangerous inputs after they have been checked.</p><p></p><p>Use a built-in path canonicalization function (such as realpath() in C) that produces the canonical version of the pathname, which effectively removes \"..\" sequences and symbolic links.</p><p></p><p>Run your code using the lowest privileges that are required to accomplish the necessary tasks. If possible, create isolated accounts with limited privileges that are only used for a single task. That way, a successful attack will not immediately give the attacker access to the rest of the software or its environment. For example, database applications rarely need to run as the database administrator, especially in day-to-day operations.</p><p></p><p>When the set of acceptable objects, such as filenames or URLs, is limited or known, create a mapping from a set of fixed input values (such as numeric IDs) to the actual filenames or URLs, and reject all other inputs.</p><p></p><p>Run your code in a \"jail\" or similar sandbox environment that enforces strict boundaries between the process and the operating system. This may effectively restrict which files can be accessed in a particular directory or which commands can be executed by your software.</p><p></p><p>OS-level examples include the Unix chroot jail, AppArmor, and SELinux. In general, managed code may provide some protection. For example, java.io.FilePermission in the Java SecurityManager allows you to specify restrictions on file operations.</p><p></p><p>This may not be a feasible solution, and it only limits the impact to the operating system; the rest of your application may still be subject to compromise.</p><p></p>",
-					"otherinfo": "<p>The output for the source code filename [login] differs sufficiently from that of the random parameter [pjgmyvotqgrbjhdpwystfinuclgipuotkpolfp], at [71%], compared to a threshold of [75%]</p>",
-					"reference": "<p>https://owasp.org/www-community/attacks/Path_Traversal</p><p>https://cwe.mitre.org/data/definitions/22.html</p>",
-					"cweid": "541",
-					"wascid": "33",
-					"sourceid": "255"
-				},
-				{
-					"pluginid": "40040",
-					"alertRef": "40040-2",
-					"alert": "CORS Misconfiguration",
-					"name": "CORS Misconfiguration",
-					"riskcode": "2",
-					"confidence": "3",
-					"riskdesc": "Medium (High)",
-					"desc": "<p>This CORS misconfiguration could allow an attacker to perform AJAX queries to the vulnerable website from a malicious page loaded by the victim's user agent.</p><p>In order to perform authenticated AJAX queries, the server must specify the header \"Access-Control-Allow-Credentials: true\" and the \"Access-Control-Allow-Origin\" header must be set to null or the malicious page's domain. Even if this misconfiguration doesn't allow authenticated AJAX requests, unauthenticated sensitive content can still be accessed (e.g intranet websites).</p><p>A malicious page can belong to a malicious website but also a trusted website with flaws (e.g XSS, support of HTTP without TLS allowing code injection through MITM, etc).</p>",
-					"instances":[ 
-						{
-							"id": "344",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password ()({email})",
-							"method": "POST",
-							"param": "",
-							"attack": "origin: https://adgUS6xC.com",
-							"evidence": "",
-							"otherinfo": ""
-						},
-						{
-							"id": "343",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
-							"method": "POST",
-							"param": "",
-							"attack": "origin: https://adgUS6xC.com",
-							"evidence": "",
-							"otherinfo": ""
-						},
-						{
-							"id": "345",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
-							"method": "POST",
-							"param": "",
-							"attack": "origin: https://adgUS6xC.com",
-							"evidence": "",
-							"otherinfo": ""
-						}
-					],
-					"count": "3",
-					"systemic": true,
-					"solution": "<p>If a web resource contains sensitive information, the origin should be properly specified in the Access-Control-Allow-Origin header. Only trusted websites needing this resource should be specified in this header, with the most secured protocol supported.</p>",
-					"otherinfo": "",
-					"reference": "<p>https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS</p><p>https://portswigger.net/web-security/cors</p>",
-					"cweid": "942",
-					"wascid": "14",
-					"sourceid": "317"
+					"sourceid": "46"
 				},
 				{
 					"pluginid": "10098",
@@ -395,9 +195,9 @@
 					"desc": "<p>Web browser data loading may be possible, due to a Cross Origin Resource Sharing (CORS) misconfiguration on the web server.</p>",
 					"instances":[ 
 						{
-							"id": "2",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/me",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/me",
+							"id": "17",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores",
 							"method": "GET",
 							"param": "",
 							"attack": "",
@@ -405,7 +205,7 @@
 							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
 						},
 						{
-							"id": "17",
+							"id": "15",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores/22222222-2222-2222-2222-222222222222/estadisticas",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores\/22222222-2222-2222-2222-222222222222\/estadisticas",
 							"method": "GET",
@@ -415,7 +215,7 @@
 							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
 						},
 						{
-							"id": "5",
+							"id": "3",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password ()({email})",
 							"method": "POST",
@@ -435,7 +235,7 @@
 							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
 						},
 						{
-							"id": "6",
+							"id": "5",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
 							"method": "POST",
@@ -452,407 +252,7 @@
 					"reference": "<p>https://vulncat.fortify.com/en/detail?category=HTML5&subcategory=Overly%20Permissive%20CORS%20Policy</p>",
 					"cweid": "264",
 					"wascid": "14",
-					"sourceid": "8"
-				},
-				{
-					"pluginid": "30002",
-					"alertRef": "30002",
-					"alert": "Format String Error",
-					"name": "Format String Error",
-					"riskcode": "2",
-					"confidence": "2",
-					"riskdesc": "Medium (Medium)",
-					"desc": "<p>A Format String error occurs when the submitted data of an input string is evaluated as a command by the application.</p>",
-					"instances":[ 
-						{
-							"id": "89",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas?q=Carlos&conductor_id=conductor_id&fecha_desde=Thu+Jan+01+00%3A00%3A00+UTC+2026&fecha_hasta=ZAP+%251%21s%252%21s%253%21s%254%21s%255%21s%256%21s%257%21s%258%21s%259%21s%2510%21s%2511%21s%2512%21s%2513%21s%2514%21s%2515%21s%2516%21s%2517%21s%2518%21s%2519%21s%2520%21s%2521%21n%2522%21n%2523%21n%2524%21n%2525%21n%2526%21n%2527%21n%2528%21n%2529%21n%2530%21n%2531%21n%2532%21n%2533%21n%2534%21n%2535%21n%2536%21n%2537%21n%2538%21n%2539%21n%2540%21n%0A",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas (conductor_id,fecha_desde,fecha_hasta,q)",
-							"method": "GET",
-							"param": "fecha_hasta",
-							"attack": "ZAP %1!s%2!s%3!s%4!s%5!s%6!s%7!s%8!s%9!s%10!s%11!s%12!s%13!s%14!s%15!s%16!s%17!s%18!s%19!s%20!s%21!n%22!n%23!n%24!n%25!n%26!n%27!n%28!n%29!n%30!n%31!n%32!n%33!n%34!n%35!n%36!n%37!n%38!n%39!n%40!n\n",
-							"evidence": "",
-							"otherinfo": "Potential Format String Error. The script closed the connection on a Microsoft format string error."
-						},
-						{
-							"id": "88",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/historial-gerencial?conductor=Carlos&estado_alerta=PANICO&fecha_desde=ZAP%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%25n%25s%0A&fecha_hasta=fecha_hasta&observaciones=observaciones",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/historial-gerencial (conductor,estado_alerta,fecha_desde,fecha_hasta,observaciones)",
-							"method": "GET",
-							"param": "fecha_desde",
-							"attack": "ZAP%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s%n%s\n",
-							"evidence": "",
-							"otherinfo": "Potential Format String Error. The script closed the connection on a /%s."
-						}
-					],
-					"count": "2",
-					"systemic": false,
-					"solution": "<p>Rewrite the background program using proper deletion of bad character strings. This will require a recompile of the background executable.</p>",
-					"otherinfo": "<p>Potential Format String Error. The script closed the connection on a Microsoft format string error.</p>",
-					"reference": "<p>https://owasp.org/www-community/attacks/Format_string_attack</p>",
-					"cweid": "134",
-					"wascid": "6",
-					"sourceid": "62"
-				},
-				{
-					"pluginid": "30003",
-					"alertRef": "30003",
-					"alert": "Integer Overflow Error",
-					"name": "Integer Overflow Error",
-					"riskcode": "2",
-					"confidence": "2",
-					"riskdesc": "Medium (Medium)",
-					"desc": "<p>An integer overflow condition exists when an integer used in a compiled program extends beyond the range limits and has not been properly checked from the input stream.</p>",
-					"instances":[ 
-						{
-							"id": "299",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores/22222222-2222-2222-2222-222222222222/estadisticas",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores\/92856919911229113001004373069159927084370196\/estadisticas",
-							"method": "GET",
-							"param": "\u00ABid\u00BB",
-							"attack": "92856919911229113001004373069159927084370196",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "312",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas?q=Carlos&conductor_id=conductor_id&fecha_desde=Thu%20Jan%2001%2000:00:00%20UTC%202026&fecha_hasta=Thu%20Dec%2031%2000:00:00%20UTC%202026",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas (conductor_id,fecha_desde,fecha_hasta,q)",
-							"method": "GET",
-							"param": "fecha_desde",
-							"attack": "36997637721408356724505107699108637080488345",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "301",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/alerta/cccc0001-0000-0000-0000-000000000001",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/alerta\/62367517164323113430233099596838403076683734",
-							"method": "GET",
-							"param": "\u00ABjornadaId\u00BB",
-							"attack": "62367517164323113430233099596838403076683734",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "300",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/alerta/cccc0001-0000-0000-0000-000000000001",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/alerta\/cccc0001-0000-0000-0000-000000000001 (query)",
-							"method": "GET",
-							"param": "query",
-							"attack": "50453214336970600057769904044144875638751501",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "303",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/exportar?q=q&conductor_id=conductor_id&fecha_desde=fecha_desde&fecha_hasta=fecha_hasta",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/exportar (conductor_id,fecha_desde,fecha_hasta,q)",
-							"method": "GET",
-							"param": "conductor_id",
-							"attack": "57045018895465436365576522080200471140193606",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "304",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/exportar?q=q&conductor_id=conductor_id&fecha_desde=fecha_desde&fecha_hasta=fecha_hasta",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/exportar (conductor_id,fecha_desde,fecha_hasta,q)",
-							"method": "GET",
-							"param": "fecha_desde",
-							"attack": "31059689118365868626541020650920820824728888",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "306",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/exportar?q=q&conductor_id=conductor_id&fecha_desde=fecha_desde&fecha_hasta=fecha_hasta",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/exportar (conductor_id,fecha_desde,fecha_hasta,q)",
-							"method": "GET",
-							"param": "fecha_hasta",
-							"attack": "37608018809229623286129375737622873866832068",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "302",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/exportar?q=q&conductor_id=conductor_id&fecha_desde=fecha_desde&fecha_hasta=fecha_hasta",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/exportar (conductor_id,fecha_desde,fecha_hasta,q)",
-							"method": "GET",
-							"param": "q",
-							"attack": "76520092554530805731528729529220310424078512",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "308",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/historial-gerencial?conductor=Carlos&estado_alerta=PANICO&fecha_desde=fecha_desde&fecha_hasta=fecha_hasta&observaciones=observaciones",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/historial-gerencial (conductor,estado_alerta,fecha_desde,fecha_hasta,observaciones)",
-							"method": "GET",
-							"param": "conductor",
-							"attack": "31386543652293642303369337540786007936327797",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "309",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/historial-gerencial?conductor=Carlos&estado_alerta=PANICO&fecha_desde=fecha_desde&fecha_hasta=fecha_hasta&observaciones=observaciones",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/historial-gerencial (conductor,estado_alerta,fecha_desde,fecha_hasta,observaciones)",
-							"method": "GET",
-							"param": "estado_alerta",
-							"attack": "48878812796980533483355124536644627315200274",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "310",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/historial-gerencial?conductor=Carlos&estado_alerta=PANICO&fecha_desde=fecha_desde&fecha_hasta=fecha_hasta&observaciones=observaciones",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/historial-gerencial (conductor,estado_alerta,fecha_desde,fecha_hasta,observaciones)",
-							"method": "GET",
-							"param": "fecha_desde",
-							"attack": "08526416223931588207049297271235144772449829",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "311",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/historial-gerencial?conductor=Carlos&estado_alerta=PANICO&fecha_desde=fecha_desde&fecha_hasta=fecha_hasta&observaciones=observaciones",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/historial-gerencial (conductor,estado_alerta,fecha_desde,fecha_hasta,observaciones)",
-							"method": "GET",
-							"param": "observaciones",
-							"attack": "48406909610714917173931521157180293526093820",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "305",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/historial-gerencial/metrics?fecha_desde=fecha_desde&fecha_hasta=fecha_hasta",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/historial-gerencial\/metrics (fecha_desde,fecha_hasta)",
-							"method": "GET",
-							"param": "fecha_desde",
-							"attack": "36893124555258151427167739855426075721454098",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "307",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/historial-gerencial/metrics?fecha_desde=fecha_desde&fecha_hasta=fecha_hasta",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/historial-gerencial\/metrics (fecha_desde,fecha_hasta)",
-							"method": "GET",
-							"param": "fecha_hasta",
-							"attack": "64395859069082763971843756142026517391027703",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "287",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "cliente",
-							"attack": "67477780367847434681348136639503381150763772",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "293",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "destino",
-							"attack": "97618423222185020491278537547005372748666691",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "294",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "distancia_estimada_km",
-							"attack": "21373617426385224068826067243988143699362992",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "291",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "fecha_fin",
-							"attack": "97164513755115823760578196133341343193670506",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "290",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "fecha_inicio",
-							"attack": "01463875864519668370579780461901910693404663",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "296",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "moneda",
-							"attack": "70004196283946272927401388295073176837350564",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "292",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "origen",
-							"attack": "00267966673953410896999676801969946593080037",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "288",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "ruc",
-							"attack": "00774094033079626852468796145008639827365582",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "295",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "tarifa_por_km",
-							"attack": "17342091401157875641122804918876891648930151",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "289",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "tipo_servicio",
-							"attack": "26509867725028237648020782203755006026496996",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "286",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos (query)({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
-							"method": "POST",
-							"param": "query",
-							"attack": "09023804568139297656896530920907500481521460",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "297",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas ()({conductor_id,unidad_id,contrato_id,creado_por,fecha_jornada,origen,destino,km_estimados})",
-							"method": "POST",
-							"param": "conductor_id",
-							"attack": "73697780822041477880240783258358295600765729",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "298",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas ()({conductor_id,unidad_id,contrato_id,creado_por,fecha_jornada,origen,destino,km_estimados})",
-							"method": "POST",
-							"param": "unidad_id",
-							"attack": "32292182387372058576759272832226278485004300",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "284",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos/bbbb0001-0000-0000-0000-000000000001/unidades",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos\/85078710415078749416589204950086172136876869\/unidades ()({unidades:[]})",
-							"method": "PUT",
-							"param": "\u00ABid\u00BB",
-							"attack": "85078710415078749416589204950086172136876869",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						},
-						{
-							"id": "285",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos/bbbb0001-0000-0000-0000-000000000001/unidades",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos\/bbbb0001-0000-0000-0000-000000000001\/unidades ()({unidades:[]})",
-							"method": "PUT",
-							"param": "unidades[0]",
-							"attack": "07342433283752910512488922587675049420477546",
-							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
-						}
-					],
-					"count": "29",
-					"systemic": false,
-					"solution": "<p>In order to prevent overflows and divide by 0 (zero) errors in the application, please rewrite the backend program, checking if the values of integers being processed are within the application's allowed range. This will require a recompilation of the backend executable.</p>",
-					"otherinfo": "<p>Potential Integer Overflow. Status code changed on the input of a long string of random integers.</p>",
-					"reference": "<p>https://en.wikipedia.org/wiki/Integer_overflow</p><p>https://cwe.mitre.org/data/definitions/190.html</p>",
-					"cweid": "190",
-					"wascid": "3",
-					"sourceid": "272"
-				},
-				{
-					"pluginid": "40025",
-					"alertRef": "40025-2",
-					"alert": "Proxy Disclosure",
-					"name": "Proxy Disclosure",
-					"riskcode": "2",
-					"confidence": "2",
-					"riskdesc": "Medium (Medium)",
-					"desc": "<p>1 proxy server(s) were detected or fingerprinted. This information helps a potential attacker to determine</p><p>- A list of targets for an attack against the application.</p><p> - Potential vulnerabilities on the proxy servers that service the application.</p><p> - The presence or absence of any proxy-based components that might cause attacks against the application to be detected, prevented, or mitigated.</p>",
-					"instances":[ 
-						{
-							"id": "314",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password ()({email})",
-							"method": "POST",
-							"param": "",
-							"attack": "TRACE, OPTIONS methods with 'Max-Forwards' header. TRACK method.",
-							"evidence": "",
-							"otherinfo": "Using the TRACE, OPTIONS, and TRACK methods, the following proxy servers have been identified between ZAP and the application/web server:\n- CloudFront\nThe following web/application server has been identified:\n- Unknown\n"
-						},
-						{
-							"id": "313",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
-							"method": "POST",
-							"param": "",
-							"attack": "TRACE, OPTIONS methods with 'Max-Forwards' header. TRACK method.",
-							"evidence": "",
-							"otherinfo": "Using the TRACE, OPTIONS, and TRACK methods, the following proxy servers have been identified between ZAP and the application/web server:\n- CloudFront\nThe following web/application server has been identified:\n- Unknown\n"
-						},
-						{
-							"id": "315",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
-							"method": "POST",
-							"param": "",
-							"attack": "TRACE, OPTIONS methods with 'Max-Forwards' header. TRACK method.",
-							"evidence": "",
-							"otherinfo": "Using the TRACE, OPTIONS, and TRACK methods, the following proxy servers have been identified between ZAP and the application/web server:\n- CloudFront\nThe following web/application server has been identified:\n- Unknown\n"
-						}
-					],
-					"count": "3",
-					"systemic": true,
-					"solution": "<p>Disable the 'TRACE' method on the proxy servers, as well as the origin web/application server.</p><p>Disable the 'OPTIONS' method on the proxy servers, as well as the origin web/application server, if it is not required for other purposes, such as 'CORS' (Cross Origin Resource Sharing).</p><p>Configure the web and application servers with custom error pages, to prevent 'fingerprintable' product-specific error pages being leaked to the user in the event of HTTP errors, such as 'TRACK' requests for non-existent pages.</p><p>Configure all proxies, application servers, and web servers to prevent disclosure of the technology and version information in the 'Server' and 'X-Powered-By' HTTP response headers.</p><p></p>",
-					"otherinfo": "<p>Using the TRACE, OPTIONS, and TRACK methods, the following proxy servers have been identified between ZAP and the application/web server:</p><p>- CloudFront</p><p>The following web/application server has been identified:</p><p>- Unknown</p><p></p>",
-					"reference": "<p>https://datatracker.ietf.org/doc/html/rfc7231#section-5.1.2</p>",
-					"cweid": "204",
-					"wascid": "45",
-					"sourceid": "287"
+					"sourceid": "11"
 				},
 				{
 					"pluginid": "90022",
@@ -865,7 +265,27 @@
 					"desc": "<p>This page contains an error/warning message that may disclose sensitive information like the location of the file that produced the unhandled exception. This information can be used to launch further attacks against the web application. The alert could be a false positive if the error message is found inside a documentation page.</p>",
 					"instances":[ 
 						{
-							"id": "22",
+							"id": "12",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "HTTP/1.1 500 Internal Server Error",
+							"otherinfo": ""
+						},
+						{
+							"id": "13",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores/22222222-2222-2222-2222-222222222222/estadisticas",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores\/22222222-2222-2222-2222-222222222222\/estadisticas",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "HTTP/1.1 500 Internal Server Error",
+							"otherinfo": ""
+						},
+						{
+							"id": "25",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos?q=Minera&estado=VIGENTE&page=1&limit=10",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos (estado,limit,page,q)",
 							"method": "GET",
@@ -875,7 +295,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "30",
+							"id": "29",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos/bbbb0001-0000-0000-0000-000000000001",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos\/bbbb0001-0000-0000-0000-000000000001",
 							"method": "GET",
@@ -885,7 +305,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "32",
+							"id": "33",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos/vigentes",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos\/vigentes",
 							"method": "GET",
@@ -895,7 +315,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "38",
+							"id": "43",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos/bbbb0001-0000-0000-0000-000000000001",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos\/bbbb0001-0000-0000-0000-000000000001 ()({fecha_inicio,fecha_fin,tipo_servicio,descripcion,tarifa})",
 							"method": "PUT",
@@ -905,14 +325,14 @@
 							"otherinfo": ""
 						}
 					],
-					"count": "4",
+					"count": "6",
 					"systemic": false,
 					"solution": "<p>Review the source code of this page. Implement custom error pages. Consider implementing a mechanism to provide a unique error reference/identifier to the client (browser) while logging the details on the server side and not exposing them to the user.</p>",
 					"otherinfo": "",
 					"reference": "",
 					"cweid": "550",
 					"wascid": "13",
-					"sourceid": "15"
+					"sourceid": "11"
 				},
 				{
 					"pluginid": "10035",
@@ -925,9 +345,9 @@
 					"desc": "<p>HTTP Strict Transport Security (HSTS) is a web security policy mechanism whereby a web server declares that complying user agents (such as a web browser) are to interact with it using only secure HTTPS connections (i.e. HTTP layered over TLS/SSL). HSTS is an IETF standards track protocol and is specified in RFC 6797.</p>",
 					"instances":[ 
 						{
-							"id": "8",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/me",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/me",
+							"id": "19",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores",
 							"method": "GET",
 							"param": "",
 							"attack": "",
@@ -955,7 +375,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "9",
+							"id": "6",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
 							"method": "POST",
@@ -965,7 +385,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "10",
+							"id": "8",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
 							"method": "POST",
@@ -982,7 +402,7 @@
 					"reference": "<p>https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Strict_Transport_Security_Cheat_Sheet.html</p><p>https://owasp.org/www-community/Security_Headers</p><p>https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security</p><p>https://caniuse.com/stricttransportsecurity</p><p>https://datatracker.ietf.org/doc/html/rfc6797</p>",
 					"cweid": "319",
 					"wascid": "15",
-					"sourceid": "8"
+					"sourceid": "11"
 				},
 				{
 					"pluginid": "10111",
@@ -995,7 +415,7 @@
 					"desc": "<p>The given request has been identified as an authentication request. The 'Other Info' field contains a set of key=value lines which identify any relevant fields. If the request is in a context which has an Authentication Method set to \"Auto-Detect\" then this rule will change the authentication to match the request identified.</p>",
 					"instances":[ 
 						{
-							"id": "0",
+							"id": "1",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
 							"method": "POST",
@@ -1003,19 +423,9 @@
 							"attack": "",
 							"evidence": "newPassword",
 							"otherinfo": "userParam=email\nuserValue=admin@nanutech.com\npasswordParam=newPassword"
-						},
-						{
-							"id": "1",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
-							"method": "POST",
-							"param": "email",
-							"attack": "",
-							"evidence": "password",
-							"otherinfo": "userParam=email\nuserValue=admin@nanutech.com\npasswordParam=password"
 						}
 					],
-					"count": "2",
+					"count": "1",
 					"systemic": false,
 					"solution": "<p>This is an informational alert rather than a vulnerability and so there is nothing to fix.</p>",
 					"otherinfo": "<p>userParam=email</p><p>userValue=admin@nanutech.com</p><p>passwordParam=newPassword</p>",
@@ -1035,7 +445,7 @@
 					"desc": "<p>The response contents are not storable by caching components such as proxy servers. If the response does not contain sensitive, personal or user-specific information, it may benefit from being stored and cached, to improve performance.</p>",
 					"instances":[ 
 						{
-							"id": "12",
+							"id": "22",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/me",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/me",
 							"method": "GET",
@@ -1045,9 +455,9 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "25",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos?q=Minera&estado=VIGENTE&page=1&limit=10",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos (estado,limit,page,q)",
+							"id": "23",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores",
 							"method": "GET",
 							"param": "",
 							"attack": "",
@@ -1055,7 +465,17 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "26",
+							"id": "24",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores/22222222-2222-2222-2222-222222222222/estadisticas",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores\/22222222-2222-2222-2222-222222222222\/estadisticas",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "500",
+							"otherinfo": ""
+						},
+						{
+							"id": "18",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/dashboard/gerencial?tiempo=hoy&search=ABC",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/dashboard\/gerencial (search,tiempo)",
 							"method": "GET",
@@ -1065,19 +485,9 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "21",
+							"id": "9",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
-							"method": "POST",
-							"param": "",
-							"attack": "",
-							"evidence": "401",
-							"otherinfo": ""
-						},
-						{
-							"id": "33",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos ()({cliente,ruc,tipo_servicio,fecha_inicio,fecha_fin,origen,destino,distancia_estimada_km,tarifa_por_km,moneda})",
 							"method": "POST",
 							"param": "",
 							"attack": "",
@@ -1105,27 +515,7 @@
 					"desc": "<p>The cache-control header has not been set properly or is missing, allowing the browser and proxies to cache content. For static assets like css, js, or image files this might be intended, however, the resources should be reviewed to ensure that no sensitive content will be cached.</p>",
 					"instances":[ 
 						{
-							"id": "16",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores",
-							"method": "GET",
-							"param": "cache-control",
-							"attack": "",
-							"evidence": "",
-							"otherinfo": ""
-						},
-						{
-							"id": "15",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores/22222222-2222-2222-2222-222222222222/estadisticas",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores\/22222222-2222-2222-2222-222222222222\/estadisticas",
-							"method": "GET",
-							"param": "cache-control",
-							"attack": "",
-							"evidence": "",
-							"otherinfo": ""
-						},
-						{
-							"id": "48",
+							"id": "49",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/unidades/disponibles",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/unidades\/disponibles",
 							"method": "GET",
@@ -1135,7 +525,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "47",
+							"id": "45",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/contratos/bbbb0001-0000-0000-0000-000000000001/unidades",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/contratos\/bbbb0001-0000-0000-0000-000000000001\/unidades ()({unidades:[]})",
 							"method": "PUT",
@@ -1145,14 +535,14 @@
 							"otherinfo": ""
 						}
 					],
-					"count": "4",
+					"count": "2",
 					"systemic": false,
 					"solution": "<p>For secure content, ensure the cache-control HTTP header is set with \"no-cache, no-store, must-revalidate\". If an asset should be cached consider setting the directives \"public, max-age, immutable\".</p>",
 					"otherinfo": "",
 					"reference": "<p>https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#web-content-caching</p><p>https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control</p><p>https://grayduck.mn/2021/09/13/cache-control-recommendations/</p>",
 					"cweid": "525",
 					"wascid": "13",
-					"sourceid": "11"
+					"sourceid": "24"
 				},
 				{
 					"pluginid": "10112",
@@ -1165,7 +555,7 @@
 					"desc": "<p>The given response has been identified as containing a session management token. The 'Other Info' field contains a set of header tokens that can be used in the Header Based Session Management Method. If the request is in a context which has a Session Management Method set to \"Auto-Detect\" then this rule will change the session management to use the tokens identified.</p>",
 					"instances":[ 
 						{
-							"id": "3",
+							"id": "2",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
 							"method": "POST",
@@ -1195,27 +585,7 @@
 					"desc": "<p>The response contents are storable by caching components such as proxy servers, and may be retrieved directly from the cache, rather than from the origin server by the caching servers, in response to similar requests from other users. If the response data is sensitive, personal or user-specific, this may result in sensitive information being leaked. In some cases, this may even result in a user gaining complete control of the session of another user, depending on the configuration of the caching components in use in their environment. This is primarily an issue where \"shared\" caching servers such as \"proxy\" caches are configured on the local network. This configuration is typically found in corporate or educational environments, for instance.</p>",
 					"instances":[ 
 						{
-							"id": "28",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores",
-							"method": "GET",
-							"param": "",
-							"attack": "",
-							"evidence": "",
-							"otherinfo": "In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234."
-						},
-						{
-							"id": "27",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/conductores/22222222-2222-2222-2222-222222222222/estadisticas",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/conductores\/22222222-2222-2222-2222-222222222222\/estadisticas",
-							"method": "GET",
-							"param": "",
-							"attack": "",
-							"evidence": "",
-							"otherinfo": "In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234."
-						},
-						{
-							"id": "61",
+							"id": "62",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/unidades/disponibles",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/unidades\/disponibles",
 							"method": "GET",
@@ -1235,7 +605,7 @@
 							"otherinfo": "In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234."
 						},
 						{
-							"id": "13",
+							"id": "10",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
 							"method": "POST",
@@ -1245,64 +615,14 @@
 							"otherinfo": "In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234."
 						}
 					],
-					"count": "5",
+					"count": "3",
 					"systemic": false,
 					"solution": "<p>Validate that the response does not contain sensitive, personal or user-specific information. If it does, consider the use of the following HTTP response headers, to limit, or prevent the content being stored and retrieved from the cache by another user:</p><p>Cache-Control: no-cache, no-store, must-revalidate, private</p><p>Pragma: no-cache</p><p>Expires: 0</p><p>This configuration directs both HTTP 1.0 and HTTP 1.1 compliant caching servers to not store the response, and to not retrieve the response (without validation) from the cache, in response to a similar request.</p>",
 					"otherinfo": "<p>In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234.</p>",
 					"reference": "<p>https://datatracker.ietf.org/doc/html/rfc7234</p><p>https://datatracker.ietf.org/doc/html/rfc7231</p><p>https://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html</p>",
 					"cweid": "524",
 					"wascid": "13",
-					"sourceid": "11"
-				},
-				{
-					"pluginid": "10104",
-					"alertRef": "10104",
-					"alert": "User Agent Fuzzer",
-					"name": "User Agent Fuzzer",
-					"riskcode": "0",
-					"confidence": "2",
-					"riskdesc": "Informational (Medium)",
-					"desc": "<p>Check for differences in response based on fuzzed User Agent (eg. mobile sites, access as a Search Engine Crawler). Compares the response statuscode and the hashcode of the response body with the original response.</p>",
-					"instances":[ 
-						{
-							"id": "91",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password ()({email})",
-							"method": "POST",
-							"param": "Header User-Agent",
-							"attack": "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1)",
-							"evidence": "",
-							"otherinfo": ""
-						},
-						{
-							"id": "92",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
-							"method": "POST",
-							"param": "Header User-Agent",
-							"attack": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)",
-							"evidence": "",
-							"otherinfo": ""
-						},
-						{
-							"id": "90",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
-							"method": "POST",
-							"param": "Header User-Agent",
-							"attack": "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1)",
-							"evidence": "",
-							"otherinfo": ""
-						}
-					],
-					"count": "3",
-					"systemic": true,
-					"solution": "",
-					"otherinfo": "",
-					"reference": "<p>https://owasp.org/wstg</p>",
-					"cweid": "0",
-					"wascid": "0",
-					"sourceid": "64"
+					"sourceid": "24"
 				}
 			]
 		}

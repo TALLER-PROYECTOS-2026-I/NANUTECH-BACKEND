@@ -1,11 +1,11 @@
 {
-  "generado_en": "2026-05-24T01:39:10Z",
+  "generado_en": "2026-05-25T00:42:08Z",
   "resumen": {
     "total_pruebas": 141,
-    "pasadas": 78,
-    "fallidas": 63,
-    "fail_critico": 45,
-    "fail_menor": 18
+    "pasadas": 83,
+    "fallidas": 58,
+    "fail_critico": 47,
+    "fail_menor": 11
   },
   "resultados": {
     "PUBLICO": [
@@ -71,10 +71,10 @@
         "method": "POST",
         "endpoint": "/camiones",
         "expected": "200",
-        "http_status": "400",
-        "resultado": "FAIL_MENOR",
-        "nota": "Rol ADMIN debía tener acceso pero recibió 400",
-        "detalle": "Roles autorizados: ADMIN",
+        "http_status": "201",
+        "resultado": "PASS",
+        "nota": "",
+        "detalle": "",
         "roles_permitidos": "ADMIN"
       },
       {
@@ -346,10 +346,10 @@
         "method": "GET",
         "endpoint": "/jornadas",
         "expected": "200",
-        "http_status": "500",
-        "resultado": "FAIL_MENOR",
-        "nota": "Rol ADMIN debía tener acceso pero recibió 500",
-        "detalle": "Roles autorizados: ADMIN, GERENTE",
+        "http_status": "200",
+        "resultado": "PASS",
+        "nota": "",
+        "detalle": "",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -401,10 +401,10 @@
         "method": "POST",
         "endpoint": "/jornadas/finalizar",
         "expected": "403",
-        "http_status": "400",
-        "resultado": "PASS",
-        "nota": "Recibió 400 (aceptable como rechazo)",
-        "detalle": "",
+        "http_status": "200",
+        "resultado": "FAIL_CRITICO",
+        "nota": "Broken Access Control: ADMIN recibió 200 — acceso indebido",
+        "detalle": "Solo deberían acceder: CHOFER",
         "roles_permitidos": "CHOFER"
       },
       {
@@ -412,10 +412,10 @@
         "method": "GET",
         "endpoint": "/jornadas/historial-gerencial",
         "expected": "200",
-        "http_status": "500",
-        "resultado": "FAIL_MENOR",
-        "nota": "Rol ADMIN debía tener acceso pero recibió 500",
-        "detalle": "Roles autorizados: ADMIN, GERENTE",
+        "http_status": "200",
+        "resultado": "PASS",
+        "nota": "",
+        "detalle": "",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -423,10 +423,10 @@
         "method": "GET",
         "endpoint": "/jornadas/historial-gerencial/metrics",
         "expected": "200",
-        "http_status": "500",
-        "resultado": "FAIL_MENOR",
-        "nota": "Rol ADMIN debía tener acceso pero recibió 500",
-        "detalle": "Roles autorizados: ADMIN, GERENTE",
+        "http_status": "200",
+        "resultado": "PASS",
+        "nota": "",
+        "detalle": "",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -434,10 +434,10 @@
         "method": "GET",
         "endpoint": "/jornadas/alerta/cccc0001-0000-0000-0000-000000000001",
         "expected": "200",
-        "http_status": "500",
-        "resultado": "FAIL_MENOR",
-        "nota": "Rol ADMIN debía tener acceso pero recibió 500",
-        "detalle": "Roles autorizados: ADMIN, GERENTE",
+        "http_status": "200",
+        "resultado": "PASS",
+        "nota": "",
+        "detalle": "",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -601,10 +601,10 @@
         "method": "GET",
         "endpoint": "/conductores",
         "expected": "200",
-        "http_status": "200",
-        "resultado": "PASS",
-        "nota": "",
-        "detalle": "",
+        "http_status": "403",
+        "resultado": "FAIL_MENOR",
+        "nota": "Rol GERENTE debía tener acceso pero recibió 403",
+        "detalle": "Roles autorizados: ADMIN, GERENTE",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -612,10 +612,10 @@
         "method": "GET",
         "endpoint": "/conductores/22222222-2222-2222-2222-222222222222/estadisticas",
         "expected": "200",
-        "http_status": "200",
-        "resultado": "PASS",
-        "nota": "",
-        "detalle": "",
+        "http_status": "403",
+        "resultado": "FAIL_MENOR",
+        "nota": "Rol GERENTE debía tener acceso pero recibió 403",
+        "detalle": "Roles autorizados: ADMIN, GERENTE",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -810,10 +810,10 @@
         "method": "GET",
         "endpoint": "/jornadas",
         "expected": "200",
-        "http_status": "500",
-        "resultado": "FAIL_MENOR",
-        "nota": "Rol GERENTE debía tener acceso pero recibió 500",
-        "detalle": "Roles autorizados: ADMIN, GERENTE",
+        "http_status": "200",
+        "resultado": "PASS",
+        "nota": "",
+        "detalle": "",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -876,10 +876,10 @@
         "method": "GET",
         "endpoint": "/jornadas/historial-gerencial",
         "expected": "200",
-        "http_status": "500",
-        "resultado": "FAIL_MENOR",
-        "nota": "Rol GERENTE debía tener acceso pero recibió 500",
-        "detalle": "Roles autorizados: ADMIN, GERENTE",
+        "http_status": "200",
+        "resultado": "PASS",
+        "nota": "",
+        "detalle": "",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -887,10 +887,10 @@
         "method": "GET",
         "endpoint": "/jornadas/historial-gerencial/metrics",
         "expected": "200",
-        "http_status": "500",
-        "resultado": "FAIL_MENOR",
-        "nota": "Rol GERENTE debía tener acceso pero recibió 500",
-        "detalle": "Roles autorizados: ADMIN, GERENTE",
+        "http_status": "200",
+        "resultado": "PASS",
+        "nota": "",
+        "detalle": "",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -898,10 +898,10 @@
         "method": "GET",
         "endpoint": "/jornadas/alerta/cccc0001-0000-0000-0000-000000000001",
         "expected": "200",
-        "http_status": "500",
-        "resultado": "FAIL_MENOR",
-        "nota": "Rol GERENTE debía tener acceso pero recibió 500",
-        "detalle": "Roles autorizados: ADMIN, GERENTE",
+        "http_status": "200",
+        "resultado": "PASS",
+        "nota": "",
+        "detalle": "",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -1065,10 +1065,10 @@
         "method": "GET",
         "endpoint": "/conductores",
         "expected": "403",
-        "http_status": "200",
-        "resultado": "FAIL_CRITICO",
-        "nota": "Broken Access Control: CHOFER recibió 200 — acceso indebido",
-        "detalle": "Solo deberían acceder: ADMIN, GERENTE",
+        "http_status": "403",
+        "resultado": "PASS",
+        "nota": "",
+        "detalle": "",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -1076,10 +1076,10 @@
         "method": "GET",
         "endpoint": "/conductores/22222222-2222-2222-2222-222222222222/estadisticas",
         "expected": "403",
-        "http_status": "200",
-        "resultado": "FAIL_CRITICO",
-        "nota": "Broken Access Control: CHOFER recibió 200 — acceso indebido",
-        "detalle": "Solo deberían acceder: ADMIN, GERENTE",
+        "http_status": "403",
+        "resultado": "PASS",
+        "nota": "",
+        "detalle": "",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -1274,10 +1274,10 @@
         "method": "GET",
         "endpoint": "/jornadas",
         "expected": "403",
-        "http_status": "500",
-        "resultado": "PASS",
-        "nota": "Recibió 500 (aceptable como rechazo)",
-        "detalle": "",
+        "http_status": "200",
+        "resultado": "FAIL_CRITICO",
+        "nota": "Broken Access Control: CHOFER recibió 200 — acceso indebido",
+        "detalle": "Solo deberían acceder: ADMIN, GERENTE",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -1340,10 +1340,10 @@
         "method": "GET",
         "endpoint": "/jornadas/historial-gerencial",
         "expected": "403",
-        "http_status": "500",
-        "resultado": "PASS",
-        "nota": "Recibió 500 (aceptable como rechazo)",
-        "detalle": "",
+        "http_status": "200",
+        "resultado": "FAIL_CRITICO",
+        "nota": "Broken Access Control: CHOFER recibió 200 — acceso indebido",
+        "detalle": "Solo deberían acceder: ADMIN, GERENTE",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -1351,10 +1351,10 @@
         "method": "GET",
         "endpoint": "/jornadas/historial-gerencial/metrics",
         "expected": "403",
-        "http_status": "500",
-        "resultado": "PASS",
-        "nota": "Recibió 500 (aceptable como rechazo)",
-        "detalle": "",
+        "http_status": "200",
+        "resultado": "FAIL_CRITICO",
+        "nota": "Broken Access Control: CHOFER recibió 200 — acceso indebido",
+        "detalle": "Solo deberían acceder: ADMIN, GERENTE",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -1362,10 +1362,10 @@
         "method": "GET",
         "endpoint": "/jornadas/alerta/cccc0001-0000-0000-0000-000000000001",
         "expected": "403",
-        "http_status": "500",
-        "resultado": "PASS",
-        "nota": "Recibió 500 (aceptable como rechazo)",
-        "detalle": "",
+        "http_status": "200",
+        "resultado": "FAIL_CRITICO",
+        "nota": "Broken Access Control: CHOFER recibió 200 — acceso indebido",
+        "detalle": "Solo deberían acceder: ADMIN, GERENTE",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {
@@ -1485,10 +1485,10 @@
         "method": "GET",
         "endpoint": "/conductores",
         "expected": "403",
-        "http_status": "200",
-        "resultado": "FAIL_CRITICO",
-        "nota": "Broken Access Control: ANONIMO recibió 200 — acceso indebido",
-        "detalle": "Solo deberían acceder: ADMIN, GERENTE",
+        "http_status": "500",
+        "resultado": "PASS",
+        "nota": "Recibió 500 (aceptable como rechazo)",
+        "detalle": "",
         "roles_permitidos": "ADMIN, GERENTE"
       },
       {

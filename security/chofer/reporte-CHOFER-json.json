@@ -1,8 +1,8 @@
 {
 	"@programName": "ZAP",
 	"@version": "2.17.0",
-	"@generated": "Sun, 24 May 2026 01:51:54",
-	"created": "2026-05-24T01:51:54.205133304Z",
+	"@generated": "Mon, 25 May 2026 00:55:01",
+	"created": "2026-05-25T00:55:01.891398925Z",
 	"insights":[
 		{
 			"level": "Info",
@@ -10,7 +10,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.code.2xx",
 			"description": "Percentage of responses with status code 2xx",
-			"statistic": "29"
+			"statistic": "30"
 		},
 		{
 			"level": "Info",
@@ -26,7 +26,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.code.5xx",
 			"description": "Percentage of responses with status code 5xx",
-			"statistic": "24"
+			"statistic": "22"
 		},
 		{
 			"level": "Info",
@@ -42,7 +42,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.endpoint.method.GET",
 			"description": "Percentage of endpoints with method GET",
-			"statistic": "20"
+			"statistic": "18"
 		},
 		{
 			"level": "Info",
@@ -50,7 +50,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.endpoint.method.POST",
 			"description": "Percentage of endpoints with method POST",
-			"statistic": "80"
+			"statistic": "81"
 		},
 		{
 			"level": "Info",
@@ -58,7 +58,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.endpoint.total",
 			"description": "Count of total endpoints",
-			"statistic": "10"
+			"statistic": "11"
 		},
 		{
 			"level": "Info",
@@ -66,7 +66,7 @@
 			"site": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com",
 			"key": "insight.response.slow",
 			"description": "Percentage of slow responses",
-			"statistic": "41"
+			"statistic": "56"
 		}
 	],
 	"site":[ 
@@ -92,19 +92,19 @@
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/iniciar ()({jornada_id})",
 							"method": "POST",
 							"param": "jornada_id",
-							"attack": "\"",
+							"attack": ";",
 							"evidence": "HTTP/1.1 500 Internal Server Error",
 							"otherinfo": ""
 						},
 						{
 							"id": "30",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/sos",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/alertas\/sos ()({jornada_id,conductor_id,latitud,longitud,direccion})",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/iniciar?query=query%27+AND+%271%27%3D%271%27+--+",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/iniciar (query)({jornada_id})",
 							"method": "POST",
-							"param": "longitud",
-							"attack": "-77.0428' OR '1'='1' -- ",
+							"param": "query",
+							"attack": "query' AND '1'='1' -- ",
 							"evidence": "",
-							"otherinfo": "The page results were successfully manipulated using the boolean conditions [-77.0428' AND '1'='1' -- ] and [-77.0428' OR '1'='1' -- ]\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison.\nData was NOT returned for the original parameter.\nThe vulnerability was detected by successfully retrieving more data than originally returned, by manipulating the parameter."
+							"otherinfo": "The page results were successfully manipulated using the boolean conditions [query' AND '1'='1' -- ] and [query' AND '1'='2' -- ]\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison.\nData was returned for the original parameter.\nThe vulnerability was detected by successfully restricting the data originally returned, by manipulating the parameter."
 						}
 					],
 					"count": "2",
@@ -134,13 +134,13 @@
 							"param": "query",
 							"attack": "login",
 							"evidence": "",
-							"otherinfo": "The output for the source code filename [login] differs sufficiently from that of the random parameter [binpwahjsouhywoujgnlflpjtaewrrrspsbkyp], at [71%], compared to a threshold of [75%]"
+							"otherinfo": "The output for the source code filename [login] differs sufficiently from that of the random parameter [qopusvmpzkaufvvgopwiweqaemkvmqyptqcbgr], at [71%], compared to a threshold of [75%]"
 						}
 					],
 					"count": "1",
 					"systemic": false,
 					"solution": "<p>Assume all input is malicious. Use an \"accept known good\" input validation strategy, i.e., use an allow list of acceptable inputs that strictly conform to specifications. Reject any input that does not strictly conform to specifications, or transform it into something that does. Do not rely exclusively on looking for malicious or malformed inputs (i.e., do not rely on a deny list). However, deny lists can be useful for detecting potential attacks or determining which inputs are so malformed that they should be rejected outright.</p><p></p><p>When performing input validation, consider all potentially relevant properties, including length, type of input, the full range of acceptable values, missing or extra inputs, syntax, consistency across related fields, and conformance to business rules. As an example of business rule logic, \"boat\" may be syntactically valid because it only contains alphanumeric characters, but it is not valid if you are expecting colors such as \"red\" or \"blue.\"</p><p></p><p>For filenames, use stringent allow lists that limit the character set to be used. If feasible, only allow a single \".\" character in the filename to avoid weaknesses, and exclude directory separators such as \"/\". Use an allow list of allowable file extensions.</p><p></p><p>Warning: if you attempt to cleanse your data, then do so that the end result is not in the form that can be dangerous. A sanitizing mechanism can remove characters such as '.' and ';' which may be required for some exploits. An attacker can try to fool the sanitizing mechanism into \"cleaning\" data into a dangerous form. Suppose the attacker injects a '.' inside a filename (e.g. \"sensi.tiveFile\") and the sanitizing mechanism removes the character resulting in the valid filename, \"sensitiveFile\". If the input data are now assumed to be safe, then the file may be compromised. </p><p></p><p>Inputs should be decoded and canonicalized to the application's current internal representation before being validated. Make sure that your application does not decode the same input twice. Such errors could be used to bypass allow list schemes by introducing dangerous inputs after they have been checked.</p><p></p><p>Use a built-in path canonicalization function (such as realpath() in C) that produces the canonical version of the pathname, which effectively removes \"..\" sequences and symbolic links.</p><p></p><p>Run your code using the lowest privileges that are required to accomplish the necessary tasks. If possible, create isolated accounts with limited privileges that are only used for a single task. That way, a successful attack will not immediately give the attacker access to the rest of the software or its environment. For example, database applications rarely need to run as the database administrator, especially in day-to-day operations.</p><p></p><p>When the set of acceptable objects, such as filenames or URLs, is limited or known, create a mapping from a set of fixed input values (such as numeric IDs) to the actual filenames or URLs, and reject all other inputs.</p><p></p><p>Run your code in a \"jail\" or similar sandbox environment that enforces strict boundaries between the process and the operating system. This may effectively restrict which files can be accessed in a particular directory or which commands can be executed by your software.</p><p></p><p>OS-level examples include the Unix chroot jail, AppArmor, and SELinux. In general, managed code may provide some protection. For example, java.io.FilePermission in the Java SecurityManager allows you to specify restrictions on file operations.</p><p></p><p>This may not be a feasible solution, and it only limits the impact to the operating system; the rest of your application may still be subject to compromise.</p><p></p>",
-					"otherinfo": "<p>The output for the source code filename [login] differs sufficiently from that of the random parameter [binpwahjsouhywoujgnlflpjtaewrrrspsbkyp], at [71%], compared to a threshold of [75%]</p>",
+					"otherinfo": "<p>The output for the source code filename [login] differs sufficiently from that of the random parameter [qopusvmpzkaufvvgopwiweqaemkvmqyptqcbgr], at [71%], compared to a threshold of [75%]</p>",
 					"reference": "<p>https://owasp.org/www-community/attacks/Path_Traversal</p><p>https://cwe.mitre.org/data/definitions/22.html</p>",
 					"cweid": "541",
 					"wascid": "33",
@@ -157,22 +157,22 @@
 					"desc": "<p>This CORS misconfiguration could allow an attacker to perform AJAX queries to the vulnerable website from a malicious page loaded by the victim's user agent.</p><p>In order to perform authenticated AJAX queries, the server must specify the header \"Access-Control-Allow-Credentials: true\" and the \"Access-Control-Allow-Origin\" header must be set to null or the malicious page's domain. Even if this misconfiguration doesn't allow authenticated AJAX requests, unauthenticated sensitive content can still be accessed (e.g intranet websites).</p><p>A malicious page can belong to a malicious website but also a trusted website with flaws (e.g XSS, support of HTTP without TLS allowing code injection through MITM, etc).</p>",
 					"instances":[ 
 						{
-							"id": "158",
+							"id": "159",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/auxilio",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/alertas\/auxilio ()({jornada_id,conductor_id,tipo_falla_mecanica,latitud,longitud,direccion})",
 							"method": "POST",
 							"param": "",
-							"attack": "origin: https://TdrNyWOW.com",
+							"attack": "origin: https://clYnKl4K.com",
 							"evidence": "",
 							"otherinfo": ""
 						},
 						{
-							"id": "159",
+							"id": "158",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/sos",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/alertas\/sos ()({jornada_id,conductor_id,latitud,longitud,direccion})",
 							"method": "POST",
 							"param": "",
-							"attack": "origin: https://TdrNyWOW.com",
+							"attack": "origin: https://clYnKl4K.com",
 							"evidence": "",
 							"otherinfo": ""
 						},
@@ -182,7 +182,7 @@
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
 							"method": "POST",
 							"param": "",
-							"attack": "origin: https://TdrNyWOW.com",
+							"attack": "origin: https://clYnKl4K.com",
 							"evidence": "",
 							"otherinfo": ""
 						}
@@ -194,7 +194,7 @@
 					"reference": "<p>https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS</p><p>https://portswigger.net/web-security/cors</p>",
 					"cweid": "942",
 					"wascid": "14",
-					"sourceid": "150"
+					"sourceid": "151"
 				},
 				{
 					"pluginid": "10098",
@@ -207,7 +207,7 @@
 					"desc": "<p>Web browser data loading may be possible, due to a Cross Origin Resource Sharing (CORS) misconfiguration on the web server.</p>",
 					"instances":[ 
 						{
-							"id": "4",
+							"id": "3",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/me",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/me",
 							"method": "GET",
@@ -217,7 +217,17 @@
 							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
 						},
 						{
-							"id": "3",
+							"id": "14",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/actual/22222222-2222-2222-2222-222222222222",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/actual\/22222222-2222-2222-2222-222222222222",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "Access-Control-Allow-Origin: *",
+							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
+						},
+						{
+							"id": "5",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password ()({email})",
 							"method": "POST",
@@ -227,7 +237,7 @@
 							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
 						},
 						{
-							"id": "5",
+							"id": "4",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
 							"method": "POST",
@@ -240,16 +250,6 @@
 							"id": "6",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
-							"method": "POST",
-							"param": "",
-							"attack": "",
-							"evidence": "Access-Control-Allow-Origin: *",
-							"otherinfo": "The CORS misconfiguration on the web server permits cross-domain read requests from arbitrary third party domains, using unauthenticated APIs on this domain. Web browser implementations do not permit arbitrary third parties to read the response from authenticated APIs, however. This reduces the risk somewhat. This misconfiguration could be used by an attacker to access data that is available in an unauthenticated manner, but which uses some other form of security, such as IP address white-listing."
-						},
-						{
-							"id": "15",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/finalizar",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/finalizar ()({jornada_id,km_recorridos,observaciones})",
 							"method": "POST",
 							"param": "",
 							"attack": "",
@@ -279,10 +279,10 @@
 						{
 							"id": "143",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/actual/22222222-2222-2222-2222-222222222222",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/actual\/15805142428731111984773019462179294246132168",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/actual\/11305029111076408268799912686779884281232273",
 							"method": "GET",
 							"param": "\u00ABconductorId\u00BB",
-							"attack": "15805142428731111984773019462179294246132168",
+							"attack": "11305029111076408268799912686779884281232273",
 							"evidence": "HTTP/1.1 500 Internal Server Error",
 							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
 						},
@@ -292,9 +292,9 @@
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/finalizar ()({jornada_id,km_recorridos,observaciones})",
 							"method": "POST",
 							"param": "jornada_id",
-							"attack": "00000000000000000000000000000000000000000000",
+							"attack": "61933111219163594285320042936530613176200944",
 							"evidence": "HTTP/1.1 500 Internal Server Error",
-							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of zeros."
+							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
 						},
 						{
 							"id": "142",
@@ -302,7 +302,7 @@
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/iniciar ()({jornada_id})",
 							"method": "POST",
 							"param": "jornada_id",
-							"attack": "54041247088914786596645512189175363494737867",
+							"attack": "42503209313778589419626434071867260686234709",
 							"evidence": "HTTP/1.1 500 Internal Server Error",
 							"otherinfo": "Potential Integer Overflow. Status code changed on the input of a long string of random integers."
 						}
@@ -387,6 +387,16 @@
 							"otherinfo": ""
 						},
 						{
+							"id": "15",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/actual/22222222-2222-2222-2222-222222222222",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/actual\/22222222-2222-2222-2222-222222222222",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": ""
+						},
+						{
 							"id": "9",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password ()({email})",
@@ -410,16 +420,6 @@
 							"id": "10",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
-							"method": "POST",
-							"param": "",
-							"attack": "",
-							"evidence": "",
-							"otherinfo": ""
-						},
-						{
-							"id": "19",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/finalizar",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/finalizar ()({jornada_id,km_recorridos,observaciones})",
 							"method": "POST",
 							"param": "",
 							"attack": "",
@@ -487,7 +487,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "24",
+							"id": "17",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/actual/22222222-2222-2222-2222-222222222222",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/actual\/22222222-2222-2222-2222-222222222222",
 							"method": "GET",
@@ -497,7 +497,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "14",
+							"id": "13",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/forgot-password/confirm",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/forgot-password\/confirm ()({email,code,newPassword})",
 							"method": "POST",
@@ -507,7 +507,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "25",
+							"id": "27",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/finalizar",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/finalizar ()({jornada_id,km_recorridos,observaciones})",
 							"method": "POST",
@@ -517,7 +517,7 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "23",
+							"id": "25",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/jornadas/iniciar",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/jornadas\/iniciar ()({jornada_id})",
 							"method": "POST",
@@ -587,7 +587,7 @@
 							"otherinfo": "In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234."
 						},
 						{
-							"id": "13",
+							"id": "16",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/auth/login",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/auth\/login ()({email,password})",
 							"method": "POST",
@@ -617,17 +617,7 @@
 					"desc": "<p>Check for differences in response based on fuzzed User Agent (eg. mobile sites, access as a Search Engine Crawler). Compares the response statuscode and the hashcode of the response body with the original response.</p>",
 					"instances":[ 
 						{
-							"id": "34",
-							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/auxilio",
-							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/alertas\/auxilio ()({jornada_id,conductor_id,tipo_falla_mecanica,latitud,longitud,direccion})",
-							"method": "POST",
-							"param": "Header User-Agent",
-							"attack": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)",
-							"evidence": "",
-							"otherinfo": ""
-						},
-						{
-							"id": "32",
+							"id": "33",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/auxilio",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/alertas\/auxilio ()({jornada_id,conductor_id,tipo_falla_mecanica,latitud,longitud,direccion})",
 							"method": "POST",
@@ -637,7 +627,17 @@
 							"otherinfo": ""
 						},
 						{
-							"id": "33",
+							"id": "34",
+							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/sos",
+							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/alertas\/sos ()({jornada_id,conductor_id,latitud,longitud,direccion})",
+							"method": "POST",
+							"param": "Header User-Agent",
+							"attack": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)",
+							"evidence": "",
+							"otherinfo": ""
+						},
+						{
+							"id": "32",
 							"uri": "https://q26dwk17da.execute-api.us-east-1.amazonaws.com/Stage/alertas/sos",
 							"nodeName": "https:\/\/q26dwk17da.execute-api.us-east-1.amazonaws.com\/Stage\/alertas\/sos ()({jornada_id,conductor_id,latitud,longitud,direccion})",
 							"method": "POST",
@@ -654,7 +654,7 @@
 					"reference": "<p>https://owasp.org/wstg</p>",
 					"cweid": "0",
 					"wascid": "0",
-					"sourceid": "26"
+					"sourceid": "25"
 				}
 			]
 		}
