@@ -403,9 +403,9 @@
     <h1>Checkov — IaC Security Report</h1>
     <div class="header-meta">
       <span>📦 <strong>TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND</strong></span>
-      <span>🌿 <strong>develop</strong></span>
-      <span>🔖 <strong>c0f9247</strong></span>
-      <span>🕒 2026-05-25 16:02 UTC</span>
+      <span>🌿 <strong>331/merge</strong></span>
+      <span>🔖 <strong>d00dd6c</strong></span>
+      <span>🕒 2026-05-29 02:36 UTC</span>
     </div>
   </div>
   <span class="header-badge">FAILED</span>
@@ -423,13 +423,13 @@
 
   <!-- Commit strip -->
   <div class="commit-strip">
-    <span>Scan: <strong>2026-05-25 16:02 UTC</strong></span>
+    <span>Scan: <strong>2026-05-29 02:36 UTC</strong></span>
     <span>·</span>
     <span>Framework: <strong>CloudFormation / SAM</strong></span>
     <span>·</span>
     <span>Herramienta: <strong>Checkov 3.x</strong></span>
     <span>·</span>
-    <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26409265601" target="_blank">Ver ejecución en GitHub Actions →</a>
+    <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26614576956" target="_blank">Ver ejecución en GitHub Actions →</a>
   </div>
 
   <!-- ═══ RESUMEN ═══════════════════════════════════════════════════════ -->
@@ -518,13 +518,6 @@
         </tr>
 <tr>
           <td><span class="sev-high">🔴 HIGH</span></td>
-          <td><code class="rule-id">CKV_AWS_115</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖</a></td>
-          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
-          <td style="text-align:center"><span class="count-badge">13</span></td>
-          <td style="font-size:11px;color:#8b949e">—</td>
-        </tr>
-<tr>
-          <td><span class="sev-high">🔴 HIGH</span></td>
           <td><code class="rule-id">CKV_AWS_116</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖</a></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
           <td style="text-align:center"><span class="count-badge">13</span></td>
@@ -534,6 +527,13 @@
           <td><span class="sev-high">🔴 HIGH</span></td>
           <td><code class="rule-id">CKV_AWS_173</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖</a></td>
           <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
+          <td style="text-align:center"><span class="count-badge">13</span></td>
+          <td style="font-size:11px;color:#8b949e">—</td>
+        </tr>
+<tr>
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖</a></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td style="text-align:center"><span class="count-badge">13</span></td>
           <td style="font-size:11px;color:#8b949e">—</td>
         </tr>
@@ -592,15 +592,6 @@
           <td class="desc-cell">API Gateway no tiene caching habilitado. El caching reduce latencia y protege backends de sobrecarga.</td>
           <td class="fix-cell">Agregar MethodSettings con CachingEnabled: true y CacheDataEncrypted: true en la definición del stage.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-api-gateway-caching-is-enabled" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
-<tr data-level="error" data-rule="CKV_AWS_115">
-          <td><span class="sev-high">🔴 HIGH</span></td>
-          <td><code class="rule-id">CKV_AWS_115</code></td>
-          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
-          <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L112–165</span></td>
-          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
-          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
-        </tr>
 <tr data-level="error" data-rule="CKV_AWS_116">
           <td><span class="sev-high">🔴 HIGH</span></td>
           <td><code class="rule-id">CKV_AWS_116</code></td>
@@ -624,7 +615,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L167–196</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L112–165</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -651,7 +642,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L197–256</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L167–196</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -678,7 +669,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L266–301</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L197–256</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -705,7 +696,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L307–339</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L266–301</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -732,7 +723,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L345–374</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L307–339</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -759,7 +750,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L388–466</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L345–374</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -786,7 +777,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L478–544</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L388–466</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -813,7 +804,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L551–586</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L478–544</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -840,7 +831,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L598–664</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L551–586</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -867,7 +858,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L670–699</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L598–664</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -894,7 +885,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L708–764</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L670–699</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -921,7 +912,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L769–782</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L708–764</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -942,6 +933,15 @@
           <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L769–782</span></td>
           <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
           <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_115">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_115</code></td>
+          <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L769–782</span></td>
+          <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
+          <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
 
         </tbody>
@@ -965,8 +965,8 @@
 <footer>
   🏗️ Checkov IaC Security Report &nbsp;·&nbsp;
   <a href="https://www.checkov.io/" target="_blank">Checkov</a> &nbsp;·&nbsp;
-  <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26409265601" target="_blank">GitHub Actions Run</a> &nbsp;·&nbsp;
-  Generado automáticamente · 2026-05-25 16:02 UTC
+  <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26614576956" target="_blank">GitHub Actions Run</a> &nbsp;·&nbsp;
+  Generado automáticamente · 2026-05-29 02:36 UTC
 </footer>
 
 <script>
