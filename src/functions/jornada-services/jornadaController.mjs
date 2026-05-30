@@ -270,10 +270,84 @@ export const getManagerHistoryController = async (event) => {
   }
 };
 /**
+ * Obtiene el historial de jornadas completadas del conductor autenticado.
+ * El conductor_id se extrae del token JWT para evitar que un chofer
+ * pueda ver las jornadas de otro.
+ * Filtros: periodo (semana|mes|todas) y observaciones (todas|con|sin).
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @param {Object} [event.queryStringParameters] - Filtros de búsqueda
+ * @param {string} [event.queryStringParameters.periodo] - 'semana' | 'mes' | 'todas'
+ * @param {string} [event.queryStringParameters.observaciones] - 'todas' | 'con' | 'sin'
+ * @returns {Promise<Object>} Respuesta HTTP 200 con lista de jornadas del conductor
+ * @throws {Error} 401 si el token es inválido o está ausente
+ * @throws {Error} 400 INVALID_PERIOD si el período no es válido
+ */
+export const getDriverHistoryController = async (event) => {
+  try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    const session = await getCurrentSession(authorizationHeader);
+
+    const conductorId = session.user.id;
+    const { periodo, observaciones } = event.queryStringParameters || {};
+
+    const jornadaService = new JornadaService();
+    const historial = await jornadaService.getDriverHistory({
+      conductor_id: conductorId,
+      periodo,
+      observaciones,
+    });
+
+    return successResponse(historial, "Historial obtenido exitosamente.");
+  } catch (error) {
+    console.error("Error en getDriverHistoryController:", error);
+    return resolveErrorResponse(error);
+  }
+};
+
+/**
+ * Obtiene las métricas de resumen del conductor autenticado para las
+ * 4 tarjetas del dashboard del chofer: total_jornadas, horas_trabajadas,
+ * km_recorridos y con_observaciones.
+ * El conductor_id se extrae del token JWT.
+ *
+ * @param {Object} event - Evento de AWS Lambda
+ * @param {Object} event.headers - Headers HTTP de la solicitud
+ * @param {string} [event.headers.Authorization] - Token Bearer de autenticación
+ * @param {Object} [event.queryStringParameters] - Filtros de búsqueda
+ * @param {string} [event.queryStringParameters.periodo] - 'semana' | 'mes' | 'todas'
+ * @returns {Promise<Object>} Respuesta HTTP 200 con métricas del conductor
+ * @throws {Error} 401 si el token es inválido o está ausente
+ * @throws {Error} 400 INVALID_PERIOD si el período no es válido
+ */
+export const getDriverMetricsController = async (event) => {
+  try {
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    const session = await getCurrentSession(authorizationHeader);
+
+    const conductorId = session.user.id;
+    const { periodo } = event.queryStringParameters || {};
+
+    const jornadaService = new JornadaService();
+    const metricas = await jornadaService.getDriverMetrics({
+      conductor_id: conductorId,
+      periodo,
+    });
+
+    return successResponse(metricas, "Métricas obtenidas exitosamente.");
+  } catch (error) {
+    console.error("Error en getDriverMetricsController:", error);
+    return resolveErrorResponse(error);
+  }
+};
+console.log("ANTES DE ALERT DETAIL");
+/**
  * Obtiene las métricas operativas del historial gerencial.
  * Retorna indicadores para las tarjetas del dashboard:
- * Total Jornadas, Alertas Pánico, Auxilio Mecánico,
- * Jornadas con Observaciones y KM Promedio.
+ * Total Journas, Alertas Pánico, Auxilio Mecánico,
+ * Journas con Observaciones y KM Promedio.
  *
  * @param {Object} event - Evento AWS Lambda
  * @returns {Promise<Object>} Métricas operativas
