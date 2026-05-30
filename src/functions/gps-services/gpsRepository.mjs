@@ -1,10 +1,18 @@
+// gpsRepository.mjs
+
 import db from "../../shared/config/database.mjs";
 
-export class GpsRepository {
 /**
- * Busca unidades asociadas a una placa específica.
+ * Repositorio encargado de la persistencia y consultas de datos GPS en la base de datos.
  */
+export class GpsRepository {
+  /**
+   * Busca unidades asociadas a una placa específica.
+   */
   async findUnidadByPlaca(placa) {
+    /**
+     * LÓGICA PRINCIPAL / CONSULTA SQL
+     */
     const result = await db.query(
       `
       SELECT id, placa
@@ -19,10 +27,9 @@ export class GpsRepository {
     return result.rows[0] || null;
   }
 
-/**
- * Registra metadata de importación GPS.
- */
-
+  /**
+   * Registra la metadata inicial o final de una importación masiva de datos GPS.
+   */
   async createImportacion({
     proveedor,
     nombreArchivo,
@@ -33,6 +40,9 @@ export class GpsRepository {
     observaciones = null,
     cargadoPor = null,
   }) {
+    /**
+     * LÓGICA PRINCIPAL / INSERCIÓN SQL
+     */
     const result = await db.query(
       `
       INSERT INTO gps_importaciones (
@@ -65,10 +75,9 @@ export class GpsRepository {
     return result.rows[0];
   }
 
-/**
- * Almacena errores detectados durante importaciones.
- */
-
+  /**
+   * Almacena los errores específicos detectados en las filas durante el proceso de importación.
+   */
   async saveImportacionError({
     importacionId,
     rowNumber,
@@ -77,6 +86,9 @@ export class GpsRepository {
     message,
     rawPayload,
   }) {
+    /**
+     * LÓGICA PRINCIPAL / INSERCIÓN SQL
+     */
     await db.query(
       `
       INSERT INTO gps_importacion_errores (
@@ -100,11 +112,13 @@ export class GpsRepository {
     );
   }
 
-/**
- * Verifica duplicados GPS antes de inserción.
- */
-
+  /**
+   * Verifica si ya existe un registro GPS idéntico (evita duplicados por proveedor, unidad y marca de tiempo).
+   */
   async existsRegistro({ proveedor, unidadId, fechaHora }) {
+    /**
+     * LÓGICA PRINCIPAL / CONSULTA SQL
+     */
     const result = await db.query(
       `
       SELECT EXISTS (
@@ -121,11 +135,13 @@ export class GpsRepository {
     return result.rows[0].exists;
   }
 
-/**
- * Inserta un registro GPS validado.
- */
-
+  /**
+   * Inserta un registro de geolocalización GPS individual previamente validado.
+   */
   async insertRegistro({ importacionId, unidadId, row }) {
+    /**
+     * LÓGICA PRINCIPAL / INSERCIÓN SQL
+     */
     const result = await db.query(
       `
       INSERT INTO gps_registros (
@@ -164,10 +180,9 @@ export class GpsRepository {
     return result.rows[0];
   }
 
-/**
- * Inserta múltiples registros GPS en lote.
- */
-
+  /**
+   * Procesa e inserta múltiples registros en lote, gestionando unidades inexistentes, duplicados y transiciones de estado.
+   */
   async importRows({
     proveedor,
     nombreArchivo,
@@ -175,12 +190,18 @@ export class GpsRepository {
     validationErrors = [],
     cargadoPor = null,
   }) {
+    /**
+     * INICIALIZACIÓN DE CONTADORES Y VARIABLES
+     */
     let registrosImportados = 0;
     let duplicadosOmitidos = 0;
     let registrosInvalidos = validationErrors.length;
     const errores = [...validationErrors];
     const insertados = [];
 
+    /**
+     * REGISTRO DE APERTURA DE IMPORTACIÓN
+     */
     const importacion = await this.createImportacion({
       proveedor,
       nombreArchivo,
@@ -192,6 +213,9 @@ export class GpsRepository {
       cargadoPor,
     });
 
+    /**
+     * PROCESAMIENTO DE ERRORES PREVIOS DE VALIDACIÓN
+     */
     for (const validationError of validationErrors) {
       await this.saveImportacionError({
         importacionId: importacion.id,
@@ -203,9 +227,13 @@ export class GpsRepository {
       });
     }
 
+    /**
+     * PROCESAMIENTO Y VALIDACIÓN DE FILAS ENCONTRADAS COMO VÁLIDAS
+     */
     for (const row of validRows) {
       const unidad = await this.findUnidadByPlaca(row.placa);
 
+      // Si la unidad asociada a la placa no existe o está inactiva
       if (!unidad) {
         registrosInvalidos += 1;
 
@@ -230,6 +258,7 @@ export class GpsRepository {
         continue;
       }
 
+      // Verificación de duplicidad cronológica
       const exists = await this.existsRegistro({
         proveedor: row.proveedor,
         unidadId: unidad.id,
@@ -241,6 +270,7 @@ export class GpsRepository {
         continue;
       }
 
+      // Inserción del registro definitivo
       const inserted = await this.insertRegistro({
         importacionId: importacion.id,
         unidadId: unidad.id,
@@ -255,6 +285,9 @@ export class GpsRepository {
       });
     }
 
+    /**
+     * CÁLCULO DEL ESTADO FINAL DE LA IMPORTACIÓN
+     */
     const estadoFinal =
       registrosImportados > 0 && registrosInvalidos > 0
         ? "PROCESADA_CON_ERRORES"
@@ -264,6 +297,9 @@ export class GpsRepository {
             ? "RECHAZADA"
             : "PROCESADA";
 
+    /**
+     * ACTUALIZACIÓN DE RESUMEN FINAL DE LA IMPORTACIÓN
+     */
     await db.query(
       `
       UPDATE gps_importaciones
@@ -296,11 +332,13 @@ export class GpsRepository {
     };
   }
 
-/**
- * Obtiene métricas agregadas GPS desde base de datos.
- */
-
+  /**
+   * Obtiene métricas agregadas del último estado conocido de cada unidad.
+   */
   async getSummary() {
+    /**
+     * LÓGICA PRINCIPAL / CONSULTA CON CTE (DISTINCT ON)
+     */
     const result = await db.query(`
       WITH ultimos AS (
         SELECT DISTINCT ON (unidad_id)
@@ -322,7 +360,19 @@ export class GpsRepository {
     return result.rows[0];
   }
 
-  async listRegistros({ proveedor, placa } = {}) {
+  /**
+   * Lista y filtra el historial de registros GPS con base en criterios dinámicos.
+   */
+  async listRegistros({
+    proveedor,
+    placa,
+    estado,
+    horaInicio,
+    horaFin,
+  } = {}) {
+    /**
+     * CONSTRUCCIÓN DINÁMICA DE CONDICIONES WHERE
+     */
     const conditions = [];
     const params = [];
 
@@ -336,31 +386,113 @@ export class GpsRepository {
       conditions.push(`un.placa ILIKE $${params.length}`);
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    if (estado) {
+      params.push(estado);
+      conditions.push(`gr.estado = $${params.length}`);
+    }
 
+    if (horaInicio) {
+      params.push(horaInicio);
+      conditions.push(`gr.fecha_hora >= $${params.length}`);
+    }
+
+    if (horaFin) {
+      params.push(horaFin);
+      conditions.push(`gr.fecha_hora <= $${params.length}`);
+    }
+
+    const whereClause =
+      conditions.length > 0
+        ? `WHERE ${conditions.join(" AND ")}`
+        : "";
+
+    /**
+     * LÓGICA PRINCIPAL / EJECUCIÓN DE CONSULTA DINÁMICA
+     */
     const result = await db.query(
       `
-      SELECT
-        gr.id,
-        un.placa,
-        gr.proveedor,
-        gr.fecha_hora,
-        gr.latitud,
-        gr.longitud,
-        gr.velocidad_kmh,
-        gr.rumbo,
-        gr.odometro_km AS distancia_total,
-        gr.estado,
-        gr.created_at
-      FROM gps_registros gr
-      JOIN unidades un ON un.id = gr.unidad_id
-      ${whereClause}
-      ORDER BY gr.fecha_hora DESC
-      LIMIT 200
-      `,
+    SELECT
+      gr.id,
+      un.placa,
+      gr.proveedor,
+      gr.fecha_hora,
+      gr.latitud,
+      gr.longitud,
+      gr.velocidad_kmh,
+      gr.rumbo,
+      gr.odometro_km AS distancia_total,
+      gr.estado,
+      gr.created_at,
+
+      CASE
+        WHEN gr.velocidad_kmh > 90 THEN TRUE
+        ELSE FALSE
+      END AS exceso_velocidad
+
+    FROM gps_registros gr
+    INNER JOIN unidades un
+      ON un.id = gr.unidad_id
+
+    ${whereClause}
+
+    ORDER BY
+      CASE
+        WHEN gr.velocidad_kmh > 90 THEN 0
+        ELSE 1
+      END,
+      gr.fecha_hora DESC
+    `,
       params,
     );
 
     return result.rows;
+  }
+
+  /**
+   * Obtiene un resumen estadístico de tracking enfocado en excesos de velocidad y estados actuales de las unidades.
+   */
+  async getTrackingSummary() {
+    /**
+     * LÓGICA PRINCIPAL / CONSULTA CON CTE (DISTINCT ON)
+     */
+    const result = await db.query(`
+      WITH ultimos AS (
+        SELECT DISTINCT ON (unidad_id)
+          unidad_id,
+          estado,
+          velocidad_kmh,
+          fecha_hora
+        FROM gps_registros
+        ORDER BY unidad_id, fecha_hora DESC
+      )
+      SELECT
+        COUNT(*)::int AS total_registros,
+
+        COUNT(*) FILTER (
+          WHERE estado IN ('MOVIENDO','EXCESO_VELOCIDAD')
+        )::int AS unidades_movimiento,
+
+        COUNT(*) FILTER (
+          WHERE estado = 'DETENIDO'
+        )::int AS unidades_detenidas,
+
+        COUNT(*) FILTER (
+          WHERE velocidad_kmh > 90
+        )::int AS excesos_velocidad
+
+      FROM ultimos
+    `);
+
+    return result.rows[0];
+  }
+
+  /**
+   * Interfaz de repositorio para exportar el historial de tracking reutilizando la lógica de listado.
+   */
+  async exportTrackingCsv(filters = {}) {
+    /**
+     * REUTILIZACIÓN DE FUNCIÓN DE BÚSQUEDA
+     */
+    return this.listRegistros(filters);
   }
 }

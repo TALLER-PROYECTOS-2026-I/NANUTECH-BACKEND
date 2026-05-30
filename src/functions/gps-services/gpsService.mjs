@@ -1,5 +1,5 @@
 /**
- * Ejecuta validaciones de estructura y contenido CSV.
+ * Servicio encargado de ejecutar validaciones de estructura, contenido CSV y gestión de negocio GPS.
  */
 
 import { GpsRepository } from "./gpsRepository.mjs";
@@ -12,11 +12,20 @@ import {
 } from "./gpsValidator.mjs";
 
 export class GpsService {
+  /**
+   * Constructor de la clase que instancia el repositorio de persistencia.
+   */
   constructor() {
     this.repository = new GpsRepository();
   }
 
+  /**
+   * Obtiene los proveedores GPS soportados formateando sus propiedades básicas.
+   */
   getProviders() {
+    /**
+     * LÓGICA PRINCIPAL
+     */
     return getProviderConfigs().map((provider) => ({
       proveedor: provider.code,
       nombre: provider.displayName,
@@ -24,11 +33,13 @@ export class GpsService {
     }));
   }
 
-/**
- * Genera estructura CSV compatible con importaciones.
- */
-
+  /**
+   * Genera la estructura y el contenido de un archivo CSV de ejemplo basado en el proveedor.
+   */
   getTemplate(provider) {
+    /**
+     * LÓGICA PRINCIPAL
+     */
     const config = getProviderConfig(provider);
 
     const example =
@@ -46,13 +57,22 @@ export class GpsService {
     };
   }
 
+  /**
+   * Realiza un análisis exhaustivo de la estructura, nombre del archivo y registros del CSV.
+   */
   validateCsv({ proveedor, nombreArchivo, csvContent }) {
+    /**
+     * NORMALIZACIÓN Y VALIDACIÓN PREVIA
+     */
     const normalizedProvider = normalizeProvider(proveedor);
 
     assertCsvFilename(nombreArchivo);
 
     const validation = validateCsvContent(csvContent, normalizedProvider);
 
+    /**
+     * RETORNO DE RESULTADO ESTRUCTURADO
+     */
     return {
       proveedor: normalizedProvider,
       nombre_archivo: nombreArchivo,
@@ -65,23 +85,22 @@ export class GpsService {
     };
   }
 
-/**
- * Procesa e inserta registros GPS válidos.
- * 
- * Reglas:
- * - evita duplicados
- * - valida coordenadas
- * - valida proveedor
- * - valida velocidades
- */
-
+  /**
+   * Procesa la importación e inserción de registros GPS válidos en lote bajo reglas de negocio definidas.
+   */
   async importCsv({ proveedor, nombreArchivo, csvContent, cargadoPor }) {
+    /**
+     * NORMALIZACIÓN Y VALIDACIÓN PREVIA
+     */
     const normalizedProvider = normalizeProvider(proveedor);
 
     assertCsvFilename(nombreArchivo);
 
     const validation = validateCsvContent(csvContent, normalizedProvider);
 
+    /**
+     * DESPACHO HACIA REPOSITORIO SEGÚN ESTADO DE VALIDACIÓN
+     */
     if (!validation.valid) {
       return this.repository.importRows({
         proveedor: normalizedProvider,
@@ -101,26 +120,69 @@ export class GpsService {
     });
   }
 
-/**
- * Calcula métricas operativas GPS.
- */
-
+  /**
+   * Solicita al repositorio las métricas operativas generales agregadas del GPS.
+   */
   async getSummary() {
+    /**
+     * ACCESO A REPOSITORIO
+     */
     return this.repository.getSummary();
   }
 
-/**
- * Lista registros GPS almacenados.
- */
+  /**
+   * Solicita al repositorio el resumen de tracking enfocado en excesos de velocidad y estados actuales.
+   */
+  async getTrackingSummary() {
+    /**
+     * ACCESO A REPOSITORIO
+     */
+    return this.repository.getTrackingSummary();
+  }
 
-  async listRegistros(filters = {}) {
+  /**
+   * Prepara los filtros y criterios dinámicos para exportar el historial de tracking a formato CSV.
+   */
+  async exportTrackingCsv(filters = {}) {
+    /**
+     * NORMALIZACIÓN DE FILTROS OBLIGATORIOS
+     */
     const proveedor = filters.proveedor
       ? normalizeProvider(filters.proveedor)
       : undefined;
 
+    /**
+     * ACCESO A REPOSITORIO
+     */
+    return this.repository.exportTrackingCsv({
+      proveedor,
+      placa: filters.placa,
+      estado: filters.estado,
+      horaInicio: filters.horaInicio,
+      horaFin: filters.horaFin,
+    });
+  }
+
+  /**
+   * Prepara los filtros dinámicos requeridos para obtener y listar el historial de registros almacenados.
+   */
+  async listRegistros(filters = {}) {
+    /**
+     * NORMALIZACIÓN DE FILTROS OBLIGATORIOS
+     */
+    const proveedor = filters.proveedor
+      ? normalizeProvider(filters.proveedor)
+      : undefined;
+
+    /**
+     * ACCESO A REPOSITORIO
+     */
     return this.repository.listRegistros({
       proveedor,
       placa: filters.placa,
+      estado: filters.estado,
+      horaInicio: filters.horaInicio,
+      horaFin: filters.horaFin,
     });
   }
 }
