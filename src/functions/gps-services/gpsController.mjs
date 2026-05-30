@@ -3,7 +3,7 @@
 import { GpsService } from "./gpsService.mjs";
 import { getCsvFromEvent } from "./gpsValidator.mjs";
 import { Parser } from "json2csv";
-import { getCurrentSession } from "../../shared/services/authService.mjs";
+import { getCurrentSession } from "../auth-services/authService.mjs";
 import {
   successResponse,
   errorResponse,
