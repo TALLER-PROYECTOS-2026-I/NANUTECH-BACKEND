@@ -453,6 +453,19 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /jornadas/alerta/{jornadaId}
             Method: GET
+        GetHistorialChofer:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/historial
+            Method: GET
+        
+        GetMetricasChofer:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/metricas
+            Method: GET
       Tags:
         Environment: !Ref StageName
         Servicio: jornada
@@ -531,6 +544,18 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /gps/registros
             Method: GET
+        TrackingGpsSummary:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/tracking/resumen
+            Method: GET
+        ExportTrackingCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/tracking/export
+            Method: GET
       Tags:
         Environment: !Ref StageName
         Servicio: gps
@@ -567,6 +592,18 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /conductores
             Method: GET
+        GetConductorById:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /conductores/{id}
+            Method: GET
+        UpdateLicencia:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /conductores/licencia
+            Method: PUT
         GetStatistics:
           Type: Api
           Properties:
