@@ -5,7 +5,6 @@ import db from "../../shared/config/database.mjs";
  * Repository encargado de interactuar directamente con la base de datos para operaciones relacionadas a conductores.
  */
 export class ConductorRepository {
-
   /**
    * Obtiene todos los conductores activos.
    *
@@ -18,9 +17,7 @@ export class ConductorRepository {
    * Lista de conductores ordenados por apellidos y nombres.
    */
   async getAllActive() {
-
     const result = await db.query(
-
       `SELECT
           id,
           cognito_sub,
@@ -58,7 +55,6 @@ export class ConductorRepository {
    * - Estado actual del conductor
    */
   async getConductorStatistics(conductorId) {
-
     /**
      * Query SQL de agregación.
      *
@@ -201,12 +197,93 @@ export class ConductorRepository {
     `;
 
     // Ejecuta la query parametrizada
+    const result = await db.query(query, [conductorId]);
+
+    // Retorna únicamente una fila
+    return result.rows[0];
+  }
+  /**
+   * HU18
+   * Obtiene detalle completo del conductor
+   */
+  async getConductorDetail(conductorId) {
+    const query = `
+      SELECT
+        u.id,
+        u.nombres,
+        u.apellidos,
+        u.correo,
+        u.telefono,
+        u.dni,
+
+        lc.numero_licencia,
+        lc.categoria,
+        lc.fecha_emision,
+        lc.fecha_vencimiento,
+        lc.autoridad_emisora
+
+      FROM usuarios u
+
+      LEFT JOIN licencias_conducir lc
+        ON lc.conductor_id = u.id
+
+      WHERE u.id = $1
+    `;
+
+    const result = await db.query(query, [conductorId]);
+
+    return result.rows[0];
+  }
+  /**
+   * HU18
+   * Actualiza licencia del conductor
+   */
+  async updateLicencia(conductorId, licenciaData) {
+    const query = `
+      UPDATE licencias_conducir
+      SET
+        numero_licencia = $2,
+        categoria = $3,
+        fecha_emision = $4,
+        fecha_vencimiento = $5,
+        autoridad_emisora = $6,
+        updated_at = NOW()
+
+      WHERE conductor_id = $1
+
+      RETURNING *
+    `;
+
+    const result = await db.query(query, [
+      conductorId,
+      licenciaData.numeroLicencia,
+      licenciaData.categoria,
+      licenciaData.fechaEmision,
+      licenciaData.fechaVencimiento,
+      licenciaData.autoridadEmisora,
+    ]);
+
+    return result.rows[0];
+  }
+  /**
+   * HU18
+   * Obtiene licencia actual
+   */
+  async getLicenciaActual(conductorId) {
     const result = await db.query(
-      query,
+      `
+        SELECT
+          id,
+          categoria,
+          fecha_vencimiento
+        FROM licencias_conducir
+        WHERE conductor_id = $1
+        AND activa = TRUE
+        LIMIT 1
+        `,
       [conductorId]
     );
 
-    // Retorna únicamente una fila
     return result.rows[0];
   }
 }

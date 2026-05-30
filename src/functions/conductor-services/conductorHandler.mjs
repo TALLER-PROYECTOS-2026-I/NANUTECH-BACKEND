@@ -1,6 +1,8 @@
 import {
   getAllConductoresController,
   getConductorStatisticsController,
+  updateLicenciaController,
+  getConductorDetailController,
 } from "./conductorController.mjs";
 
 /**
@@ -14,15 +16,25 @@ import {
  * GET /conductores/{id}/estadisticas
  */
 const routes = {
-
   // Endpoint para listar conductores activos
-  "GET /conductores":
-    getAllConductoresController,
+  "GET /conductores": getAllConductoresController,
 
   // Endpoint para obtener estadísticas
   // agregadas de un conductor
-  "GET /conductores/{id}/estadisticas":
-    getConductorStatisticsController,
+  "GET /conductores/{id}/estadisticas": getConductorStatisticsController,
+
+  /************************************************
+   * HU18 - Actualizar licencia del conductor
+   ***********************************************/
+  "PUT /conductores/licencia": updateLicenciaController,
+
+  /**
+   * =========================================================
+   * HU18
+   * Obtiene detalle completo del conductor.
+   * =========================================================
+   */
+  "GET /conductores/{id}": getConductorDetailController,
 };
 
 /**
@@ -36,9 +48,7 @@ const routes = {
  * - Maneja errores globales
  */
 export const handler = async (event) => {
-
   try {
-
     /**
      * Construye la clave de ruta.
      *
@@ -46,45 +56,36 @@ export const handler = async (event) => {
      * "GET /conductores"
      * "GET /conductores/{id}/estadisticas"
      */
-    const routeKey =
-      `${event.httpMethod} ${event.resource}`;
+    const routeKey = `${event.httpMethod} ${event.resource}`;
 
     // Busca el controller asociado a la ruta
-    const controller =
-      routes[routeKey];
+    const controller = routes[routeKey];
 
     /**
      * Si no existe un controller para la ruta,
      * retorna error 404
      */
     if (!controller) {
-
       return {
         statusCode: 404,
 
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          "Access-Control-Allow-Origin": "*",
         },
 
         body: JSON.stringify({
           success: false,
-          message:
-            `Ruta ${routeKey} no encontrada`
+          message: `Ruta ${routeKey} no encontrada`,
         }),
       };
     }
 
     // Ejecuta el controller encontrado
     return await controller(event);
-
   } catch (error) {
-
     // Log de errores globales del handler
-    console.error(
-      "Error en handler:",
-      error
-    );
+    console.error("Error en handler:", error);
 
     // Respuesta HTTP 500
     return {
@@ -92,13 +93,13 @@ export const handler = async (event) => {
 
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
+        "Access-Control-Allow-Origin": "*",
       },
 
       body: JSON.stringify({
         success: false,
         error: "Error interno del servidor",
-        message: error.message
+        message: error.message,
       }),
     };
   }
