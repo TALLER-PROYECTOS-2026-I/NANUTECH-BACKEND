@@ -1,6 +1,7 @@
 import {
   getAllConductoresController,
   getConductorStatisticsController,
+  crearConductorController,
 } from "./conductorController.mjs";
 
 /**
@@ -23,6 +24,9 @@ const routes = {
   // agregadas de un conductor
   "GET /conductores/{id}/estadisticas":
     getConductorStatisticsController,
+
+  // Enpoint para crear nuevo conductor
+  "POST /conductores": crearConductorController,
 };
 
 /**
