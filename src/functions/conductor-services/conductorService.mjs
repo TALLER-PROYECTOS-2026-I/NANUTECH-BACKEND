@@ -18,7 +18,6 @@ export class ConductorService {
    */
   constructor() {
     this.conductorRepository = new ConductorRepository();
-    this.cognitoConductorService = new CognitoConductorService();
   }
 
   /**
@@ -109,129 +108,52 @@ export class ConductorService {
       estado_actual: statistics.estado_actual,
     };
   }
-
   /**
-   * Valida los datos obligatorios enviados
-   * desde el formulario de registro de conductor.
-   *
-   * Reglas:
-   * - Todos los campos son obligatorios
-   * - Nombre: solo letras y espacios
-   * - DNI: exactamente 8 dígitos
-   * - Teléfono: exactamente 9 dígitos
-   * - Email: formato válido
+   * =========================================================
+   * HU18
+   * Obtiene detalle completo del conductor.
+   * =========================================================
    */
-  validarRegistroConductor(data) {
-    const { nombreCompleto, email, dni, telefono, numeroLicencia, categoria, fechaVencimiento } =
-      data;
+  async getConductorDetail(conductorId) {
+    const conductor = await this.conductorRepository.getConductorDetail(conductorId);
 
-    /**
-     * Valida que todos los campos requeridos
-     * hayan sido enviados por el cliente.
-     */
-    if (
-      !nombreCompleto ||
-      !email ||
-      !dni ||
-      !telefono ||
-      !numeroLicencia ||
-      !categoria ||
-      !fechaVencimiento
-    ) {
-      const error = new Error("Todos los campos obligatorios deben completarse");
-      error.statusCode = 400;
-      throw error;
+    if (!conductor) {
+      throw new Error("Conductor no encontrado");
     }
 
-    /**
-     * Valida que el nombre completo
-     * contenga únicamente letras,
-     * tildes, eñes y espacios.
-     */
-    if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(nombreCompleto)) {
-      const error = new Error("El nombre solo debe contener letras y espacios");
-      error.statusCode = 400;
-      throw error;
-    }
-
-    /**
-     * Valida que el DNI tenga
-     * exactamente 8 dígitos numéricos.
-     */
-    if (!/^\d{8}$/.test(dni)) {
-      const error = new Error("El DNI debe tener exactamente 8 dígitos");
-      error.statusCode = 400;
-      throw error;
-    }
-
-    /**
-     * Valida que el teléfono tenga
-     * exactamente 9 dígitos numéricos.
-     */
-    if (!/^\d{9}$/.test(telefono)) {
-      const error = new Error("El teléfono debe tener exactamente 9 dígitos");
-      error.statusCode = 400;
-      throw error;
-    }
-
-    /**
-     * Valida el formato del correo electrónico.
-     */
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      const error = new Error("El email corporativo no tiene un formato válido");
-      error.statusCode = 400;
-      throw error;
-    }
+    return conductor;
   }
-
   /**
-   * Registra un nuevo conductor.
-   *
-   * Flujo:
-   * - Valida formato de datos
-   * - Verifica duplicados en BD
-   * - Registra conductor
-   * - Crea usuario en AWS Cognito
+   * =========================================================
+   * HU18
+   * Actualizar licencia del conductor
+   * =========================================================
    */
+  async updateLicencia(conductorId, licenciaData) {
+    const licenciaActual = await this.conductorRepository.getLicenciaActiva(conductorId);
 
-  async registrarNuevoConductor(data) {
-    /**
-     * Ejecuta validaciones de negocio
-     * antes de registrar información.
-     */
-    this.validarRegistroConductor(data);
-
-    /**
-     * Verifica que no exista otro conductor
-     * con el mismo DNI, correo o licencia.
-     */
-    const duplicado = await this.conductorRepository.validarDuplicadosConductor({
-      dni: data.dni,
-      email: data.email,
-      numeroLicencia: data.numeroLicencia,
-    });
-
-    /**
-     * Si existe un registro previo,
-     * se interrumpe el proceso.
-     */
-    if (duplicado) {
-      const error = new Error("El DNI, email o número de licencia ya se encuentra registrado");
-      error.statusCode = 409;
-      throw error;
+    if (!licenciaActual) {
+      throw new Error("Licencia no encontrada");
     }
 
-    /**
-     * Registra el conductor en PostgreSQL
-     * y posteriormente crea sus credenciales
-     * en AWS Cognito.
-     *
-     * Si Cognito falla,
-     * el Repository ejecuta rollback.
-     */
-    return await this.conductorRepository.registrarNuevoConductor(
-      data,
-      this.cognitoConductorService
-    );
+    const categorias = ["A-I", "A-IIa", "A-IIb", "A-IIIa", "A-IIIb", "A-IIIc"];
+
+    const categoriaActual = categorias.indexOf(licenciaActual.categoria);
+
+    const categoriaNueva = categorias.indexOf(licenciaData.categoria);
+
+    if (categoriaNueva < categoriaActual) {
+      throw new Error(
+        "Error: No se permite registrar una categoría vehicular inferior a la actual"
+      );
+    }
+
+    const fechaVencimiento = new Date(licenciaData.fechaVencimiento);
+
+    if (fechaVencimiento <= new Date()) {
+      throw new Error("Error: La fecha de vencimiento ingresada se encuentra expirada");
+    }
+
+    return await this.conductorRepository.updateLicencia(conductorId, licenciaData);
   }
 }

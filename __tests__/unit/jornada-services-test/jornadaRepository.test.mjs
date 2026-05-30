@@ -196,4 +196,202 @@ describe("JornadaRepository", () => {
     expect(query).toContain("ILIKE");
     expect(params).toEqual(["%XYZ%", "cond-2"]);
   });
+
+  /**
+   * ===============================
+   * HU04 - Historial de Journadas (Driver)
+   * ===============================
+   */
+
+  test("findDriverHistory retorna historial del conductor con estado COMPLETADA", async () => {
+    mockQuery.mockResolvedValue({
+      rows: [
+        {
+          id: "jor-uuid-1",
+          codigo: "shift_test_progress_maria_002",
+          placa: "ABC-123",
+          marca: "Volvo",
+          modelo: "FH16",
+          origen: "Lima",
+          destino: "Arequipa",
+          fecha: "2026-05-28",
+          hora_inicio: "08:00 AM",
+          hora_fin: "04:30 PM",
+          km_recorridos: 450.5,
+          estado: "COMPLETADA",
+          duracion_formateada: "8h 30m",
+          observaciones: "Todo correcto",
+        },
+      ],
+    });
+
+    const result = await repository.findDriverHistory({
+      conductor_id: "cond-1",
+      periodo: "todas",
+      observaciones: "todas",
+    });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("conductor_id = $1");
+    expect(query).toContain("estado = 'COMPLETADA'");
+    expect(query).toContain("j.codigo");
+    expect(params).toEqual(["cond-1"]);
+    expect(result).toHaveLength(1);
+    expect(result[0].duracion_formateada).toBe("8h 30m");
+    expect(result[0].codigo).toBe("shift_test_progress_maria_002");
+    expect(mockRelease).toHaveBeenCalled();
+  });
+
+  test("findDriverHistory aplica filtro período semana con INTERVAL $2", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.findDriverHistory({
+      conductor_id: "cond-1",
+      periodo: "semana",
+      observaciones: "todas",
+    });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("INTERVAL $2");
+    expect(params).toEqual(["cond-1", "7 days"]);
+  });
+
+  test("findDriverHistory aplica filtro período mes con INTERVAL $2", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.findDriverHistory({
+      conductor_id: "cond-1",
+      periodo: "mes",
+      observaciones: "todas",
+    });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("INTERVAL $2");
+    expect(params).toEqual(["cond-1", "30 days"]);
+  });
+
+  test("findDriverHistory no aplica filtro de período cuando es 'todas'", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.findDriverHistory({
+      conductor_id: "cond-1",
+      periodo: "todas",
+      observaciones: "todas",
+    });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).not.toContain("INTERVAL");
+    expect(params).toEqual(["cond-1"]);
+  });
+
+  test("findDriverHistory aplica filtro observaciones 'con'", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.findDriverHistory({
+      conductor_id: "cond-1",
+      periodo: "todas",
+      observaciones: "con",
+    });
+
+    const [query] = mockQuery.mock.calls[0];
+    expect(query).toContain("observaciones IS NOT NULL");
+    expect(query).toContain("observaciones <> ''");
+  });
+
+  test("findDriverHistory aplica filtro observaciones 'sin'", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await repository.findDriverHistory({
+      conductor_id: "cond-1",
+      periodo: "todas",
+      observaciones: "sin",
+    });
+
+    const [query] = mockQuery.mock.calls[0];
+    expect(query).toContain("observaciones IS NULL");
+    expect(query).toContain("OR j.observaciones = ''");
+  });
+
+  test("findDriverHistory retorna vacío cuando no hay jornadas", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    const result = await repository.findDriverHistory({
+      conductor_id: "cond-1",
+      periodo: "todas",
+      observaciones: "todas",
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  test("getDriverMetrics calcula horas_trabajadas con 1 decimal", async () => {
+    mockQuery.mockResolvedValue({
+      rows: [
+        {
+          total_jornadas: "12",
+          horas_trabajadas: "97.6",
+          km_recorridos: "4850.5",
+          con_observaciones: "4",
+        },
+      ],
+    });
+
+    const result = await repository.getDriverMetrics({
+      conductor_id: "cond-1",
+      periodo: "todas",
+    });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("ROUND(SUM(EXTRACT(EPOCH FROM");
+    expect(params).toEqual(["cond-1"]);
+    expect(result.total_jornadas).toBe("12");
+    expect(result.horas_trabajadas).toBe("97.6");
+    expect(result.km_recorridos).toBe("4850.5");
+    expect(result.con_observaciones).toBe("4");
+    expect(mockRelease).toHaveBeenCalled();
+  });
+
+  test("getDriverMetrics aplica filtro período semana", async () => {
+    mockQuery.mockResolvedValue({
+      rows: [
+        {
+          total_jornadas: "2",
+          horas_trabajadas: "16.0",
+          km_recorridos: "800.0",
+          con_observaciones: "1",
+        },
+      ],
+    });
+
+    await repository.getDriverMetrics({
+      conductor_id: "cond-1",
+      periodo: "semana",
+    });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("INTERVAL $2");
+    expect(params).toEqual(["cond-1", "7 days"]);
+  });
+
+  test("getDriverMetrics aplica filtro período mes", async () => {
+    mockQuery.mockResolvedValue({
+      rows: [
+        {
+          total_jornadas: "8",
+          horas_trabajadas: "64.0",
+          km_recorridos: "3200.0",
+          con_observaciones: "3",
+        },
+      ],
+    });
+
+    await repository.getDriverMetrics({
+      conductor_id: "cond-1",
+      periodo: "mes",
+    });
+
+    const [query, params] = mockQuery.mock.calls[0];
+    expect(query).toContain("INTERVAL $2");
+    expect(params).toEqual(["cond-1", "30 days"]);
+  });
 });

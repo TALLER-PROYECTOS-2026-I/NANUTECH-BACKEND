@@ -11,6 +11,8 @@ import { successResponse, errorResponse } from "../../shared/utils/response/resp
 // Mensajes constantes
 import { SUCCESS_MESSAGES } from "../../shared/constants/successMessages.mjs";
 
+import { LicenciaValidator } from "../../shared/utils/validators/licenciaValidator.mjs";
+
 /**
  * Controller encargado de obtener todos los conductores activos.
  */
@@ -104,72 +106,104 @@ export const getConductorStatisticsController = async (event) => {
     return errorResponse("Error interno del servidor", 500);
   }
 };
-
 /**
- * Controller encargado de registrar un nuevo conductor.
- * HU22 - Registro de Nuevo Conductor
+ * =====================================================
+ * HU18
+ * Actualizar licencia de conductor
+ * =====================================================
  */
-export const crearConductorController = async (event) => {
+export const updateLicenciaController = async (event) => {
   try {
     /**
-     * Obtiene token enviado
-     * en el header Authorization.
+     * VALIDACIÓN JWT
      */
+
     const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
 
-    /**
-     * Valida sesión del usuario
-     * autenticado mediante Cognito.
-     */
     const session = await getCurrentSession(authorizationHeader);
 
     /**
-     * Solo Administradores Generales
-     * pueden registrar conductores.
+     * Solo chofer puede actualizar
+     * su licencia.
      */
-    if (session.role !== "admin" && session.role !== "ADMIN") {
+    if (session.role !== "CHOFER") {
       return errorResponse("Acceso denegado", 403);
     }
 
     /**
-     * Obtiene información enviada
-     * desde el formulario de registro.
+     * BODY REQUEST
      */
-    const body = JSON.parse(event.body || "{}");
+
+    const body = JSON.parse(event.body);
 
     /**
-     * Instancia la capa de servicio
-     * encargada de la lógica de negocio.
+     * VALIDACIÓN HU18
+     */
+
+    const licenciaData = LicenciaValidator.validateUpdateLicencia(body);
+
+    /**
+     * SERVICE
+     */
+
+    const conductorService = new ConductorService();
+
+    const result = await conductorService.updateLicencia(session.userId, licenciaData);
+
+    return successResponse(result, SUCCESS_MESSAGES.LICENCIA_UPDATED);
+  } catch (error) {
+    console.error("Error updateLicenciaController:", error);
+
+    return errorResponse(error.message, 400);
+  }
+};
+/**
+ * =========================================================
+ * HU18
+ * Obtiene detalle completo del conductor.
+ *
+ * Incluye:
+ * - Datos personales
+ * - Licencia activa
+ * - Contacto de emergencia principal
+ * =========================================================
+ */
+export const getConductorDetailController = async (event) => {
+  try {
+    /**
+     * VALIDACIÓN JWT
+     */
+
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+
+    const session = await getCurrentSession(authorizationHeader);
+
+    /**
+     * Solo ADMIN
+     */
+    if (session.role !== "ADMIN") {
+      return errorResponse("Acceso denegado", 403);
+    }
+
+    /**
+     * HU18
+     * Validación de UUID
+     */
+    const { id } = event.pathParameters;
+
+    LicenciaValidator.validateConductorId(id);
+
+    /**
+     * Service
      */
     const conductorService = new ConductorService();
 
-    /**
-     * Registra conductor.
-     *
-     * Flujo:
-     * - Validaciones
-     * - Verificación de duplicados
-     * - Registro en PostgreSQL
-     * - Creación de credenciales Cognito
-     * - Rollback automático si ocurre error
-     */
-    const conductor = await conductorService.registrarNuevoConductor(body);
+    const conductor = await conductorService.getConductorDetail(id);
 
-    /**
-     * Retorna respuesta exitosa.
-     */
-    return successResponse(conductor, "¡Conductor registrado exitosamente!", 201);
+    return successResponse(conductor, SUCCESS_MESSAGES.CONDUCTOR_DETAIL_RETRIEVED);
   } catch (error) {
-    console.error("Error en crearConductorController:", error);
+    console.error("Error getConductorDetailController:", error);
 
-    /**
-     * Retorna mensaje controlado
-     */
-    return errorResponse(
-      error.statusCode
-        ? error.message
-        : "Error en la creación de credenciales. Registro no guardado. Intente nuevamente",
-      error.statusCode || 500
-    );
+    return errorResponse(error.message, 500);
   }
 };

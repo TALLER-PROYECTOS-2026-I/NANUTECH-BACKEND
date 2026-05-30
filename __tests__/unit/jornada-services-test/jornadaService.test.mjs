@@ -13,6 +13,8 @@ jest.unstable_mockModule("../../../src/functions/jornada-services/jornadaReposit
     exportAll: jest.fn(),
     getHistorialMetrics: jest.fn(),
     getAlertDetail: jest.fn(),
+    findDriverHistory: jest.fn(),
+    getDriverMetrics: jest.fn(),
   })),
 }));
 
@@ -337,5 +339,139 @@ describe("JornadaService", () => {
 
     expect(csv).toContain("150");
     expect(jornadaService.repository.exportAll).toHaveBeenCalled();
+  });
+
+  /**
+   * ===============================
+   * HU04 - Historial de Journadas (Driver)
+   * ===============================
+   */
+
+  test("getDriverHistory delega correctamente al repository con filtros", async () => {
+    const mockHistory = [
+      {
+        id: "jor-uuid-1",
+        codigo: "shift_test_progress_maria_002",
+        placa: "ABC-123",
+        marca: "Volvo",
+        modelo: "FH16",
+        origen: "Lima",
+        destino: "Arequipa",
+        fecha: "2026-05-28",
+        hora_inicio: "08:00 AM",
+        hora_fin: "04:30 PM",
+        km_recorridos: 450.5,
+        estado: "COMPLETADA",
+        duracion_formateada: "8h 30m",
+        observaciones: "Todo correcto",
+      },
+    ];
+
+    jornadaService.repository.findDriverHistory.mockResolvedValue(mockHistory);
+
+    const result = await jornadaService.getDriverHistory({
+      conductor_id: "cond-1",
+      periodo: "semana",
+      observaciones: "con",
+    });
+
+    expect(jornadaService.repository.findDriverHistory).toHaveBeenCalledWith({
+      conductor_id: "cond-1",
+      periodo: "semana",
+      observaciones: "con",
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].duracion_formateada).toBe("8h 30m");
+    expect(result[0].codigo).toBe("shift_test_progress_maria_002");
+  });
+
+  test("getDriverHistory usa 'todas' como período default", async () => {
+    jornadaService.repository.findDriverHistory.mockResolvedValue([]);
+
+    await jornadaService.getDriverHistory({ conductor_id: "cond-1" });
+
+    expect(jornadaService.repository.findDriverHistory).toHaveBeenCalledWith({
+      conductor_id: "cond-1",
+      periodo: "todas",
+      observaciones: "todas",
+    });
+  });
+
+  test("getDriverHistory lanza error 400 con período inválido", async () => {
+    await expect(
+      jornadaService.getDriverHistory({
+        conductor_id: "cond-1",
+        periodo: "invalid",
+      })
+    ).rejects.toMatchObject({
+      message: "El período debe ser: semana, mes o todas.",
+      code: "INVALID_PERIOD",
+      statusCode: 400,
+    });
+  });
+
+  test("getDriverHistory lanza error 400 con filtro de observaciones inválido", async () => {
+    await expect(
+      jornadaService.getDriverHistory({
+        conductor_id: "cond-1",
+        observaciones: "invalid",
+      })
+    ).rejects.toMatchObject({
+      message: "El filtro de observaciones debe ser: todas, con o sin.",
+      code: "INVALID_OBSERVACIONES_FILTER",
+      statusCode: 400,
+    });
+  });
+
+  test("getDriverMetrics delega correctamente al repository", async () => {
+    jornadaService.repository.getDriverMetrics.mockResolvedValue({
+      total_jornadas: "12",
+      horas_trabajadas: "97.6",
+      km_recorridos: "4850.5",
+      con_observaciones: "4",
+    });
+
+    const result = await jornadaService.getDriverMetrics({
+      conductor_id: "cond-1",
+      periodo: "mes",
+    });
+
+    expect(jornadaService.repository.getDriverMetrics).toHaveBeenCalledWith({
+      conductor_id: "cond-1",
+      periodo: "mes",
+    });
+    expect(result.total_jornadas).toBe(12);
+    expect(result.horas_trabajadas).toBe(97.6);
+    expect(result.km_recorridos).toBe(4850.5);
+    expect(result.con_observaciones).toBe(4);
+  });
+
+  test("getDriverMetrics usa 'todas' como período default", async () => {
+    jornadaService.repository.getDriverMetrics.mockResolvedValue({
+      total_jornadas: "5",
+      horas_trabajadas: "40.0",
+      km_recorridos: "1000.0",
+      con_observaciones: "2",
+    });
+
+    await jornadaService.getDriverMetrics({ conductor_id: "cond-1" });
+
+    expect(jornadaService.repository.getDriverMetrics).toHaveBeenCalledWith({
+      conductor_id: "cond-1",
+      periodo: "todas",
+    });
+  });
+
+  test("getDriverMetrics lanza error 400 con período inválido", async () => {
+    await expect(
+      jornadaService.getDriverMetrics({
+        conductor_id: "cond-1",
+        periodo: "invalid",
+      })
+    ).rejects.toMatchObject({
+      message: "El período debe ser: semana, mes o todas.",
+      code: "INVALID_PERIOD",
+      statusCode: 400,
+    });
   });
 });

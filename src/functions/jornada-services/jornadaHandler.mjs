@@ -22,6 +22,10 @@ const ROUTES = {
 
   "GET /jornadas/historial-gerencial/metrics": jornadaController.getHistorialMetricsController,
 
+  "GET /jornadas/historial": jornadaController.getDriverHistoryController,
+
+  "GET /jornadas/metricas": jornadaController.getDriverMetricsController,
+
   "GET /jornadas/alerta/{jornadaId}": jornadaController.getAlertDetailController,
 
   "GET /jornadas": jornadaController.getAllJornadasController,

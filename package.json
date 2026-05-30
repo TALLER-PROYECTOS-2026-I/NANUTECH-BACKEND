@@ -9,6 +9,7 @@
     "@aws-sdk/client-dynamodb": "^3.398.0",
     "@aws-sdk/lib-dynamodb": "^3.398.0",
     "esbuild": "^0.27.4",
+    "json2csv": "^6.0.0-alpha.2",
     "node-pg-migrate": "6.2.2",
     "pg": "^8.20.0",
     "swagger-jsdoc": "^6.2.8"

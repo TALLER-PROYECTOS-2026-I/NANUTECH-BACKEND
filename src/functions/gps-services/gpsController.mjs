@@ -1,10 +1,69 @@
+// gpsController.mjs
+
 import { GpsService } from "./gpsService.mjs";
 import { getCsvFromEvent } from "./gpsValidator.mjs";
+import { Parser } from "json2csv";
+import { getCurrentSession } from "../auth-services/authService.mjs";
 import {
   successResponse,
   errorResponse,
 } from "../../shared/utils/response/response.mjs";
 
+/**
+ * Función auxiliar para validar que el usuario tenga rol de Administrador General.
+ */
+const validateAdminGeneral = async (event) => {
+  /**
+   * VALIDACIÓN JWT
+   */
+  const authorizationHeader =
+    event.headers?.Authorization ||
+    event.headers?.authorization;
+
+  if (!authorizationHeader) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({
+        message: "Token requerido",
+      }),
+    };
+  }
+
+  // Valida token y obtiene sesión
+  const session =
+    await getCurrentSession(
+      authorizationHeader
+    );
+
+  /**
+   * VALIDACIÓN DE ROLES
+   *
+   * Solo ADMINISTRADOR GENERAL puede acceder
+   */
+  const role = String(
+    session?.role || ""
+  ).trim().toLowerCase();
+
+  if (
+    role !== "admin" &&
+    role !== "administrador general" &&
+    role !== "administrador_general"
+  ) {
+    return {
+      statusCode: 403,
+      body: JSON.stringify({
+        message:
+          "Solo el Administrador General puede acceder al módulo GPS.",
+      }),
+    };
+  }
+
+  return null;
+};
+
+/**
+ * Función auxiliar para resolver y estructurar las respuestas de error del módulo.
+ */
 function resolveError(error, defaultCode = "GPS_ERROR") {
   const statusCode =
     error.statusCode ||
@@ -18,11 +77,13 @@ function resolveError(error, defaultCode = "GPS_ERROR") {
 }
 
 /**
- * Obtiene proveedores GPS soportados por el sistema.
+ * Controller encargado de obtener los proveedores GPS soportados por el sistema.
  */
-
 export const getProvidersController = async () => {
   try {
+    /**
+     * LÓGICA PRINCIPAL
+     */
     const service = new GpsService();
     const providers = service.getProviders();
 
@@ -37,17 +98,22 @@ export const getProvidersController = async () => {
 };
 
 /**
- * Genera una plantilla CSV para importación GPS.
+ * Controller encargado de generar una plantilla CSV para importación GPS.
  */
-
 export const getTemplateController = async (event) => {
   try {
+    /**
+     * OBTENER PARÁMETROS
+     */
     const service = new GpsService();
 
     const proveedor =
       event.queryStringParameters?.proveedor ||
       event.pathParameters?.proveedor;
 
+    /**
+     * LÓGICA PRINCIPAL
+     */
     const template = service.getTemplate(proveedor);
 
     return successResponse(
@@ -61,11 +127,13 @@ export const getTemplateController = async (event) => {
 };
 
 /**
- * Valida un archivo CSV previo a la importación.
+ * Controller encargado de validar la estructura y datos de un archivo CSV previo a la importación.
  */
-
 export const validateCsvController = async (event) => {
   try {
+    /**
+     * LÓGICA PRINCIPAL
+     */
     const service = new GpsService();
     const payload = getCsvFromEvent(event);
     const validation = service.validateCsv(payload);
@@ -74,7 +142,7 @@ export const validateCsvController = async (event) => {
       validation,
       validation.importacion_habilitada
         ? "Archivo GPS validado correctamente."
-        : "Archivo GPS contiene errores de validación.",
+        : "Archivo GPS contains errores de validación.",
     );
   } catch (error) {
     console.error("Error en validateCsvController:", error);
@@ -83,11 +151,13 @@ export const validateCsvController = async (event) => {
 };
 
 /**
- * Procesa la importación masiva de registros GPS.
+ * Controller encargado de procesar la importación masiva de registros GPS desde un CSV.
  */
-
 export const importCsvController = async (event) => {
   try {
+    /**
+     * LÓGICA PRINCIPAL
+     */
     const service = new GpsService();
     const payload = getCsvFromEvent(event);
     const result = await service.importCsv(payload);
@@ -106,11 +176,13 @@ export const importCsvController = async (event) => {
 };
 
 /**
- * Obtiene métricas resumidas de actividad GPS.
+ * Controller encargado de obtener métricas resumidas de la actividad GPS general.
  */
-
 export const getSummaryController = async () => {
   try {
+    /**
+     * LÓGICA PRINCIPAL
+     */
     const service = new GpsService();
     const summary = await service.getSummary();
 
@@ -125,24 +197,180 @@ export const getSummaryController = async () => {
 };
 
 /**
- * Lista registros GPS almacenados.
+ * Controller encargado de obtener el resumen de tracking GPS (Requiere rol Admin).
  */
-
-export const listRegistrosController = async (event) => {
+export const getTrackingSummaryController = async (event) => {
   try {
+    /**
+     * VALIDACIÓN DE AUTENTICACIÓN Y ROLES
+     */
+    const authError =
+      await validateAdminGeneral(event);
+
+    if (authError) {
+      return authError;
+    }
+
+    /**
+     * LÓGICA PRINCIPAL
+     */
     const service = new GpsService();
 
-    const registros = await service.listRegistros({
-      proveedor: event.queryStringParameters?.proveedor,
-      placa: event.queryStringParameters?.placa,
-    });
+    const summary =
+      await service.getTrackingSummary();
+
+    return successResponse(
+      summary,
+      "Resumen Tracking GPS obtenido exitosamente."
+    );
+  } catch (error) {
+    return resolveError(error);
+  }
+};
+
+/**
+ * Controller encargado de exportar un archivo CSV con el historial de tracking filtrado.
+ */
+export const exportTrackingCsvController =
+  async (event) => {
+    try {
+      /**
+       * VALIDACIÓN DE AUTENTICACIÓN Y ROLES
+       */
+      const authError =
+        await validateAdminGeneral(event);
+
+      if (authError) {
+        return authError;
+      }
+      
+      /**
+       * LÓGICA PRINCIPAL
+       */
+      const service = new GpsService();
+
+      const registros =
+        await service.exportTrackingCsv(
+          event.queryStringParameters || {}
+        );
+
+      /**
+       * CONFIGURACIÓN DE COLUMNAS CSV
+       */
+      const fields = [
+        "placa",
+        "fecha_hora",
+        "latitud",
+        "longitud",
+        "velocidad_kmh",
+        "estado",
+        "proveedor",
+        "distancia_total",
+        "exceso_velocidad",
+      ];
+
+      const parser = new Parser({
+        fields,
+      });
+
+      /**
+       * PARSEO Y FORMATEO DE CAMPOS (FECHA)
+       */
+      const csv = parser.parse(
+        registros.map((row) => {
+          const fecha = new Date(row.fecha_hora);
+
+          const dd = String(
+            fecha.getDate()
+          ).padStart(2, "0");
+
+          const mm = String(
+            fecha.getMonth() + 1
+          ).padStart(2, "0");
+
+          const yyyy = fecha.getFullYear();
+
+          const hh = String(
+            fecha.getHours()
+          ).padStart(2, "0");
+
+          const mi = String(
+            fecha.getMinutes()
+          ).padStart(2, "0");
+
+          const ss = String(
+            fecha.getSeconds()
+          ).padStart(2, "0");
+
+          return {
+            ...row,
+            fecha_hora: `${dd}/${mm}/${yyyy} ${hh}:${mi}:${ss}`,
+          };
+        })
+      );
+
+      /**
+       * ESTRUCTURACIÓN DE FECHA PARA EL NOMBRE DEL ARCHIVO
+       */
+      const now = new Date();
+
+      const dd = String(
+        now.getDate()
+          ).padStart(2, "0");
+
+      const mm = String(
+        now.getMonth() + 1
+      ).padStart(2, "0");
+
+      const yyyy = now.getFullYear();
+
+      /**
+       * RETORNO DE RESPUESTA EN FORMATO ADJUNTO BINARIO/TEXTO (CSV)
+       */
+      return {
+        statusCode: 200,
+        headers: {
+          "Content-Type": "text/csv",
+          "Content-Disposition":
+            `attachment; filename=reporte_tracking_${dd}${mm}${yyyy}.csv`,
+        },
+        body: csv,
+      };
+    } catch (error) {
+      return resolveError(error);
+    }
+  };
+
+/**
+ * Controller encargado de listar todos los registros GPS almacenados con filtros dinámicos.
+ */
+export const listRegistrosController = async (event) => {
+  try {
+    /**
+     * VALIDACIÓN DE AUTENTICACIÓN Y ROLES
+     */
+    const authError =
+      await validateAdminGeneral(event);
+
+    if (authError) {
+      return authError;
+    }
+
+    /**
+     * LÓGICA PRINCIPAL
+     */
+    const service = new GpsService();
+
+    const registros =
+      await service.listRegistros(
+        event.queryStringParameters || {}
+      );
 
     return successResponse(
       registros,
-      "Registros GPS obtenidos exitosamente.",
+      "Registros GPS obtenidos exitosamente."
     );
   } catch (error) {
-    console.error("Error en listRegistrosController:", error);
     return resolveError(error);
   }
 };

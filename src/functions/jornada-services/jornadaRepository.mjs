@@ -549,6 +549,131 @@ export class JornadaRepository {
     }
   }
   /**
+   * Obtiene el historial de jornadas completadas de un conductor específico.
+   * Aplica filtros de período y observaciones.
+   * Calcula la duración formateada como "Xh Ym" directamente en SQL.
+   * Solo retorna jornadas con estado = COMPLETADA.
+   *
+   * @param {Object} filtros - Criterios de filtrado
+   * @param {string} filtros.conductor_id - ID del conductor (extraído del token)
+   * @param {string} [filtros.periodo] - 'semana' | 'mes' | 'todas'
+   * @param {string} [filtros.observaciones] - 'todas' | 'con' | 'sin'
+   * @returns {Promise<Object[]>} Lista de jornadas del conductor
+   */
+  async findDriverHistory(filtros) {
+    const client = await getClient();
+
+    try {
+      const { params, periodCondition, obsCondition } = this._buildDriverFilters(filtros);
+
+      const result = await client.query(
+        `
+        SELECT
+          j.id,
+          j.codigo,
+          un.placa,
+          un.marca,
+          un.modelo,
+          j.origen,
+          j.destino,
+          TO_CHAR(j.fecha_jornada, 'YYYY-MM-DD') AS fecha,
+          TO_CHAR(j.hora_inicio, 'HH:MI AM') AS hora_inicio,
+          TO_CHAR(j.hora_fin, 'HH:MI AM') AS hora_fin,
+          j.km_recorridos,
+          j.estado,
+          TRUNC(EXTRACT(EPOCH FROM (j.hora_fin - j.hora_inicio))/3600)::TEXT || 'h ' ||
+          TRUNC((EXTRACT(EPOCH FROM (j.hora_fin - j.hora_inicio))%3600)/60)::TEXT || 'm' AS duracion_formateada,
+          COALESCE(j.observaciones, '') AS observaciones
+        FROM jornadas j
+        JOIN unidades un ON un.id = j.unidad_id
+        WHERE j.conductor_id = $1
+          AND j.estado = 'COMPLETADA'
+          ${periodCondition}
+          ${obsCondition}
+        ORDER BY j.fecha_jornada DESC, j.hora_inicio DESC;
+        `,
+        params
+      );
+
+      return result.rows;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Construye las condiciones de filtro para el historial del conductor.
+   * Genera el filtro de período (semana/mes) y observaciones (con/sin/todas).
+   *
+   * @param {Object} filtros - Criterios de filtrado
+   * @returns {{ params: Array, periodCondition: string, obsCondition: string }}
+   */
+  _buildDriverFilters({ conductor_id, periodo, observaciones } = {}) {
+    const params = [conductor_id];
+
+    let periodCondition = "";
+    if (periodo === "semana") {
+      params.push("7 days");
+      periodCondition = "AND j.fecha_jornada >= NOW() - INTERVAL $2";
+    } else if (periodo === "mes") {
+      params.push("30 days");
+      periodCondition = "AND j.fecha_jornada >= NOW() - INTERVAL $2";
+    }
+
+    let obsCondition = "";
+    if (observaciones === "con") {
+      obsCondition = "AND j.observaciones IS NOT NULL AND j.observaciones <> ''";
+    } else if (observaciones === "sin") {
+      obsCondition = "AND (j.observaciones IS NULL OR j.observaciones = '')";
+    }
+
+    return { params, periodCondition, obsCondition };
+  }
+
+  /**
+   * Obtiene las métricas de resumen del conductor para las tarjetas del dashboard.
+   * Calcula total_jornadas, horas_trabajadas, km_recorridos y con_observaciones.
+   * Las horas se calculan como suma de duración en horas con 1 decimal.
+   *
+   * @param {Object} filtros - Criterios de filtrado
+   * @param {string} filtros.conductor_id - ID del conductor (extraído del token)
+   * @param {string} [filtros.periodo] - 'semana' | 'mes' | 'todas'
+   * @returns {Promise<Object>} Métricas del conductor
+   */
+  async getDriverMetrics(filtros) {
+    const client = await getClient();
+
+    try {
+      const { params, periodCondition } = this._buildDriverFilters(filtros);
+
+      const result = await client.query(
+        `
+        SELECT
+          COUNT(DISTINCT j.id) AS total_jornadas,
+          COALESCE(
+            ROUND(SUM(EXTRACT(EPOCH FROM (j.hora_fin - j.hora_inicio))/3600), 1),
+            0
+          ) AS horas_trabajadas,
+          COALESCE(SUM(j.km_recorridos), 0) AS km_recorridos,
+          COUNT(DISTINCT CASE
+            WHEN j.observaciones IS NOT NULL AND j.observaciones <> ''
+            THEN j.id
+          END) AS con_observaciones
+        FROM jornadas j
+        WHERE j.conductor_id = $1
+          AND j.estado = 'COMPLETADA'
+          ${periodCondition};
+        `,
+        params
+      );
+
+      return result.rows[0];
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Obtiene detalle completo de una alerta.
    */
   async getAlertDetail(jornadaId) {
