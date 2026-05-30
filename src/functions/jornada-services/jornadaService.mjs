@@ -284,4 +284,77 @@ export class JornadaService {
   async getAlertDetail(jornadaId) {
     return this.repository.getAlertDetail(jornadaId);
   }
+
+  /**
+   * Obtiene el historial de jornadas completadas del conductor autenticado.
+   * El conductor_id se注入 desde el token (filtros.conductor_id).
+   * Valida que el período sea válido (semana|mes|todas).
+   *
+   * @param {Object} filtros - Criterios de búsqueda
+   * @param {string} filtros.conductor_id - ID del conductor (del token)
+   * @param {string} [filtros.periodo] - 'semana' | 'mes' | 'todas'
+   * @param {string} [filtros.observaciones] - 'todas' | 'con' | 'sin'
+   * @returns {Promise<Object[]>} Lista de jornadas del conductor
+   * @throws {Error} 400 si el período es inválido
+   */
+  async getDriverHistory(filtros) {
+    const { conductor_id, periodo, observaciones } = filtros;
+
+    if (periodo && !["semana", "mes", "todas"].includes(periodo)) {
+      throw createJornadaError(
+        "El período debe ser: semana, mes o todas.",
+        400,
+        "INVALID_PERIOD"
+      );
+    }
+
+    if (observaciones && !["todas", "con", "sin"].includes(observaciones)) {
+      throw createJornadaError(
+        "El filtro de observaciones debe ser: todas, con o sin.",
+        400,
+        "INVALID_OBSERVACIONES_FILTER"
+      );
+    }
+
+    return this.repository.findDriverHistory({
+      conductor_id,
+      periodo: periodo || "todas",
+      observaciones: observaciones || "todas",
+    });
+  }
+
+  /**
+   * Obtiene las métricas de resumen del conductor autenticado.
+   * El conductor_id se inyecta desde el token.
+   * Valida que el período sea válido (semana|mes|todas).
+   *
+   * @param {Object} filtros - Criterios de búsqueda
+   * @param {string} filtros.conductor_id - ID del conductor (del token)
+   * @param {string} [filtros.periodo] - 'semana' | 'mes' | 'todas'
+   * @returns {Promise<Object>} Métricas del conductor
+   * @throws {Error} 400 si el período es inválido
+   */
+  async getDriverMetrics(filtros) {
+    const { conductor_id, periodo } = filtros;
+
+    if (periodo && !["semana", "mes", "todas"].includes(periodo)) {
+      throw createJornadaError(
+        "El período debe ser: semana, mes o todas.",
+        400,
+        "INVALID_PERIOD"
+      );
+    }
+
+    const metrics = await this.repository.getDriverMetrics({
+      conductor_id,
+      periodo: periodo || "todas",
+    });
+
+    return {
+      total_jornadas: Number(metrics.total_jornadas || 0),
+      horas_trabajadas: Number(metrics.horas_trabajadas || 0),
+      km_recorridos: Number(metrics.km_recorridos || 0),
+      con_observaciones: Number(metrics.con_observaciones || 0),
+    };
+  }
 }

@@ -9,6 +9,189 @@
     "@aws-sdk/client-dynamodb": "^3.398.0",
     "@aws-sdk/lib-dynamodb": "^3.398.0",
     "esbuild": "^0.27.4",
+    "json2csv": "^6.0.0-alpha.2",
+    "node-pg-migrate": "6.2.2",
+    "pg": "^8.20.0",
+    "swagger-jsdoc": "^6.2.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@jest/globals": "^29.7.0",
+    "@testcontainers/postgresql": "^11.13.0",
+    "aws-sdk-client-mock": "^2.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "jest": "^29.2.1",
+    "pg-mem": "^3.0.14",
+    "prettier": "^3.2.5"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
+    "test:unit": "npm run test -- __tests__/unit",
+    "test:integration": "npm run test -- __tests__/integration --runInBand",
+    "test:coverage": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage --coverageReporters=json-summary --coverageReporters=lcov --coverageReporters=text",
+    "lint": "eslint . --ext .js,.mjs",
+    "lint:fix": "eslint . --ext .js,.mjs --fix",
+    "format": "prettier --write \"**/*.{js,mjs,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,mjs,json,md}\"",
+    "migrate:up": "node-pg-migrate up --migrations-dir db/migrations",
+    "migrate:down": "node-pg-migrate down --migrations-dir db/migrations",
+    "migrate:status": "node-pg-migrate status --migrations-dir db/migrations",
+    "migrate:create": "node-pg-migrate create --migrations-dir db/migrations --migration-file-language sql",
+    "generate:openapi": "node scripts/generateOpenAPI.mjs"
+  },
+  "node-pg-migrate": {
+    "databaseUrl": "DATABASE_URL",
+    "migrationsTable": "pgmigrations",
+    "dir": "db/migrations"
+  },
+  "jest": {
+    "testMatch": [
+      "**/__tests__/**/*.test.mjs",
+      "**/src/**/*.test.mjs"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/.aws-sam/",
+      "/__tests__/helpers/",
+      "/__tests__/fixtures/",
+      "/__tests__/mocks/"
+    ],
+    "moduleFileExtensions": [
+      "mjs",
+      "js"
+    ],
+    "collectCoverage": true,
+    "coverageReporters": [
+      "json",
+      "lcov",
+      "text",
+      "clover",
+      "json-summary"
+    ],
+    "coverageDirectory": "coverage",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/.aws-sam/",
+      "/__tests__/",
+      "/coverage/",
+      "/db/migrations/",
+      "/functions/migrator-services/"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.mjs",
+      "!src/**/*.test.mjs",
+      "!src/**/*.mock.mjs",
+      "!**/functions/migrator-services/**"
+    ],
+    "transform": {},
+    "testEnvironment": "node",
+    "verbose": true
+  }
+}
+{
+  "name": "nanutech-backend",
+  "description": "Backend para gestión de camiones - Nanutech",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1021.0",
+    "@aws-sdk/client-dynamodb": "^3.398.0",
+    "@aws-sdk/lib-dynamodb": "^3.398.0",
+    "esbuild": "^0.27.4",
+    "json2csv": "^6.0.0-alpha.2",
+    "node-pg-migrate": "6.2.2",
+    "pg": "^8.20.0",
+    "swagger-jsdoc": "^6.2.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@jest/globals": "^29.7.0",
+    "@testcontainers/postgresql": "^11.13.0",
+    "aws-sdk-client-mock": "^2.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "jest": "^29.2.1",
+    "pg-mem": "^3.0.14",
+    "prettier": "^3.2.5"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
+    "test:unit": "npm run test -- __tests__/unit",
+    "test:integration": "npm run test -- __tests__/integration --runInBand",
+    "test:coverage": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage --coverageReporters=json-summary --coverageReporters=lcov --coverageReporters=text",
+    "lint": "eslint . --ext .js,.mjs",
+    "lint:fix": "eslint . --ext .js,.mjs --fix",
+    "format": "prettier --write \"**/*.{js,mjs,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,mjs,json,md}\"",
+    "migrate:up": "node-pg-migrate up --migrations-dir db/migrations",
+    "migrate:down": "node-pg-migrate down --migrations-dir db/migrations",
+    "migrate:status": "node-pg-migrate status --migrations-dir db/migrations",
+    "migrate:create": "node-pg-migrate create --migrations-dir db/migrations --migration-file-language sql",
+    "generate:openapi": "node scripts/generateOpenAPI.mjs"
+  },
+  "node-pg-migrate": {
+    "databaseUrl": "DATABASE_URL",
+    "migrationsTable": "pgmigrations",
+    "dir": "db/migrations"
+  },
+  "jest": {
+    "testMatch": [
+      "**/__tests__/**/*.test.mjs",
+      "**/src/**/*.test.mjs"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/.aws-sam/",
+      "/__tests__/helpers/",
+      "/__tests__/fixtures/",
+      "/__tests__/mocks/"
+    ],
+    "moduleFileExtensions": [
+      "mjs",
+      "js"
+    ],
+    "collectCoverage": true,
+    "coverageReporters": [
+      "json",
+      "lcov",
+      "text",
+      "clover",
+      "json-summary"
+    ],
+    "coverageDirectory": "coverage",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/.aws-sam/",
+      "/__tests__/",
+      "/coverage/",
+      "/db/migrations/",
+      "/functions/migrator-services/"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.mjs",
+      "!src/**/*.test.mjs",
+      "!src/**/*.mock.mjs",
+      "!**/functions/migrator-services/**"
+    ],
+    "transform": {},
+    "testEnvironment": "node",
+    "verbose": true
+  }
+}
+{
+  "name": "nanutech-backend",
+  "description": "Backend para gestión de camiones - Nanutech",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1021.0",
+    "@aws-sdk/client-dynamodb": "^3.398.0",
+    "@aws-sdk/lib-dynamodb": "^3.398.0",
+    "esbuild": "^0.27.4",
+    "json2csv": "^6.0.0-alpha.2",
     "node-pg-migrate": "6.2.2",
     "pg": "^8.20.0",
     "swagger-jsdoc": "^6.2.8"
