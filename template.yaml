@@ -453,6 +453,19 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /jornadas/alerta/{jornadaId}
             Method: GET
+        GetHistorialChofer:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/historial
+            Method: GET
+        
+        GetMetricasChofer:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /jornadas/metricas
+            Method: GET
       Tags:
         Environment: !Ref StageName
         Servicio: jornada
@@ -531,6 +544,18 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /gps/registros
             Method: GET
+        TrackingGpsSummary:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/tracking/resumen
+            Method: GET
+        ExportTrackingCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /gps/tracking/export
+            Method: GET
       Tags:
         Environment: !Ref StageName
         Servicio: gps
@@ -567,6 +592,18 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /conductores
             Method: GET
+        GetConductorById:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /conductores/{id}
+            Method: GET
+        UpdateLicencia:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /conductores/licencia
+            Method: PUT
         GetStatistics:
           Type: Api
           Properties:
@@ -697,6 +734,55 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/functions/unidad-services/unidadHandler.mjs
+
+  # ===========================================================================
+  # COMBUSTIBLE
+  # POST /combustible
+  # GET  /combustible/ultimo-km/{unidadId}
+  # GET  /combustible/jornada/{jornadaId}
+  # ===========================================================================
+  CombustibleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-combustible"
+      CodeUri: .
+      Handler: src/functions/combustible-services/combustibleHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        CreateCombustible:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /combustible
+            Method: POST
+        GetUltimoKmCombustible:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /combustible/ultimo-km/{unidadId}
+            Method: GET
+        GetCombustibleByJornada:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /combustible/jornada/{jornadaId}
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: combustible
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/combustible-services/combustibleHandler.mjs
 
   # ===========================================================================
   # AUTH — público y autenticado
@@ -857,3 +943,7 @@ Outputs:
   AuditoriaFunctionArn:
     Description: "ARN de la función Auditoría"
     Value: !GetAtt AuditoriaFunction.Arn
+
+  CombustibleFunctionArn:
+    Description: "ARN de la función Combustible"
+    Value: !GetAtt CombustibleFunction.Arn
