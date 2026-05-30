@@ -736,6 +736,55 @@ Resources:
           - src/functions/unidad-services/unidadHandler.mjs
 
   # ===========================================================================
+  # COMBUSTIBLE
+  # POST /combustible
+  # GET  /combustible/ultimo-km/{unidadId}
+  # GET  /combustible/jornada/{jornadaId}
+  # ===========================================================================
+  CombustibleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StageName}-combustible"
+      CodeUri: .
+      Handler: src/functions/combustible-services/combustibleHandler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          LOG_LEVEL: "debug"
+      Events:
+        CreateCombustible:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /combustible
+            Method: POST
+        GetUltimoKmCombustible:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /combustible/ultimo-km/{unidadId}
+            Method: GET
+        GetCombustibleByJornada:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /combustible/jornada/{jornadaId}
+            Method: GET
+      Tags:
+        Environment: !Ref StageName
+        Servicio: combustible
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/functions/combustible-services/combustibleHandler.mjs
+
+  # ===========================================================================
   # AUTH — público y autenticado
   # POST /auth/login
   # POST /auth/forgot-password
@@ -894,3 +943,7 @@ Outputs:
   AuditoriaFunctionArn:
     Description: "ARN de la función Auditoría"
     Value: !GetAtt AuditoriaFunction.Arn
+
+  CombustibleFunctionArn:
+    Description: "ARN de la función Combustible"
+    Value: !GetAtt CombustibleFunction.Arn
