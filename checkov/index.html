@@ -403,9 +403,9 @@
     <h1>Checkov — IaC Security Report</h1>
     <div class="header-meta">
       <span>📦 <strong>TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND</strong></span>
-      <span>🌿 <strong>develop</strong></span>
-      <span>🔖 <strong>9aae506</strong></span>
-      <span>🕒 2026-05-30 15:52 UTC</span>
+      <span>🌿 <strong>333/merge</strong></span>
+      <span>🔖 <strong>231472b</strong></span>
+      <span>🕒 2026-05-31 04:11 UTC</span>
     </div>
   </div>
   <span class="header-badge">FAILED</span>
@@ -423,13 +423,13 @@
 
   <!-- Commit strip -->
   <div class="commit-strip">
-    <span>Scan: <strong>2026-05-30 15:52 UTC</strong></span>
+    <span>Scan: <strong>2026-05-31 04:11 UTC</strong></span>
     <span>·</span>
     <span>Framework: <strong>CloudFormation / SAM</strong></span>
     <span>·</span>
     <span>Herramienta: <strong>Checkov 3.x</strong></span>
     <span>·</span>
-    <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26688166076" target="_blank">Ver ejecución en GitHub Actions →</a>
+    <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26702898087" target="_blank">Ver ejecución en GitHub Actions →</a>
   </div>
 
   <!-- ═══ RESUMEN ═══════════════════════════════════════════════════════ -->
@@ -813,7 +813,7 @@
           <td><code class="rule-id">CKV_AWS_116</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L576–623</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L576–637</span></td>
           <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
           <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -822,7 +822,7 @@
           <td><code class="rule-id">CKV_AWS_173</code></td>
           <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L576–623</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L576–637</span></td>
           <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
           <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -831,7 +831,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L576–623</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L576–637</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -840,7 +840,7 @@
           <td><code class="rule-id">CKV_AWS_116</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L635–701</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L649–715</span></td>
           <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
           <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -849,7 +849,7 @@
           <td><code class="rule-id">CKV_AWS_173</code></td>
           <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L635–701</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L649–715</span></td>
           <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
           <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -858,7 +858,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L635–701</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L649–715</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -867,7 +867,7 @@
           <td><code class="rule-id">CKV_AWS_116</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L707–736</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L721–750</span></td>
           <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
           <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -876,7 +876,7 @@
           <td><code class="rule-id">CKV_AWS_173</code></td>
           <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L707–736</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L721–750</span></td>
           <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
           <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -885,7 +885,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L707–736</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L721–750</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -894,7 +894,7 @@
           <td><code class="rule-id">CKV_AWS_116</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L744–785</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L758–799</span></td>
           <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
           <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -903,7 +903,7 @@
           <td><code class="rule-id">CKV_AWS_173</code></td>
           <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L744–785</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L758–799</span></td>
           <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
           <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -912,7 +912,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L744–785</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L758–799</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -921,7 +921,7 @@
           <td><code class="rule-id">CKV_AWS_116</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L794–850</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L808–864</span></td>
           <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
           <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -930,7 +930,7 @@
           <td><code class="rule-id">CKV_AWS_173</code></td>
           <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L794–850</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L808–864</span></td>
           <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
           <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -939,7 +939,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L794–850</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L808–864</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -948,7 +948,7 @@
           <td><code class="rule-id">CKV_AWS_116</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L855–868</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L869–882</span></td>
           <td class="desc-cell">La función Lambda no tiene Dead Letter Queue (DLQ) configurada. Sin DLQ los mensajes fallidos se pierden silenciosamente.</td>
           <td class="fix-cell">Agregar DeadLetterQueue con Type: SQS y TargetArn: !GetAtt <queue>.Arn en la propiedad de la función.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-a-dead-letter-queue-dlq" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -957,7 +957,7 @@
           <td><code class="rule-id">CKV_AWS_173</code></td>
           <td class="rule-name-cell">Check encryption settings for Lambda environment variable</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L855–868</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L869–882</span></td>
           <td class="desc-cell">Las variables de entorno de Lambda no están cifradas con una clave KMS personalizada. Los valores sensibles quedan expuestos con la clave AWS por defecto.</td>
           <td class="fix-cell">Agregar KmsKeyArn: !GetAtt <key>.Arn en la sección Environment de cada función que maneje datos sensibles.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-serverless-policies/bc-aws-serverless-5" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -966,7 +966,7 @@
           <td><code class="rule-id">CKV_AWS_115</code></td>
           <td class="rule-name-cell">Ensure that AWS Lambda function is configured for function-level concurrent execution limit</td>
           <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L855–868</span></td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L869–882</span></td>
           <td class="desc-cell">La función Lambda no tiene límite de concurrencia configurado. Sin este límite, una función puede agotar las concurrencias disponibles de toda la cuenta.</td>
           <td class="fix-cell">Agregar ReservedConcurrentExecutions: <número> en la propiedad de cada AWS::Serverless::Function.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-that-aws-lambda-function-is-configured-for-function-level-concurrent-execution-limit" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
@@ -992,8 +992,8 @@
 <footer>
   🏗️ Checkov IaC Security Report &nbsp;·&nbsp;
   <a href="https://www.checkov.io/" target="_blank">Checkov</a> &nbsp;·&nbsp;
-  <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26688166076" target="_blank">GitHub Actions Run</a> &nbsp;·&nbsp;
-  Generado automáticamente · 2026-05-30 15:52 UTC
+  <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/26702898087" target="_blank">GitHub Actions Run</a> &nbsp;·&nbsp;
+  Generado automáticamente · 2026-05-31 04:11 UTC
 </footer>
 
 <script>
