@@ -6,6 +6,8 @@ const mockValidateCsv = jest.fn();
 const mockImportCsv = jest.fn();
 const mockGetSummary = jest.fn();
 const mockListRegistros = jest.fn();
+const mockGetTrackingSummary = jest.fn();
+const mockExportTrackingCsv = jest.fn();
 
 jest.unstable_mockModule(
   "../../../src/functions/gps-services/gpsController.mjs",
@@ -16,6 +18,8 @@ jest.unstable_mockModule(
     importCsvController: mockImportCsv,
     getSummaryController: mockGetSummary,
     listRegistrosController: mockListRegistros,
+    getTrackingSummaryController: mockGetTrackingSummary,
+    exportTrackingCsvController: mockExportTrackingCsv,
   }),
 );
 

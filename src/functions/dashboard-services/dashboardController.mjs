@@ -22,6 +22,11 @@ async (event) => {
     const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
 
     // Valida el token y obtiene la sesión actual del usuario.
+    if (!authorizationHeader) {
+      return errorResponse("Token requerido", 401, {
+        code: "INVALID_TOKEN",
+      });
+    }
     const session = await getCurrentSession(authorizationHeader);
 
     // Regla de seguridad: solo el Administrador de Operaciones puede registrar contratos.

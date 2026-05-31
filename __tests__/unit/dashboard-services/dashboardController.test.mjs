@@ -60,7 +60,11 @@ describe("dashboardController", () => {
     });
 
     expect(result.statusCode).toBe(200);
-    expect(JSON.parse(result.body)).toEqual(dashboard);
+    expect(JSON.parse(result.body)).toEqual({
+      success: true,
+      message: "Dashboard obtenido correctamente",
+      data: dashboard
+    });
     expect(getCurrentSession).toHaveBeenCalledWith("Bearer token");
   });
 
