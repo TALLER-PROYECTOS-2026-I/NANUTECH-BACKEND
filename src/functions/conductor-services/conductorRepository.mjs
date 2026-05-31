@@ -286,4 +286,267 @@ export class ConductorRepository {
 
     return result.rows[0];
   }
+  /**
+   * Valida duplicados por DNI, correo o número de licencia.
+   */
+  async validarDuplicadosConductor({ dni, email, numeroLicencia }) {
+    const result = await db.query(
+      `
+      SELECT 1
+      FROM usuarios u
+      LEFT JOIN licencias_conducir l
+        ON l.conductor_id = u.id
+      WHERE u.dni = $1
+         OR u.correo = $2
+         OR l.numero_licencia = $3
+      LIMIT 1;
+      `,
+      [dni, email, numeroLicencia]
+    );
+
+    return result.rowCount > 0;
+  }
+
+  /**
+   * Registra un nuevo conductor en el sistema.
+   *
+   * Flujo:
+   * 1. Inicia transacción PostgreSQL
+   * 2. Registra usuario
+   * 3. Registra conductor
+   * 4. Registra licencia
+   * 5. Crea usuario en AWS Cognito
+   * 6. Guarda el cognito_sub
+   * 7. Ejecuta COMMIT
+   *
+   * Si Cognito falla:
+   * - Ejecuta ROLLBACK
+   * - Elimina usuario Cognito creado
+   * - Retorna mensaje de error controlado
+   */
+  async registrarNuevoConductor(data, cognitoService) {
+    /**
+     * Variable utilizada para controlar
+     * si el usuario fue creado exitosamente
+     * en AWS Cognito.
+     */
+    let emailCreadoEnCognito = null;
+
+    try {
+      /**
+       * Inicia transacción de base de datos.
+       */
+      await db.query("BEGIN");
+
+      const { nombreCompleto, email, dni, telefono, numeroLicencia, categoria, fechaVencimiento } =
+        data;
+
+      /**
+       * Separa nombres y apellidos
+       * a partir del nombre completo enviado.
+       */
+      const partesNombre = nombreCompleto.trim().split(" ");
+
+      const nombres = partesNombre.slice(0, -1).join(" ") || nombreCompleto;
+
+      const apellidos = partesNombre.length > 1 ? partesNombre.slice(-1).join(" ") : "";
+
+      /**
+       * Registra usuario base en la tabla usuarios.
+       *
+       * Estado inicial:
+       * - ACTIVO
+       * - Rol CHOFER
+       */
+      const usuarioResult = await db.query(
+        `
+      INSERT INTO usuarios (
+        correo,
+        nombres,
+        apellidos,
+        rol,
+        telefono,
+        dni,
+        activo,
+        estado,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        'CHOFER',
+        $4,
+        $5,
+        TRUE,
+        'ACTIVO',
+        NOW(),
+        NOW()
+      )
+      RETURNING
+        id,
+        correo,
+        nombres,
+        apellidos,
+        rol,
+        telefono,
+        dni,
+        activo,
+        estado;
+      `,
+        [email, nombres, apellidos, telefono, dni]
+      );
+
+      const usuario = usuarioResult.rows[0];
+
+      /**
+       * Registra conductor operativo.
+       *
+       * Estado inicial:
+       * DISPONIBLE
+       */
+      await db.query(
+        `
+      INSERT INTO conductores (
+        usuario_id,
+        estado_operacional,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,
+        'DISPONIBLE',
+        NOW(),
+        NOW()
+      );
+      `,
+        [usuario.id]
+      );
+
+      /**
+       * Registra licencia inicial del conductor.
+       */
+      const licenciaResult = await db.query(
+        `
+      INSERT INTO licencias_conducir (
+        conductor_id,
+        numero_licencia,
+        categoria,
+        fecha_vencimiento,
+        activa,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        TRUE,
+        NOW(),
+        NOW()
+      )
+      RETURNING
+        numero_licencia,
+        categoria,
+        fecha_vencimiento,
+        activa;
+      `,
+        [usuario.id, numeroLicencia, categoria, fechaVencimiento]
+      );
+
+      /**
+       * Crea usuario en AWS Cognito.
+       *
+       * Cognito enviará automáticamente
+       * las credenciales temporales
+       * al correo corporativo registrado.
+       */
+      const usuarioCognito = await cognitoService.crearUsuarioConductor({
+        email,
+        dni,
+        nombreCompleto,
+      });
+
+      /**
+       * Marca que Cognito fue creado
+       * correctamente.
+       */
+      emailCreadoEnCognito = email;
+
+      /**
+       * Guarda el identificador único
+       * generado por Cognito.
+       */
+      await db.query(
+        `
+      UPDATE usuarios
+      SET cognito_sub = $1,
+          updated_at = NOW()
+      WHERE id = $2;
+      `,
+        [usuarioCognito.cognitoSub, usuario.id]
+      );
+
+      /**
+       * Confirma la transacción.
+       */
+      await db.query("COMMIT");
+
+      /**
+       * Retorna información registrada.
+       */
+      return {
+        id: usuario.id,
+        nombres: usuario.nombres,
+        apellidos: usuario.apellidos,
+        email: usuario.correo,
+        dni: usuario.dni,
+        telefono: usuario.telefono,
+        rol: usuario.rol,
+        activo: usuario.activo,
+        estado: usuario.estado,
+        estadoOperacional: "DISPONIBLE",
+        licencia: licenciaResult.rows[0],
+        camionAsignado: "Sin asignar",
+        cognito: {
+          username: usuarioCognito.username,
+          cognitoSub: usuarioCognito.cognitoSub,
+        },
+      };
+    } catch (error) {
+      /**
+       * Revierte todos los cambios
+       * realizados en PostgreSQL.
+       */
+      await db.query("ROLLBACK");
+
+      /**
+       * Si Cognito alcanzó a crear
+       * un usuario antes del error,
+       * se elimina para evitar
+       * inconsistencias.
+       */
+      if (emailCreadoEnCognito) {
+        try {
+          await cognitoService.eliminarUsuarioConductor(emailCreadoEnCognito);
+        } catch (deleteError) {
+          console.error("Error eliminando usuario Cognito:", deleteError);
+        }
+      }
+
+      console.error("Error en registrarNuevoConductor:", error);
+
+      /**
+       * Error funcional solicitado
+       * por la HU22.
+       */
+      const customError = new Error(
+        "Error en la creación de credenciales. Registro no guardado. Intente nuevamente"
+      );
+      customError.statusCode = error.statusCode || 500;
+      throw customError;
+    }
+  }
 }
