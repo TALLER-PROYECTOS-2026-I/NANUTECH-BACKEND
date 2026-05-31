@@ -305,3 +305,112 @@ export const getCognitoSession = async (accessToken) => {
     );
   }
 };
+
+
+  /**
+   * Crea un usuario conductor en AWS Cognito.
+   *
+   * Al registrarse:
+   * - Se genera una contraseña temporal
+   * - Se registra el correo electrónico
+   * - Se registra el DNI como atributo personalizado
+   * - Cognito envía automáticamente
+   *   las credenciales por correo
+   */
+export const createConductorUserWithCognito = async ({
+  email,
+  dni,
+  nombreCompleto,
+}) => {
+  try {
+    const client = getClient();
+
+    /**
+     * Configuración de creación
+     * del usuario Cognito.
+     */
+    const command = new AdminCreateUserCommand({
+      UserPoolId: process.env.COGNITO_USER_POOL_ID,
+      Username: email,
+      TemporaryPassword:
+        process.env.COGNITO_TEMP_PASSWORD || "Nanutech2026!",
+      UserAttributes: [
+        { Name: "email", Value: email },
+        { Name: "email_verified", Value: "true" },
+        { Name: "name", Value: nombreCompleto },
+        { Name: "custom:dni", Value: dni },
+        { Name: "custom:role", Value: "chofer" },
+      ],
+      /**
+       * Indica que Cognito enviará
+       * automáticamente las credenciales
+       * al correo registrado.
+       */
+      DesiredDeliveryMediums: ["EMAIL"],
+    });
+
+    /**
+     * Ejecuta creación
+     * del usuario Cognito.
+     */
+    const result = await client.send(command);
+
+     /**
+     * Obtiene el identificador único
+     * generado por Cognito.
+     */
+    const subAttribute = result.User?.Attributes?.find(
+      (attribute) => attribute.Name === "sub"
+    );
+
+    return {
+      /**
+       * Nombre de usuario Cognito.
+       */
+      username: result.User?.Username,
+      /**
+       * Identificador único Cognito.
+       */
+      cognitoSub: subAttribute?.Value || null,
+    };
+  } catch (error) {
+    throw createAuthError(
+      "Error al crear usuario conductor en Cognito",
+      502,
+      "COGNITO_CREATE_CONDUCTOR_ERROR"
+    );
+  }
+};
+
+
+  /**
+   * Elimina un usuario conductor
+   * previamente creado en Cognito.
+   *
+   * Utilizado durante el proceso
+   * de rollback cuando ocurre
+   * un error después de crear
+   * las credenciales.
+   */
+export const deleteConductorUserWithCognito = async (email) => {
+  try {
+    const client = getClient();
+
+    const command = new AdminDeleteUserCommand({
+      UserPoolId: process.env.COGNITO_USER_POOL_ID,
+      Username: email,
+    });
+
+    /**
+     * Ejecuta eliminación
+     * del usuario Cognito.
+     */
+    await client.send(command);
+  } catch (error) {
+    throw createAuthError(
+      "Error al eliminar usuario conductor en Cognito",
+      502,
+      "COGNITO_DELETE_CONDUCTOR_ERROR"
+    );
+  }
+};
