@@ -215,25 +215,25 @@ export const getConductorDetailController = async (event) => {
  */
 export const crearConductorController = async (event) => {
   try {
-    // /**
-    //  * Obtiene token enviado
-    //  * en el header Authorization.
-    //  */
-    // const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    /**
+     * Obtiene token enviado
+     * en el header Authorization.
+     */
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
 
-    // /**
-    //  * Valida sesión del usuario
-    //  * autenticado mediante Cognito.
-    //  */
-    // const session = await getCurrentSession(authorizationHeader);
+    /**
+     * Valida sesión del usuario
+     * autenticado mediante Cognito.
+     */
+    const session = await getCurrentSession(authorizationHeader);
 
-    // /**
-    //  * Solo Administradores Generales
-    //  * pueden registrar conductores.
-    //  */
-    // if (session.role !== "admin" && session.role !== "ADMIN") {
-    //   return errorResponse("Acceso denegado", 403);
-    // }
+    /**
+     * Solo Administradores Generales
+     * pueden registrar conductores.
+     */
+    if (session.role !== "admin" && session.role !== "ADMIN") {
+      return errorResponse("Acceso denegado", 403);
+    }
 
     /**
      * Obtiene información enviada
