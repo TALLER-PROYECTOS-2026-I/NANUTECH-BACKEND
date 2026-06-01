@@ -64,7 +64,7 @@ describe("conductorController", () => {
 
     getCurrentSession.mockResolvedValue({
       userId: "123",
-      role: "CHOFER",
+      role: "chofer",
     });
 
     LicenciaValidator.validateUpdateLicencia.mockImplementation((data) => data);
@@ -200,7 +200,7 @@ describe("conductorController", () => {
     it("debería retornar 403 si no es CHOFER", async () => {
       getCurrentSession.mockResolvedValue({
         userId: "123",
-        role: "ADMIN",
+        role: "admin",
       });
 
       const result = await updateLicenciaController({
@@ -216,7 +216,7 @@ describe("conductorController", () => {
     beforeEach(() => {
       getCurrentSession.mockResolvedValue({
         userId: "1",
-        role: "ADMIN",
+        role: "admin",
       });
     });
 
@@ -248,7 +248,7 @@ describe("conductorController", () => {
     it("debería retornar 403 si no es ADMIN", async () => {
       getCurrentSession.mockResolvedValue({
         userId: "1",
-        role: "CHOFER",
+        role: "chofer",
       });
 
       const result = await getConductorDetailController({

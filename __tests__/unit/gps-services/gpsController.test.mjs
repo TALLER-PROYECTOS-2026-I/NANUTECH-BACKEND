@@ -8,26 +8,20 @@ const mockGetSummary = jest.fn();
 const mockListRegistros = jest.fn();
 const mockGetCurrentSession = jest.fn();
 
-jest.unstable_mockModule(
-  "../../../src/functions/gps-services/gpsService.mjs",
-  () => ({
-    GpsService: jest.fn().mockImplementation(() => ({
-      getProviders: mockGetProviders,
-      getTemplate: mockGetTemplate,
-      validateCsv: mockValidateCsv,
-      importCsv: mockImportCsv,
-      getSummary: mockGetSummary,
-      listRegistros: mockListRegistros,
-    })),
-  }),
-);
+jest.unstable_mockModule("../../../src/functions/gps-services/gpsService.mjs", () => ({
+  GpsService: jest.fn().mockImplementation(() => ({
+    getProviders: mockGetProviders,
+    getTemplate: mockGetTemplate,
+    validateCsv: mockValidateCsv,
+    importCsv: mockImportCsv,
+    getSummary: mockGetSummary,
+    listRegistros: mockListRegistros,
+  })),
+}));
 
-jest.unstable_mockModule(
-  "../../../src/functions/auth-services/authService.mjs",
-  () => ({
-    getCurrentSession: mockGetCurrentSession,
-  }),
-);
+jest.unstable_mockModule("../../../src/functions/auth-services/authService.mjs", () => ({
+  getCurrentSession: mockGetCurrentSession,
+}));
 
 const {
   getProvidersController,

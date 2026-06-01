@@ -66,6 +66,7 @@ const DURATION_SQL = `
 function buildFilters({
   q,
   conductor_id,
+  estado,
   fecha_desde,
   fecha_hasta,
   estado_alerta,
@@ -77,11 +78,15 @@ function buildFilters({
   if (q) {
     params.push(`%${q}%`);
     const idx = params.length;
-    conditions.push(`(un.placa ILIKE $${idx} OR u.nombres || ' ' || u.apellidos ILIKE $${idx})`);
+    conditions.push(`(un.placa ILIKE $${idx} OR u.nombres || ' ' || u.apellidos ILIKE $${idx} OR c.codigo ILIKE $${idx})`);
   }
   if (conductor_id) {
     params.push(conductor_id);
     conditions.push(`j.conductor_id = $${params.length}`);
+  }
+  if (estado) {
+    params.push(estado);
+    conditions.push(`j.estado = $${params.length}`);
   }
   if (fecha_desde) {
     params.push(fecha_desde);

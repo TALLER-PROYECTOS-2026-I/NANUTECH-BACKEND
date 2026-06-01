@@ -3,20 +3,11 @@ import { getDashboardService } from "./dashboardService.mjs";
 import { getCurrentSession } from "../auth-services/authService.mjs";
 
 // Importa helpers response.
-import {
-
-  successResponse,
-
-  errorResponse
-
-} from "../../shared/utils/response/response.mjs";
-
+import { successResponse, errorResponse } from "../../shared/utils/response/response.mjs";
 
 // CONTROLADOR DASHBOARD
 
-export const getDashboardController =
-async (event) => {
-
+export const getDashboardController = async (event) => {
   try {
     // Obtiene el token enviado en el header Authorization.
     const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
@@ -38,26 +29,21 @@ async (event) => {
 
     // OBTIENE DATA DEL DASHBOARD
 
-    const data =
-      await getDashboardService();
+    const data = await getDashboardService();
 
     // RESPUESTA EXITOSA
 
     return successResponse(
-
       data,
 
       "Dashboard obtenido correctamente",
 
       200
     );
-
   } catch (error) {
-
     // LOG ERROR
 
     console.error(
-
       "Error en dashboard controller:",
 
       error
@@ -66,7 +52,6 @@ async (event) => {
     // RESPUESTA ERROR
 
     return errorResponse(
-
       "Error interno del servidor",
 
       500

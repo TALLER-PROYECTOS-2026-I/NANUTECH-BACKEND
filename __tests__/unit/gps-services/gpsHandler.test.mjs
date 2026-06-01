@@ -9,23 +9,18 @@ const mockListRegistros = jest.fn();
 const mockGetTrackingSummary = jest.fn();
 const mockExportTrackingCsv = jest.fn();
 
-jest.unstable_mockModule(
-  "../../../src/functions/gps-services/gpsController.mjs",
-  () => ({
-    getProvidersController: mockGetProviders,
-    getTemplateController: mockGetTemplate,
-    validateCsvController: mockValidateCsv,
-    importCsvController: mockImportCsv,
-    getSummaryController: mockGetSummary,
-    listRegistrosController: mockListRegistros,
-    getTrackingSummaryController: mockGetTrackingSummary,
-    exportTrackingCsvController: mockExportTrackingCsv,
-  }),
-);
+jest.unstable_mockModule("../../../src/functions/gps-services/gpsController.mjs", () => ({
+  getProvidersController: mockGetProviders,
+  getTemplateController: mockGetTemplate,
+  validateCsvController: mockValidateCsv,
+  importCsvController: mockImportCsv,
+  getSummaryController: mockGetSummary,
+  listRegistrosController: mockListRegistros,
+  getTrackingSummaryController: mockGetTrackingSummary,
+  exportTrackingCsvController: mockExportTrackingCsv,
+}));
 
-const { handler } = await import(
-  "../../../src/functions/gps-services/gpsHandler.mjs"
-);
+const { handler } = await import("../../../src/functions/gps-services/gpsHandler.mjs");
 
 describe("HU08 - GpsHandler", () => {
   beforeEach(() => {
