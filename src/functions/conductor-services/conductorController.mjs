@@ -126,7 +126,7 @@ export const updateLicenciaController = async (event) => {
      * Solo chofer puede actualizar
      * su licencia.
      */
-    if (session.role !== "CHOFER") {
+    if (session.role !== "chofer") {
       return errorResponse("Acceso denegado", 403);
     }
 
@@ -181,7 +181,7 @@ export const getConductorDetailController = async (event) => {
     /**
      * Solo ADMIN
      */
-    if (session.role !== "ADMIN") {
+    if (session.role !== "admin") {
       return errorResponse("Acceso denegado", 403);
     }
 

@@ -215,19 +215,36 @@ export class ConductorRepository {
         u.correo,
         u.telefono,
         u.dni,
+          u.created_at AS fecha_contratacion,
+  
+          lc.numero_licencia,
+          lc.categoria,
+          lc.fecha_emision,
+          lc.fecha_vencimiento,
+          lc.autoridad_emisora,
 
-        lc.numero_licencia,
-        lc.categoria,
-        lc.fecha_emision,
-        lc.fecha_vencimiento,
-        lc.autoridad_emisora
+          (
+            SELECT json_build_object(
+              'placa', un.placa,
+              'marca', un.marca,
+              'modelo', un.modelo,
+              'anio', un.anio,
+              'capacidad_ton', un.capacidad_ton
+            )
+            FROM asignaciones_conductor_unidad acu
+            JOIN unidades un ON un.id = acu.unidad_id
+            WHERE acu.conductor_id = u.id AND acu.estado = 'ACTIVA'
+            LIMIT 1
+          ) AS camion_asignado,
 
-      FROM usuarios u
-
-      LEFT JOIN licencias_conducir lc
-        ON lc.conductor_id = u.id
-
-      WHERE u.id = $1
+          (
+            SELECT CASE
+              WHEN COUNT(*) > 0 THEN 'ACTIVO'
+              ELSE 'INACTIVO'
+            END
+            FROM jornadas j
+            WHERE j.conductor_id = u.id AND j.estado = 'EN_PROCESO'
+          ) AS estado_actual
     `;
 
     const result = await db.query(query, [conductorId]);

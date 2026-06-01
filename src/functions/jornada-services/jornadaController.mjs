@@ -245,18 +245,20 @@ export const getManagerHistoryController = async (event) => {
 
     const jornadaService = new JornadaService();
 
-    const { conductor, estado_alerta, fecha_desde, fecha_hasta, observaciones } =
+    const { q, conductor_id, estado, estado_alerta, fecha_desde, fecha_hasta, observaciones, conductor } =
       event.queryStringParameters || {};
 
-    // Validación de rango de fechas
+    // ValidaciÃ³n de rango de fechas
     if (fecha_desde && fecha_hasta && fecha_desde > fecha_hasta) {
       return errorResponse("La fecha de inicio no puede ser posterior a la fecha de fin.", 400, {
         code: "INVALID_DATE_RANGE",
       });
     }
 
-    const data = await jornadaService.getAllJornadas({
-      conductor,
+    const data = await jornadaService.getManagerHistory({
+      q: q || conductor,
+      conductor_id,
+      estado,
       estado_alerta,
       fecha_desde,
       fecha_hasta,
