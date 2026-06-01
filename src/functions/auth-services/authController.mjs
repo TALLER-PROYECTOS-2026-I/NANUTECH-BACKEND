@@ -1,5 +1,7 @@
 import { errorResponse, successResponse } from "../../shared/utils/response/response.mjs";
 import * as authService from "./authService.mjs";
+import { registrarAcceso } from "../auditoria-services/auditoriaService.mjs";
+
 const parseJsonBody = (body) => {
   if (!body) return {};
 
@@ -54,6 +56,12 @@ export const loginAttempt = async (event) => {
   try {
     const body = parseJsonBody(event.body);
     const result = await authService.handleLoginAttempt(body.email, body.password);
+
+    // Si el login es exitoso y retorna un token o usuario válido
+    if (result && result.user) {
+      // Registramos silenciosamente el evento de auditoria
+      await registrarAcceso(event, result.user);
+    }
 
     return successResponse(result, "Resultado de login");
   } catch (error) {
