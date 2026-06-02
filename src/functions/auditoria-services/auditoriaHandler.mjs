@@ -1,29 +1,54 @@
+import { 
+  getAuditoriaResumenController, 
+  getAuditoriaRegistrosController, 
+  exportAuditoriaCsvController 
+} from "./auditoriaController.mjs";
+
 /**
- * Handler: Auditoría de Accesos
- * HU13 - Punto de entrada Lambda para API Gateway
- *
- * Rutas registradas en template.yaml (AuditoriaFunction):
- *   GET /dashboard/auditoria  → getAuditoria (solo ADMIN)
- *
- * Patrón idéntico al de los demás handlers del proyecto.
+ * Mapeo de las rutas HTTP a sus respectivos controladores.
+ * En API Gateway usamos Lambda Proxy Integration.
  */
-
-import { errorResponse } from '../../shared/utils/response/response.mjs';
-import { getAuditoria } from './auditoriaController.mjs';
-
-// ─── Tabla de rutas ───────────────────────────────────────────────────────────
 const routes = {
-  'GET /dashboard/auditoria': getAuditoria,
+  "GET /auditoria/resumen": getAuditoriaResumenController,
+  "GET /auditoria/registros": getAuditoriaRegistrosController,
+  "GET /auditoria/exportar/csv": exportAuditoriaCsvController,
 };
 
-// ─── Entry point Lambda ───────────────────────────────────────────────────────
+/**
+ * Handler principal para la función Lambda `AuditoriaFunction`.
+ * Actúa como un enrutador (Router) inicial para derivar las peticiones
+ * a los controladores según el método HTTP y la ruta del recurso.
+ *
+ * @param {Object} event - Evento entrante desde API Gateway.
+ * @returns {Object} Respuesta compatible con API Gateway (statusCode, headers, body).
+ */
 export const handler = async (event) => {
-  const routeKey = `${event.httpMethod} ${event.resource}`;
-  const controller = routes[routeKey];
+  try {
+    // Generar la llave de ruta (ej. "GET /auditoria/resumen")
+    const routeKey = `${event.httpMethod} ${event.resource}`;
+    
+    // Obtener el controlador asociado a la ruta
+    const controller = routes[routeKey];
 
-  if (!controller) {
-    return errorResponse('Ruta no encontrada', 404, { code: 'ROUTE_NOT_FOUND' });
+    // Si la ruta no existe en nuestro mapeo, devolvemos 404
+    if (!controller) {
+      return {
+        statusCode: 404,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ success: false, message: `Ruta ${routeKey} no encontrada` }),
+      };
+    }
+
+    // Ejecutar el controlador correspondiente enviado el evento completo
+    return await controller(event);
+  } catch (error) {
+    console.error("Error crítico en auditoriaHandler:", error);
+    
+    // Respuesta de falla de todo el servicio para que la app no colapse globalmente
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ success: false, message: "Internal Server Error" }),
+    };
   }
-
-  return await controller(event);
 };

@@ -207,3 +207,73 @@ export const getConductorDetailController = async (event) => {
     return errorResponse(error.message, 500);
   }
 };
+
+
+/**
+ * Controller encargado de registrar un nuevo conductor.
+ * HU22 - Registro de Nuevo Conductor
+ */
+export const crearConductorController = async (event) => {
+  try {
+    /**
+     * Obtiene token enviado
+     * en el header Authorization.
+     */
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+
+    /**
+     * Valida sesión del usuario
+     * autenticado mediante Cognito.
+     */
+    const session = await getCurrentSession(authorizationHeader);
+
+    /**
+     * Solo Administradores Generales
+     * pueden registrar conductores.
+     */
+    if (session.role !== "admin" && session.role !== "ADMIN") {
+      return errorResponse("Acceso denegado", 403);
+    }
+
+    /**
+     * Obtiene información enviada
+     * desde el formulario de registro.
+     */
+    const body = JSON.parse(event.body || "{}");
+
+    /**
+     * Instancia la capa de servicio
+     * encargada de la lógica de negocio.
+     */
+    const conductorService = new ConductorService();
+
+    /**
+     * Registra conductor.
+     *
+     * Flujo:
+     * - Validaciones
+     * - Verificación de duplicados
+     * - Registro en PostgreSQL
+     * - Creación de credenciales Cognito
+     * - Rollback automático si ocurre error
+     */
+    const conductor = await conductorService.registrarNuevoConductor(body);
+
+    /**
+     * Retorna respuesta exitosa.
+     */
+    return successResponse(conductor, "¡Conductor registrado exitosamente!", 201);
+  } catch (error) {
+    console.error("Error en crearConductorController:", error);
+
+    /**
+     * Retorna mensaje controlado
+     */
+    return errorResponse(
+      error.statusCode
+        ? error.message
+        : "Error en la creación de credenciales. Registro no guardado. Intente nuevamente",
+      error.statusCode || 500
+    );
+  }
+};
