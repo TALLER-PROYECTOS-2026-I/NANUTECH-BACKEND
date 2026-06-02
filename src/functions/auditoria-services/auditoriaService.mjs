@@ -1,9 +1,9 @@
 import { insertAuditoriaAcceso } from "./auditoriaRepository.mjs";
 
 /**
- * Procesa y registra la información de acceso de manera asíncrona.
+ * Procesa y registra la informaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n de acceso de manera asÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ncrona.
  * Funciona como "hook/interceptor" dentro del servicio de Auth.
- * Evita romper el login si falla la inserción de auditoría atrapando el error sin lanzarlo.
+ * Evita romper el login si falla la inserciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n de auditorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­a atrapando el error sin lanzarlo.
  *
  * @param {Object} event - Evento original de APIGateway (requerido para rastrear headers)
  * @param {Object} user - Objeto de usuario que acaba de logearse
@@ -20,24 +20,24 @@ export const registrarAcceso = async (event, user) => {
     // Tomamos la primera IP disponible que identifique al cliente final o fallback al contexto de identidad
     const direccionIp = xForwardedFor.split(',')[0] || event.requestContext?.identity?.sourceIp || 'Desconocida';
     
-    // Extraer User Agent para conocer desde qué navegador OS o Dispositivo entró
+    // Extraer User Agent para conocer desde quÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© navegador OS o Dispositivo entrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³
     const navegador = headers['User-Agent'] || headers['user-agent'] || 'Desconocido';
 
-    // Disparar escritura asíncrona hacia la base de datos
+    // Disparar escritura asÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ncrona hacia la base de datos
     await insertAuditoriaAcceso(user.id, direccionIp, navegador);
     
-    console.log(`[Auditoría] Login registrado para ${user.email} desde IP: ${direccionIp}`);
+    console.log(`[AuditorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­a] Login registrado para ${user.email} desde IP: ${direccionIp}`);
   } catch (error) {
-    // La auditoría no debe romper el flujo de login si llega a fallar. (Fail-safeth)
-    console.error("[Auditoría] Error al registrar acceso:", error.message);
+    // La auditorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­a no debe romper el flujo de login si llega a fallar. (Fail-safeth)
+    console.error("[AuditorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­a] Error al registrar acceso:", error.message);
   }
 };
 
 import { getResumenAccesosDB, getRegistrosDB } from "./auditoriaRepository.mjs";
 
 /**
- * Función utilitaria para transformar Fechas formato ISO Date
- * en una representación separada de { fecha, hora } para la interfaz.
+ * FunciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n utilitaria para transformar Fechas formato ISO Date
+ * en una representaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n separada de { fecha, hora } para la interfaz.
  */
 const formatearFechaHora = (fechaIso) => {
   const d = new Date(fechaIso);
@@ -50,8 +50,8 @@ const formatearFechaHora = (fechaIso) => {
 };
 
 /**
- * Orquesta la captura de los resúmenes estadísticos llamando al repositorio.
- * Mapea la información consolidada lista para ser pintada en los "Kpis" del admin.
+ * Orquesta la captura de los resÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºmenes estadÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­sticos llamando al repositorio.
+ * Mapea la informaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n consolidada lista para ser pintada en los "Kpis" del admin.
  */
 export const obtenerResumenAuditoria = async () => {
   const data = await getResumenAccesosDB();
@@ -63,7 +63,7 @@ export const obtenerResumenAuditoria = async () => {
     CHOFER: 0
   };
 
-  // Re-asignamos las cantidades según lo contabilizado en DB
+  // Re-asignamos las cantidades segÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºn lo contabilizado en DB
   data.roles.forEach(r => {
     if (progresoRoles[r.rol] !== undefined) {
       progresoRoles[r.rol] = parseInt(r.cantidad, 10);
@@ -92,21 +92,21 @@ export const obtenerRegistrosAuditoria = async (search, rol) => {
   return rows.map(r => {
     const { fecha, hora } = formatearFechaHora(r.fecha_hora);
     return {
-      id_registro: r.id_registro,
+      id: r.id,
       usuario: r.usuario,
       email: r.email,
-      rol: r.rol,
+      rol: (() => { const m = { ADMIN: 'Administrador', CHOFER: 'Conductor', GERENTE: 'Gerente' }; return m[r.rol] || r.rol || 'Desconocido'; })(),
       fecha,
       hora,
-      direccion_ip: r.direccion_ip,
+      ip: r.direccion_ip,
       navegador: r.navegador
     };
   });
 };
 
 /**
- * Encargado de construir el string .CSV basándose en los registros existentes.
- * Actúa iterando las filas y uniéndolas junto con las cabeceras estándar.
+ * Encargado de construir el string .CSV basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ndose en los registros existentes.
+ * ActÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºa iterando las filas y uniÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ndolas junto con las cabeceras estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ndar.
  */
 export const generarCsvAuditoria = async (search, rol) => {
   const registros = await obtenerRegistrosAuditoria(search, rol);
@@ -117,7 +117,7 @@ export const generarCsvAuditoria = async (search, rol) => {
   // Agregar cada registro aplicando el escape respectivo de comillas dobles en caso sea necesario
   registros.forEach(r => {
     const navEscapado = `"${(r.navegador || '').replace(/"/g, '""')}"`;
-    csv += `${r.id_registro},${r.usuario},${r.email},${r.rol},${r.fecha},${r.hora},${r.direccion_ip},${navEscapado}\n`;
+    csv += `${r.id},${r.usuario},${r.email},${r.rol},${r.fecha},${r.hora},${r.ip},${navEscapado}\n`;
   });
   
   return csv;

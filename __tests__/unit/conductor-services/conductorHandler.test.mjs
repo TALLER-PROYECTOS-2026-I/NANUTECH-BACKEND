@@ -14,6 +14,7 @@ jest.unstable_mockModule(
     getConductorStatisticsController: jest.fn(),
     updateLicenciaController: jest.fn(),
     getConductorDetailController: jest.fn(),
+    crearConductorController: jest.fn(),
   })
 );
 
@@ -23,6 +24,7 @@ beforeAll(async () => {
     getConductorStatisticsController,
     updateLicenciaController,
     getConductorDetailController,
+    crearConductorController,
   } = await import("../../../src/functions/conductor-services/conductorController.mjs"));
 
   ({ handler } = await import("../../../src/functions/conductor-services/conductorHandler.mjs"));
@@ -52,7 +54,7 @@ describe("conductorHandler", () => {
 
   it("retorna 404 si la ruta no existe", async () => {
     const result = await handler({
-      httpMethod: "POST",
+      httpMethod: "DELETE",
       resource: "/conductores",
     });
 

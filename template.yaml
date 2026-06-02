@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: API para gestión de camiones - Nanutech Backend
+Description: API para gestiÃƒÂ³n de camiones - Nanutech Backend
 
 Transform:
   - AWS::Serverless-2016-10-31
@@ -52,7 +52,7 @@ Parameters:
     Description: "ID del Security Group para las Lambdas"
   FrontendUrl:
     Type: String
-    Description: "URL del Frontend de Amplify (Testing o Producción)"
+    Description: "URL del Frontend de Amplify (Testing o ProducciÃƒÂ³n)"
     Default: "http://localhost:3000"
 
 Globals:
@@ -105,7 +105,7 @@ Resources:
         Proyecto: Nanutech-Backend
 
   # ===========================================================================
-  # CAMIONES — solo ADMIN
+  # CAMIONES Ã¢â‚¬â€ solo ADMIN
   # GET /camiones, GET /camiones/{id}, POST /camiones,
   # GET /camiones/panel, GET /camiones/exportar/csv
   # ===========================================================================
@@ -181,8 +181,20 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
-            Path: /dashboard/auditoria
-            Method: GET
+            Path: /auditoria/resumen
+              Method: GET
+          GetRegistros:
+            Type: Api
+            Properties:
+              RestApiId: !Ref NanutechApi
+              Path: /auditoria/registros
+              Method: GET
+          ExportarCSV:
+            Type: Api
+            Properties:
+              RestApiId: !Ref NanutechApi
+              Path: /auditoria/exportar/csv
+              Method: GET
       Tags:
         Environment: !Ref StageName
         Servicio: auditoria
@@ -256,12 +268,12 @@ Resources:
           - src/functions/alerta-services/alertaHandler.mjs
 
   # ===========================================================================
-  # DASHBOARD CONDUCTORES — solo ADMIN
+  # DASHBOARD CONDUCTORES Ã¢â‚¬â€ solo ADMIN
   # GET /conductores/dashboard/resumen
   # GET /conductores/dashboard/listado
   #
   # FIX: se agrega RestApiId: !Ref NanutechApi que faltaba en el original,
-  # por eso estos endpoints devolvían 403 — no estaban en el API Gateway correcto.
+  # por eso estos endpoints devolvÃƒÂ­an 403 Ã¢â‚¬â€ no estaban en el API Gateway correcto.
   # ===========================================================================
   DashboardConductoresFunction:
     Type: AWS::Serverless::Function
@@ -279,13 +291,13 @@ Resources:
         GetDashboardConductoresResumen:
           Type: Api
           Properties:
-            RestApiId: !Ref NanutechApi # ← FALTABA ESTO en el original
+            RestApiId: !Ref NanutechApi # Ã¢â€ Â FALTABA ESTO en el original
             Path: /conductores/dashboard/resumen
             Method: GET
         GetDashboardConductoresListado:
           Type: Api
           Properties:
-            RestApiId: !Ref NanutechApi # ← FALTABA ESTO en el original
+            RestApiId: !Ref NanutechApi # Ã¢â€ Â FALTABA ESTO en el original
             Path: /conductores/dashboard/listado
             Method: GET
       Tags:
@@ -301,7 +313,7 @@ Resources:
           - src/functions/dashboard-conductores-services/dashboardConductoresHandler.mjs
 
   # ===========================================================================
-  # DASHBOARD GERENCIAL — GERENTE (y ADMIN según código)
+  # DASHBOARD GERENCIAL Ã¢â‚¬â€ GERENTE (y ADMIN segÃƒÂºn cÃƒÂ³digo)
   # GET /dashboard/gerencial
   # ===========================================================================
   DashboardGerencialFunction:
@@ -339,7 +351,7 @@ Resources:
           - src/functions/dashboard-gerencial-services/dashboardGerencialHandler.mjs
 
   # ===========================================================================
-  # DASHBOARD ADMIN — solo ADMIN
+  # DASHBOARD ADMIN Ã¢â‚¬â€ solo ADMIN
   # GET /dashboard
   # ===========================================================================
   DashboardFunction:
@@ -374,16 +386,16 @@ Resources:
           - src/functions/dashboard-services/dashboardHandler.mjs
 
   # ===========================================================================
-  # JORNADAS — ADMIN, GERENTE y CHOFER
-  # POST /jornadas                              → ADMIN, GERENTE
-  # GET  /jornadas                              → ADMIN, GERENTE
-  # GET  /jornadas/exportar                     → ADMIN, GERENTE
-  # GET  /jornadas/actual/{conductorId}         → CHOFER
-  # POST /jornadas/iniciar                      → CHOFER
-  # POST /jornadas/finalizar                    → CHOFER
-  # GET  /jornadas/historial-gerencial          → ADMIN, GERENTE (NUEVO)
-  # GET  /jornadas/historial-gerencial/metrics  → ADMIN, GERENTE (NUEVO)
-  # GET  /jornadas/alerta/{jornadaId}           → ADMIN, GERENTE (NUEVO)
+  # JORNADAS Ã¢â‚¬â€ ADMIN, GERENTE y CHOFER
+  # POST /jornadas                              Ã¢â€ â€™ ADMIN, GERENTE
+  # GET  /jornadas                              Ã¢â€ â€™ ADMIN, GERENTE
+  # GET  /jornadas/exportar                     Ã¢â€ â€™ ADMIN, GERENTE
+  # GET  /jornadas/actual/{conductorId}         Ã¢â€ â€™ CHOFER
+  # POST /jornadas/iniciar                      Ã¢â€ â€™ CHOFER
+  # POST /jornadas/finalizar                    Ã¢â€ â€™ CHOFER
+  # GET  /jornadas/historial-gerencial          Ã¢â€ â€™ ADMIN, GERENTE (NUEVO)
+  # GET  /jornadas/historial-gerencial/metrics  Ã¢â€ â€™ ADMIN, GERENTE (NUEVO)
+  # GET  /jornadas/alerta/{jornadaId}           Ã¢â€ â€™ ADMIN, GERENTE (NUEVO)
   # ===========================================================================
   JornadaFunction:
     Type: AWS::Serverless::Function
@@ -434,7 +446,7 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /jornadas/finalizar
             Method: POST
-        # ── NUEVOS ────────────────────────────────────────────────────────
+        # Ã¢â€â‚¬Ã¢â€â‚¬ NUEVOS Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
         GetHistorialGerencial:
           Type: Api
           Properties:
@@ -479,7 +491,7 @@ Resources:
           - src/functions/jornada-services/jornadaHandler.mjs
 
   # ===========================================================================
-  # GPS — solo ADMIN
+  # GPS Ã¢â‚¬â€ solo ADMIN
   # GET  /gps/proveedores
   # GET  /gps/plantilla
   # GET  /gps/plantilla/{proveedor}
@@ -569,7 +581,7 @@ Resources:
           - src/functions/gps-services/gpsHandler.mjs
 
   # ===========================================================================
-  # CONDUCTORES — ADMIN y GERENTE
+  # CONDUCTORES Ã¢â‚¬â€ ADMIN y GERENTE
   # GET /conductores
   # GET /conductores/{id}/estadisticas
   # ===========================================================================
@@ -623,14 +635,14 @@ Resources:
           - src/functions/conductor-services/conductorHandler.mjs
 
   # ===========================================================================
-  # CONTRATOS — GERENTE (vigentes también ADMIN)
-  # GET  /contratos/indicadores   → GERENTE
-  # GET  /contratos/vigentes      → ADMIN, GERENTE
-  # GET  /contratos/{id}          → GERENTE
-  # GET  /contratos               → GERENTE
-  # POST /contratos               → GERENTE
-  # PUT  /contratos/{id}          → GERENTE (NUEVO)
-  # PUT  /contratos/{id}/unidades → GERENTE (NUEVO)
+  # CONTRATOS Ã¢â‚¬â€ GERENTE (vigentes tambiÃƒÂ©n ADMIN)
+  # GET  /contratos/indicadores   Ã¢â€ â€™ GERENTE
+  # GET  /contratos/vigentes      Ã¢â€ â€™ ADMIN, GERENTE
+  # GET  /contratos/{id}          Ã¢â€ â€™ GERENTE
+  # GET  /contratos               Ã¢â€ â€™ GERENTE
+  # POST /contratos               Ã¢â€ â€™ GERENTE
+  # PUT  /contratos/{id}          Ã¢â€ â€™ GERENTE (NUEVO)
+  # PUT  /contratos/{id}/unidades Ã¢â€ â€™ GERENTE (NUEVO)
   # ===========================================================================
   ContratoFunction:
     Type: AWS::Serverless::Function
@@ -675,7 +687,7 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /contratos
             Method: POST
-        # ── NUEVOS ────────────────────────────────────────────────────────
+        # Ã¢â€â‚¬Ã¢â€â‚¬ NUEVOS Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
         UpdateContrato:
           Type: Api
           Properties:
@@ -701,7 +713,7 @@ Resources:
           - src/functions/contrato-services/contratoHandler.mjs
 
   # ===========================================================================
-  # UNIDADES — ADMIN y GERENTE
+  # UNIDADES Ã¢â‚¬â€ ADMIN y GERENTE
   # GET /unidades/disponibles
   # ===========================================================================
   UnidadFunction:
@@ -785,7 +797,7 @@ Resources:
           - src/functions/combustible-services/combustibleHandler.mjs
 
   # ===========================================================================
-  # AUTH — público y autenticado
+  # AUTH Ã¢â‚¬â€ pÃƒÂºblico y autenticado
   # POST /auth/login
   # POST /auth/forgot-password
   # POST /auth/forgot-password/confirm
@@ -850,7 +862,7 @@ Resources:
           - src/functions/auth-services/authHandler.mjs
 
   # ===========================================================================
-  # MIGRATOR — interno, sin API Gateway
+  # MIGRATOR Ã¢â‚¬â€ interno, sin API Gateway
   # ===========================================================================
   MigratorFunction:
     Type: AWS::Serverless::Function
@@ -894,56 +906,56 @@ Outputs:
     Value: !Sub "https://${NanutechApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}"
 
   DashboardFunctionArn:
-    Description: "ARN de la función Dashboard"
+    Description: "ARN de la funciÃƒÂ³n Dashboard"
     Value: !GetAtt DashboardFunction.Arn
 
   DashboardGerencialFunctionArn:
-    Description: "ARN de la función Dashboard Gerencial"
+    Description: "ARN de la funciÃƒÂ³n Dashboard Gerencial"
     Value: !GetAtt DashboardGerencialFunction.Arn
 
   DashboardConductoresFunctionArn:
-    Description: "ARN de la función Dashboard Conductores"
+    Description: "ARN de la funciÃƒÂ³n Dashboard Conductores"
     Value: !GetAtt DashboardConductoresFunction.Arn
 
   JornadaFunctionArn:
-    Description: "ARN de la función Jornada"
+    Description: "ARN de la funciÃƒÂ³n Jornada"
     Value: !GetAtt JornadaFunction.Arn
 
   AlertaFunctionArn:
-    Description: "ARN de la función Alerta"
+    Description: "ARN de la funciÃƒÂ³n Alerta"
     Value: !GetAtt AlertaFunction.Arn
 
   ConductorFunctionArn:
-    Description: "ARN de la función Conductor"
+    Description: "ARN de la funciÃƒÂ³n Conductor"
     Value: !GetAtt ConductorFunction.Arn
 
   ContratoFunctionArn:
-    Description: "ARN de la función Contrato"
+    Description: "ARN de la funciÃƒÂ³n Contrato"
     Value: !GetAtt ContratoFunction.Arn
 
   UnidadFunctionArn:
-    Description: "ARN de la función Unidad"
+    Description: "ARN de la funciÃƒÂ³n Unidad"
     Value: !GetAtt UnidadFunction.Arn
 
   AuthFunctionArn:
-    Description: "ARN de la función Auth"
+    Description: "ARN de la funciÃƒÂ³n Auth"
     Value: !GetAtt AuthFunction.Arn
 
   CamionFunctionArn:
-    Description: "ARN de la función Camión"
+    Description: "ARN de la funciÃƒÂ³n CamiÃƒÂ³n"
     Value: !GetAtt CamionFunction.Arn
 
   MigratorFunctionArn:
-    Description: "ARN de la función Migrator"
+    Description: "ARN de la funciÃƒÂ³n Migrator"
     Value: !GetAtt MigratorFunction.Arn
 
   GpsFunctionArn:
-    Description: "ARN de la función GPS"
+    Description: "ARN de la funciÃƒÂ³n GPS"
     Value: !GetAtt GpsFunction.Arn
   AuditoriaFunctionArn:
-    Description: "ARN de la función Auditoría"
+    Description: "ARN de la funciÃƒÂ³n AuditorÃƒÂ­a"
     Value: !GetAtt AuditoriaFunction.Arn
 
   CombustibleFunctionArn:
-    Description: "ARN de la función Combustible"
+    Description: "ARN de la funciÃƒÂ³n Combustible"
     Value: !GetAtt CombustibleFunction.Arn
