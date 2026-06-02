@@ -78,7 +78,9 @@ function buildFilters({
   if (q) {
     params.push(`%${q}%`);
     const idx = params.length;
-    conditions.push(`(un.placa ILIKE $${idx} OR u.nombres || ' ' || u.apellidos ILIKE $${idx} OR c.codigo ILIKE $${idx})`);
+    conditions.push(
+      `(un.placa ILIKE $${idx} OR u.nombres || ' ' || u.apellidos ILIKE $${idx} OR c.codigo ILIKE $${idx})`
+    );
   }
   if (conductor_id) {
     params.push(conductor_id);

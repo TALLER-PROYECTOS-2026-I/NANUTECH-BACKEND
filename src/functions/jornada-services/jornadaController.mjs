@@ -245,8 +245,16 @@ export const getManagerHistoryController = async (event) => {
 
     const jornadaService = new JornadaService();
 
-    const { q, conductor_id, estado, estado_alerta, fecha_desde, fecha_hasta, observaciones, conductor } =
-      event.queryStringParameters || {};
+    const {
+      q,
+      conductor_id,
+      estado,
+      estado_alerta,
+      fecha_desde,
+      fecha_hasta,
+      observaciones,
+      conductor,
+    } = event.queryStringParameters || {};
 
     // ValidaciÃ³n de rango de fechas
     if (fecha_desde && fecha_hasta && fecha_desde > fecha_hasta) {
