@@ -11,22 +11,25 @@ import { insertAuditoriaAcceso } from "./auditoriaRepository.mjs";
 export const registrarAcceso = async (event, user) => {
   try {
     if (!user || !user.id) return;
-    
+
     const headers = event.headers || {};
-    
+
     // AWS API Gateway provee la IP del cliente real en 'X-Forwarded-For'
-    const xForwardedFor = headers['X-Forwarded-For'] || headers['x-forwarded-for'] || '';
-    
+    const xForwardedFor = headers["X-Forwarded-For"] || headers["x-forwarded-for"] || "";
+
     // Tomamos la primera IP disponible que identifique al cliente final o fallback al contexto de identidad
-    const direccionIp = xForwardedFor.split(',')[0] || event.requestContext?.identity?.sourceIp || 'Desconocida';
-    
+    const direccionIp =
+      xForwardedFor.split(",")[0] || event.requestContext?.identity?.sourceIp || "Desconocida";
+
     // Extraer User Agent para conocer desde quÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© navegador OS o Dispositivo entrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³
-    const navegador = headers['User-Agent'] || headers['user-agent'] || 'Desconocido';
+    const navegador = headers["User-Agent"] || headers["user-agent"] || "Desconocido";
 
     // Disparar escritura asÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ncrona hacia la base de datos
     await insertAuditoriaAcceso(user.id, direccionIp, navegador);
-    
-    console.log(`[AuditorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­a] Login registrado para ${user.email} desde IP: ${direccionIp}`);
+
+    console.log(
+      `[AuditorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­a] Login registrado para ${user.email} desde IP: ${direccionIp}`
+    );
   } catch (error) {
     // La auditorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­a no debe romper el flujo de login si llega a fallar. (Fail-safeth)
     console.error("[AuditorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­a] Error al registrar acceso:", error.message);
@@ -36,16 +39,30 @@ export const registrarAcceso = async (event, user) => {
 import { getResumenAccesosDB, getRegistrosDB } from "./auditoriaRepository.mjs";
 
 /**
- * FunciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n utilitaria para transformar Fechas formato ISO Date
- * en una representaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n separada de { fecha, hora } para la interfaz.
+ * Función utilitaria para transformar Fechas formato ISO Date
+ * en una representación separada de { fecha, hora } para la interfaz.
  */
 const formatearFechaHora = (fechaIso) => {
   const d = new Date(fechaIso);
-  const pad = (n) => n.toString().padStart(2, '0');
-  
+
+  const formatterFecha = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Lima",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  const formatterHora = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Lima",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
   return {
-    fecha: `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`,
-    hora: `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    fecha: formatterFecha.format(d),
+    hora: formatterHora.format(d),
   };
 };
 
@@ -55,16 +72,16 @@ const formatearFechaHora = (fechaIso) => {
  */
 export const obtenerResumenAuditoria = async () => {
   const data = await getResumenAccesosDB();
-  
+
   // Inicializamos un objeto por defecto de los roles existentes para asegurar consistencia
   const progresoRoles = {
     ADMINISTRADOR: 0,
     GERENTE: 0,
-    CHOFER: 0
+    CHOFER: 0,
   };
 
   // Re-asignamos las cantidades segÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºn lo contabilizado en DB
-  data.roles.forEach(r => {
+  data.roles.forEach((r) => {
     if (progresoRoles[r.rol] !== undefined) {
       progresoRoles[r.rol] = parseInt(r.cantidad, 10);
     }
@@ -76,9 +93,9 @@ export const obtenerResumenAuditoria = async () => {
       accesos_hoy: parseInt(data.metricas.accesos_hoy || 0, 10),
       accesos_semana: parseInt(data.metricas.accesos_semana || 0, 10),
       usuarios_unicos: parseInt(data.metricas.usuarios_unicos || 0, 10),
-      ips_unicas: parseInt(data.metricas.ips_unicas || 0, 10)
+      ips_unicas: parseInt(data.metricas.ips_unicas || 0, 10),
     },
-    progreso_roles: progresoRoles
+    progreso_roles: progresoRoles,
   };
 };
 
@@ -88,18 +105,21 @@ export const obtenerResumenAuditoria = async () => {
  */
 export const obtenerRegistrosAuditoria = async (search, rol) => {
   const rows = await getRegistrosDB(search, rol);
-  
-  return rows.map(r => {
+
+  return rows.map((r) => {
     const { fecha, hora } = formatearFechaHora(r.fecha_hora);
     return {
       id: r.id,
       usuario: r.usuario,
       email: r.email,
-      rol: (() => { const m = { ADMIN: 'Administrador', CHOFER: 'Conductor', GERENTE: 'Gerente' }; return m[r.rol] || r.rol || 'Desconocido'; })(),
+      rol: (() => {
+        const m = { ADMIN: "Administrador", CHOFER: "Conductor", GERENTE: "Gerente" };
+        return m[r.rol] || r.rol || "Desconocido";
+      })(),
       fecha,
       hora,
       ip: r.direccion_ip,
-      navegador: r.navegador
+      navegador: r.navegador,
     };
   });
 };
@@ -110,15 +130,15 @@ export const obtenerRegistrosAuditoria = async (search, rol) => {
  */
 export const generarCsvAuditoria = async (search, rol) => {
   const registros = await obtenerRegistrosAuditoria(search, rol);
-  
+
   // Header principal del archivo CSV
   let csv = "ID Registro,Usuario,Email,Rol,Fecha,Hora,Direccion IP,Navegador/SO\n";
-  
+
   // Agregar cada registro aplicando el escape respectivo de comillas dobles en caso sea necesario
-  registros.forEach(r => {
-    const navEscapado = `"${(r.navegador || '').replace(/"/g, '""')}"`;
+  registros.forEach((r) => {
+    const navEscapado = `"${(r.navegador || "").replace(/"/g, '""')}"`;
     csv += `${r.id},${r.usuario},${r.email},${r.rol},${r.fecha},${r.hora},${r.ip},${navEscapado}\n`;
   });
-  
+
   return csv;
 };
