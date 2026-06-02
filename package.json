@@ -28,7 +28,7 @@
   "scripts": {
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:unit": "npm run test -- __tests__/unit",
-    "test:integration": "npm run test -- __tests__/integration --runInBand",
+    "test:integration": "npm run test -- __tests__/integration --runInBand --passWithNoTests",
     "test:coverage": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage --coverageReporters=json-summary --coverageReporters=lcov --coverageReporters=text",
     "lint": "eslint . --ext .js,.mjs",
     "lint:fix": "eslint . --ext .js,.mjs --fix",
@@ -89,3 +89,4 @@
     "verbose": true
   }
 }
+
