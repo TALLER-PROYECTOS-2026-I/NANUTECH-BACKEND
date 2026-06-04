@@ -58,7 +58,7 @@ describe("auditoriaService", () => {
   describe("obtenerRegistrosAuditoria", () => {
     it("debe retornar registros parseados correctamente", async () => {
       const dbResponse = [{
-        id_registro: 1,
+        id: 1,
         usuario: "Juan Perez",
         email: "juan@test.com",
         rol: "ADMINISTRADOR",
@@ -72,14 +72,14 @@ describe("auditoriaService", () => {
       expect(result).toHaveLength(1);
       expect(result[0].fecha).toBe("24/05/2026");
       expect(result[0].hora).toBe("10:30:00"); // asumiendo UTC-5 de desface al parselo por defecto pero vamos a verificar las partes existan
-      expect(result[0].id_registro).toBe(1);
+      expect(result[0].id).toBe(1);
     });
   });
 
   describe("generarCsvAuditoria", () => {
     it("debe exportar la lista de registros en formato CSV", async () => {
       getRegistrosDB.mockResolvedValue([{
-        id_registro: 1,
+        id: 1,
         usuario: "Juan Perez",
         email: "juan@test.com",
         rol: "ADMINISTRADOR",

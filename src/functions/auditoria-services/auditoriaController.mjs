@@ -11,14 +11,20 @@ import { obtenerResumenAuditoria, obtenerRegistrosAuditoria, generarCsvAuditoria
 const validarAccesoAdministrador = async (event) => {
   // Extraer token de autorización manejando posibles variaciones de mayúsculas
   const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
-  if (!authorizationHeader) throw new Error("Acceso denegado: Token requerido");
+  if (!authorizationHeader) {
+    const error = new Error("Acceso denegado: Token requerido");
+    error.statusCode = 401; // QA expects 401 for unauthenticated
+    throw error;
+  }
   
-  // Validar y obtener los datos de la sesión mapeados del token
+  // Validar y obtener los datos de la sesiÃ³n mapeados del token
   const session = await getCurrentSession(authorizationHeader);
   
   // Validar que el rol corresponda a un "Admin"
   if (!["admin"].includes(session.role.toLowerCase())) {
-    throw new Error("Acceso denegado: Se requiere rol de Administrador");
+    const error = new Error("Acceso denegado: Se requiere rol de Administrador");
+    error.statusCode = 403; // 403 for unauthorized
+    throw error;
   }
 };
 
@@ -42,7 +48,7 @@ export const getAuditoriaResumenController = async (event) => {
     };
   } catch (error) {
     // Si contiene "Acceso denegado" es de autorización (403), si no es error de código (500)
-    const status = error.message.includes("Acceso denegado") ? 403 : 500;
+    const status = error.statusCode || 500;
     return {
       statusCode: status,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
@@ -73,7 +79,7 @@ export const getAuditoriaRegistrosController = async (event) => {
       body: JSON.stringify({ success: true, data })
     };
   } catch (error) {
-    const status = error.message.includes("Acceso denegado") ? 403 : 500;
+    const status = error.statusCode || 500;
     return {
       statusCode: status,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
@@ -109,7 +115,7 @@ export const exportAuditoriaCsvController = async (event) => {
       body: csvData
     };
   } catch (error) {
-    const status = error.message.includes("Acceso denegado") ? 403 : 500;
+    const status = error.statusCode || 500;
     return {
       statusCode: status,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
