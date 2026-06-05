@@ -64,7 +64,7 @@ export const getAllVigentesController = async (event) => {
     const contratos = await contratoService.getAllVigentes();
     return successResponse(contratos, SUCCESS_MESSAGES.CONTRATOS_RETRIEVED);
   } catch (error) {
-    return errorResponse(error.message, 500);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
 
@@ -172,7 +172,7 @@ export const getAllContratosController = async (event) => {
 
     return successResponse(result, SUCCESS_MESSAGES.CONTRATOS_RETRIEVED);
   } catch (error) {
-    return errorResponse(error.message, 500);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
 
@@ -199,7 +199,7 @@ export const getContratoByIdController = async (event) => {
 
     return successResponse(contrato, SUCCESS_MESSAGES.CONTRATO_RETRIEVED);
   } catch (error) {
-    return errorResponse(error.message, 500);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
 
@@ -226,7 +226,7 @@ export const updateContratoController = async (event) => {
 
     return successResponse(data, "Contrato actualizado");
   } catch (error) {
-    return errorResponse(error.message, 500);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
 
@@ -248,6 +248,6 @@ export const assignUnidadesController = async (event) => {
 
     return successResponse(data, "Unidades asignadas");
   } catch (error) {
-    return errorResponse(error.message, 500);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
