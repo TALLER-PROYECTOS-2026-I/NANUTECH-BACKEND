@@ -133,7 +133,7 @@ export class ConductorService {
    * =========================================================
    */
   async updateLicencia(conductorId, licenciaData) {
-    const licenciaActual = await this.conductorRepository.getLicenciaActiva(conductorId);
+    const licenciaActual = await this.conductorRepository.getLicenciaActual(conductorId);
 
     if (!licenciaActual) {
       throw new Error("Licencia no encontrada");
