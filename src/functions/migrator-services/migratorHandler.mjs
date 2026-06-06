@@ -171,6 +171,28 @@ async function cleanDatabase() {
         console.log(`  ⚠️ Error eliminando tipo ${enumType.typname}: ${err.message}`);
       }
     }
+
+    // ── FIX: Eliminar todas las secuencias ────────────────────────────────────
+    // Las secuencias no se eliminan con DROP TABLE ni DROP TYPE, por eso
+    // auditoria_code_seq (y cualquier otra) sobrevivía entre deploys.
+    console.log('📋 Eliminando secuencias...');
+    const sequences = await client.query(`
+      SELECT sequencename FROM pg_sequences WHERE schemaname = 'public'
+    `);
+
+    if (sequences.rows.length === 0) {
+      console.log('  ℹ️ No se encontraron secuencias para eliminar');
+    } else {
+      for (const seq of sequences.rows) {
+        try {
+          await client.query(`DROP SEQUENCE IF EXISTS "${seq.sequencename}" CASCADE;`);
+          console.log(`  ✅ Secuencia eliminada: ${seq.sequencename}`);
+        } catch (err) {
+          console.log(`  ⚠️ Error eliminando secuencia ${seq.sequencename}: ${err.message}`);
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
     
     // Re-habilitar restricciones
     await client.query('SET session_replication_role = origin;');
