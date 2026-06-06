@@ -312,10 +312,12 @@ VALUES
 -- =========================================================
 -- AUDITORIA / SESIONES
 -- =========================================================
-INSERT INTO auditoria_accesos (usuario_id, correo, rol, accion, resultado, ip_address, user_agent, dispositivo, detalle) VALUES
-('11111111-1111-1111-1111-111111111111', 'admin@nanutech.com',   'ADMIN',   'LOGIN',              'EXITOSO', '127.0.0.1', 'Mozilla/5.0', 'Chrome Desktop', 'Inicio de sesión correcto'),
-('33333333-3333-3333-3333-333333333333', 'chofer2@nanutech.com', 'CHOFER',  'INICIAR_JORNADA',    'EXITOSO', '127.0.0.1', 'Mozilla/5.0', 'Android',        'Jornada iniciada desde panel chofer'),
-('55555555-5555-5555-5555-555555555555', 'gerente@nanutech.com', 'GERENTE', 'CONSULTA_DASHBOARD', 'EXITOSO', '127.0.0.1', 'Mozilla/5.0', 'Chrome Desktop', 'Consulta dashboard gerencial');
+-- auditoria_accesos usa la estructura de HU-13: (usuario_id, direccion_ip, navegador).
+-- codigo y fecha_hora se generan solos (DEFAULT). El user_agent se guarda en navegador.
+INSERT INTO auditoria_accesos (usuario_id, direccion_ip, navegador) VALUES
+('11111111-1111-1111-1111-111111111111', '127.0.0.1', 'Mozilla/5.0 (Chrome Desktop)'),
+('33333333-3333-3333-3333-333333333333', '127.0.0.1', 'Mozilla/5.0 (Android)'),
+('55555555-5555-5555-5555-555555555555', '127.0.0.1', 'Mozilla/5.0 (Chrome Desktop)');
 
 INSERT INTO login_intentos (email, intentos_fallidos, ultimo_intento, bloqueado_hasta)
 VALUES ('invalido@nanutech.com', 2, NOW() - INTERVAL '2 hours', NULL);
