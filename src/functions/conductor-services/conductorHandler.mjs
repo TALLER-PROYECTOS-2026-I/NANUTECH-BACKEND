@@ -2,10 +2,10 @@ import {
   getAllConductoresController,
   getConductorStatisticsController,
   updateLicenciaController,
+  getLicenciaController,
   getConductorDetailController,
   crearConductorController,
 } from "./conductorController.mjs";
-
 /**
  * Objeto que actúa como mapa de rutas.
  *
@@ -29,6 +29,7 @@ const routes = {
    ***********************************************/
   "PUT /conductores/licencia": updateLicenciaController,
 
+  "GET /conductores/licencia": getLicenciaController,
   /**
    * =========================================================
    * HU18
