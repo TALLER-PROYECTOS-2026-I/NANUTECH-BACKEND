@@ -622,6 +622,12 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /conductores/{id}/estadisticas
             Method: GET
+        CreateConductor:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /conductores
+            Method: POST
       Tags:
         Environment: !Ref StageName
         Servicio: conductor
