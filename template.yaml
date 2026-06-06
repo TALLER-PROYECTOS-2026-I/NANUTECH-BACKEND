@@ -177,11 +177,23 @@ Resources:
         Variables:
           LOG_LEVEL: "debug"
       Events:
-        GetAuditoria:
+        GetResumen:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
-            Path: /dashboard/auditoria
+            Path: /auditoria/resumen
+            Method: GET
+        GetRegistros:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auditoria/registros
+            Method: GET
+        ExportarCsv:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /auditoria/exportar/csv
             Method: GET
       Tags:
         Environment: !Ref StageName
@@ -459,7 +471,7 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /jornadas/historial
             Method: GET
-        
+
         GetMetricasChofer:
           Type: Api
           Properties:
@@ -610,6 +622,12 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /conductores/{id}/estadisticas
             Method: GET
+        CreateConductor:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /conductores
+            Method: POST
       Tags:
         Environment: !Ref StageName
         Servicio: conductor

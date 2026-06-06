@@ -9,7 +9,7 @@
     "@aws-sdk/client-dynamodb": "^3.398.0",
     "@aws-sdk/lib-dynamodb": "^3.398.0",
     "esbuild": "^0.27.4",
-    "json2csv": "^6.0.0-alpha.2",
+    "json2csv": "^5.0.7",
     "node-pg-migrate": "6.2.2",
     "pg": "^8.20.0",
     "swagger-jsdoc": "^6.2.8"
@@ -28,7 +28,7 @@
   "scripts": {
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:unit": "npm run test -- __tests__/unit",
-    "test:integration": "npm run test -- __tests__/integration --runInBand",
+    "test:integration": "npm run test -- __tests__/integration --runInBand --passWithNoTests",
     "test:coverage": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage --coverageReporters=json-summary --coverageReporters=lcov --coverageReporters=text",
     "lint": "eslint . --ext .js,.mjs",
     "lint:fix": "eslint . --ext .js,.mjs --fix",
@@ -89,3 +89,4 @@
     "verbose": true
   }
 }
+

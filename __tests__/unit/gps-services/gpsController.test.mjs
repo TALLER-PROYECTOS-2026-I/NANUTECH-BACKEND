@@ -6,20 +6,22 @@ const mockValidateCsv = jest.fn();
 const mockImportCsv = jest.fn();
 const mockGetSummary = jest.fn();
 const mockListRegistros = jest.fn();
+const mockGetCurrentSession = jest.fn();
 
-jest.unstable_mockModule(
-  "../../../src/functions/gps-services/gpsService.mjs",
-  () => ({
-    GpsService: jest.fn().mockImplementation(() => ({
-      getProviders: mockGetProviders,
-      getTemplate: mockGetTemplate,
-      validateCsv: mockValidateCsv,
-      importCsv: mockImportCsv,
-      getSummary: mockGetSummary,
-      listRegistros: mockListRegistros,
-    })),
-  }),
-);
+jest.unstable_mockModule("../../../src/functions/gps-services/gpsService.mjs", () => ({
+  GpsService: jest.fn().mockImplementation(() => ({
+    getProviders: mockGetProviders,
+    getTemplate: mockGetTemplate,
+    validateCsv: mockValidateCsv,
+    importCsv: mockImportCsv,
+    getSummary: mockGetSummary,
+    listRegistros: mockListRegistros,
+  })),
+}));
+
+jest.unstable_mockModule("../../../src/functions/auth-services/authService.mjs", () => ({
+  getCurrentSession: mockGetCurrentSession,
+}));
 
 const {
   getProvidersController,
@@ -33,12 +35,13 @@ const {
 describe("HU08 - GpsController", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetCurrentSession.mockResolvedValue({ role: "admin" });
   });
 
   test("getProvidersController debe listar proveedores", async () => {
     mockGetProviders.mockReturnValue(["GPSCONTROL", "GLOBALGPS"]);
 
-    const response = await getProvidersController({});
+    const response = await getProvidersController({ headers: { Authorization: "Bearer token" } });
     const body = JSON.parse(response.body);
 
     expect(response.statusCode).toBe(200);
@@ -53,6 +56,7 @@ describe("HU08 - GpsController", () => {
     });
 
     const response = await getTemplateController({
+      headers: { Authorization: "Bearer token" },
       queryStringParameters: {
         proveedor: "GPSCONTROL",
       },
@@ -74,6 +78,7 @@ describe("HU08 - GpsController", () => {
     });
 
     const response = await validateCsvController({
+      headers: { Authorization: "Bearer token" },
       body: JSON.stringify({
         proveedor: "GPSCONTROL",
         nombre_archivo: "gps.csv",
@@ -99,6 +104,7 @@ describe("HU08 - GpsController", () => {
     });
 
     const response = await importCsvController({
+      headers: { Authorization: "Bearer token" },
       body: JSON.stringify({
         proveedor: "GPSCONTROL",
         nombre_archivo: "gps.csv",
@@ -124,7 +130,7 @@ describe("HU08 - GpsController", () => {
       velocidadPromedio: 35,
     });
 
-    const response = await getSummaryController({});
+    const response = await getSummaryController({ headers: { Authorization: "Bearer token" } });
     const body = JSON.parse(response.body);
 
     expect(response.statusCode).toBe(200);
@@ -141,6 +147,7 @@ describe("HU08 - GpsController", () => {
     ]);
 
     const response = await listRegistrosController({
+      headers: { Authorization: "Bearer token" },
       queryStringParameters: {
         proveedor: "GPSCONTROL",
       },
@@ -156,7 +163,7 @@ describe("HU08 - GpsController", () => {
   test("debe responder error si service falla", async () => {
     mockGetSummary.mockRejectedValue(new Error("Error resumen"));
 
-    const response = await getSummaryController({});
+    const response = await getSummaryController({ headers: { Authorization: "Bearer token" } });
     const body = JSON.parse(response.body);
 
     expect(response.statusCode).toBeGreaterThanOrEqual(400);

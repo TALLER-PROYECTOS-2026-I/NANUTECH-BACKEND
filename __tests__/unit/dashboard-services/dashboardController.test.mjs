@@ -13,13 +13,11 @@ jest.unstable_mockModule("../../../src/functions/auth-services/authService.mjs",
 }));
 
 beforeAll(async () => {
-  ({ getDashboardService } = await import(
-    "../../../src/functions/dashboard-services/dashboardService.mjs"
-  ));
+  ({ getDashboardService } =
+    await import("../../../src/functions/dashboard-services/dashboardService.mjs"));
   ({ getCurrentSession } = await import("../../../src/functions/auth-services/authService.mjs"));
-  ({ getDashboardController } = await import(
-    "../../../src/functions/dashboard-services/dashboardController.mjs"
-  ));
+  ({ getDashboardController } =
+    await import("../../../src/functions/dashboard-services/dashboardController.mjs"));
 });
 
 describe("dashboardController", () => {
@@ -60,7 +58,11 @@ describe("dashboardController", () => {
     });
 
     expect(result.statusCode).toBe(200);
-    expect(JSON.parse(result.body)).toEqual(dashboard);
+    expect(JSON.parse(result.body)).toEqual({
+      success: true,
+      message: "Dashboard obtenido correctamente",
+      data: dashboard,
+    });
     expect(getCurrentSession).toHaveBeenCalledWith("Bearer token");
   });
 

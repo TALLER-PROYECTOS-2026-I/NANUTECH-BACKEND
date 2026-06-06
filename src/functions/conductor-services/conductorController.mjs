@@ -48,7 +48,7 @@ export const getAllConductoresController = async (event) => {
   } catch (error) {
     console.error("Error en getAllConductoresController:", error);
 
-    return errorResponse("Error interno del servidor", 500);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
 
@@ -103,7 +103,7 @@ export const getConductorStatisticsController = async (event) => {
   } catch (error) {
     console.error("Error getConductorStatisticsController:", error);
 
-    return errorResponse("Error interno del servidor", 500);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
 /**
@@ -126,7 +126,7 @@ export const updateLicenciaController = async (event) => {
      * Solo chofer puede actualizar
      * su licencia.
      */
-    if (session.role !== "CHOFER") {
+    if (session.role !== "chofer") {
       return errorResponse("Acceso denegado", 403);
     }
 
@@ -154,7 +154,7 @@ export const updateLicenciaController = async (event) => {
   } catch (error) {
     console.error("Error updateLicenciaController:", error);
 
-    return errorResponse(error.message, 400);
+    return errorResponse(error.message, error.statusCode || 400);
   }
 };
 /**
@@ -181,7 +181,7 @@ export const getConductorDetailController = async (event) => {
     /**
      * Solo ADMIN
      */
-    if (session.role !== "ADMIN") {
+    if (session.role !== "admin") {
       return errorResponse("Acceso denegado", 403);
     }
 
@@ -204,6 +204,76 @@ export const getConductorDetailController = async (event) => {
   } catch (error) {
     console.error("Error getConductorDetailController:", error);
 
-    return errorResponse(error.message, 500);
+    return errorResponse(error.message, error.statusCode || 500);
+  }
+};
+
+
+/**
+ * Controller encargado de registrar un nuevo conductor.
+ * HU22 - Registro de Nuevo Conductor
+ */
+export const crearConductorController = async (event) => {
+  try {
+    /**
+     * Obtiene token enviado
+     * en el header Authorization.
+     */
+    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+
+    /**
+     * Valida sesión del usuario
+     * autenticado mediante Cognito.
+     */
+    const session = await getCurrentSession(authorizationHeader);
+
+    /**
+     * Solo Administradores Generales
+     * pueden registrar conductores.
+     */
+    if (session.role !== "admin" && session.role !== "ADMIN") {
+      return errorResponse("Acceso denegado", 403);
+    }
+
+    /**
+     * Obtiene información enviada
+     * desde el formulario de registro.
+     */
+    const body = JSON.parse(event.body || "{}");
+
+    /**
+     * Instancia la capa de servicio
+     * encargada de la lógica de negocio.
+     */
+    const conductorService = new ConductorService();
+
+    /**
+     * Registra conductor.
+     *
+     * Flujo:
+     * - Validaciones
+     * - Verificación de duplicados
+     * - Registro en PostgreSQL
+     * - Creación de credenciales Cognito
+     * - Rollback automático si ocurre error
+     */
+    const conductor = await conductorService.registrarNuevoConductor(body);
+
+    /**
+     * Retorna respuesta exitosa.
+     */
+    return successResponse(conductor, "¡Conductor registrado exitosamente!", 201);
+  } catch (error) {
+    console.error("Error en crearConductorController:", error);
+
+    /**
+     * Retorna mensaje controlado
+     */
+    return errorResponse(
+      error.statusCode
+        ? error.message
+        : "Error en la creación de credenciales. Registro no guardado. Intente nuevamente",
+      error.statusCode || 500
+    );
   }
 };

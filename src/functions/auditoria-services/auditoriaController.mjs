@@ -1,86 +1,129 @@
-/**
- * Controller: Auditoría de Accesos
- * HU13 - Capa HTTP: valida token, verifica rol ADMIN y despacha al service.
- *
- * Reutiliza el mismo patrón de autenticación que el resto de servicios:
- *   - Provider "cognito" → getCognitoSession
- *   - Provider "local"   → verifyLocalAccessToken
- */
-
-import { successResponse, errorResponse } from '../../shared/utils/response/response.mjs';
-import { getAuditoriaAccesos } from './auditoriaService.mjs';
-import { extractBearerToken } from '../auth-services/authValidator.mjs';
-import { verifyLocalAccessToken } from '../auth-services/authToken.mjs';
-import { getAuthProvider } from '../auth-services/authConfig.mjs';
-import * as cognitoProvider from '../auth-services/authCognitoProvider.mjs';
-
-// ─── Roles permitidos para este endpoint ─────────────────────────────────────
-const ROLES_PERMITIDOS = ['admin'];
-
-// ─── Helper: verificar token y extraer rol ───────────────────────────────────
+import { getCurrentSession } from "../auth-services/authService.mjs";
+import {
+  obtenerResumenAuditoria,
+  obtenerRegistrosAuditoria,
+  generarCsvAuditoria,
+} from "./auditoriaService.mjs";
 
 /**
- * Verifica el token Bearer del request y devuelve el rol del usuario.
- * Lanza error si el token es inválido, expirado o el rol no está permitido.
+ * Middleware utilitario para validar que el usuario que realiza la petición
+ * sea Administrador. Utiliza el token JWT provisto en las cabeceras.
  *
- * @param {Object} event - Evento Lambda de API Gateway
- * @returns {Promise<{role: string, email: string}>}
+ * @param {Object} event - Evento de API Gateway con las cabeceras HTTP.
+ * @throws {Error} Si no hay token o si el rol no coincide con "admin".
  */
-const verificarTokenYRol = async (event) => {
-  const headers     = event.headers || {};
-  const authHeader  = headers['Authorization'] || headers['authorization'];
-  const token       = extractBearerToken(authHeader); // lanza 401 si no hay token
-
-  let role  = null;
-  let email = null;
-
-  if (getAuthProvider() === 'cognito') {
-    const sessionResult = await cognitoProvider.getCognitoSession(token);
-    role  = sessionResult?.user?.role   || null;
-    email = sessionResult?.user?.email  || null;
-  } else {
-    // Modo local/desarrollo
-    const payload = verifyLocalAccessToken(token); // lanza 401 si inválido/expirado
-    role  = payload.role  || null;
-    email = payload.email || null;
+const validarAccesoAdministrador = async (event) => {
+  // Extraer token de autorización manejando posibles variaciones de mayúsculas
+  const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+  if (!authorizationHeader) {
+    const error = new Error("Acceso denegado: Token requerido");
+    error.statusCode = 401; // QA expects 401 for unauthenticated
+    throw error;
   }
 
-  // Verificar que el rol tenga acceso a este endpoint
-  if (!role || !ROLES_PERMITIDOS.includes(role.toLowerCase())) {
-    const err = new Error('No tienes permisos para acceder a este recurso');
-    err.statusCode = 403;
-    err.code       = 'FORBIDDEN';
-    throw err;
-  }
+  // Validar y obtener los datos de la sesiÃ³n mapeados del token
+  const session = await getCurrentSession(authorizationHeader);
 
-  return { role, email };
+  // Validar que el rol corresponda a un "Admin"
+  if (!["admin"].includes(session.role.toLowerCase())) {
+    const error = new Error("Acceso denegado: Se requiere rol de Administrador");
+    error.statusCode = 403; // 403 for unauthorized
+    throw error;
+  }
 };
 
-// ─── Controller principal ────────────────────────────────────────────────────
+/**
+ * Controlador para la ruta `GET /auditoria/resumen`.
+ * Retorna las métricas y un resumen estadístico de todos los accesos en el sistema.
+ */
+export const getAuditoriaResumenController = async (event) => {
+  try {
+    // 1. Verificamos permisos antes de ejecutar la lógica de base de datos
+    await validarAccesoAdministrador(event);
+
+    // 2. Comunicarnos con el servicio para los datos de negocio
+    const data = await obtenerResumenAuditoria();
+
+    // 3. Responder de forma estandarizada en formato JSON
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ success: true, data }),
+    };
+  } catch (error) {
+    // Si contiene "Acceso denegado" es de autorización (403), si no es error de código (500)
+    const status = error.statusCode || 500;
+    return {
+      statusCode: status,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ success: false, message: error.message }),
+    };
+  }
+};
 
 /**
- * GET /dashboard/auditoria
- * Solo accesible por usuarios con rol ADMIN.
- *
- * Response body:
- * {
- *   success: true,
- *   data: AuditLogItem[],   ← formato exacto que consume el frontend
- *   message: "..."
- * }
+ * Controlador para la ruta `GET /auditoria/registros`.
+ * Retorna la tabla/historial paginado y/o filtrado de registros de inicio de sesión.
  */
-export const getAuditoria = async (event) => {
+export const getAuditoriaRegistrosController = async (event) => {
   try {
-    await verificarTokenYRol(event);
+    // 1. Verificamos permisos de acceso Administrador
+    await validarAccesoAdministrador(event);
 
-    const logs = await getAuditoriaAccesos();
+    // 2. Extraer parámetros query de la URL para realizar filtros de búsqueda
+    const search = event.queryStringParameters?.search || "";
+    const rol = event.queryStringParameters?.rol || "";
 
-    return successResponse(logs, 'Registros de auditoría obtenidos correctamente');
+    // 3. Obtener el arreglo de registros procesados desde el servicio
+    const data = await obtenerRegistrosAuditoria(search, rol);
+
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ success: true, data }),
+    };
   } catch (error) {
-    return errorResponse(
-      error.message,
-      error.statusCode || 500,
-      { code: error.code || 'AUDITORIA_ERROR' },
-    );
+    const status = error.statusCode || 500;
+    return {
+      statusCode: status,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ success: false, message: error.message }),
+    };
+  }
+};
+
+/**
+ * Controlador para la ruta `GET /auditoria/exportar/csv`.
+ * Descarga directamente un archivo .CSV que puede ser leído por MS Excel con los registros filtrados.
+ */
+export const exportAuditoriaCsvController = async (event) => {
+  try {
+    // 1. Verificamos permisos de la sesión
+    await validarAccesoAdministrador(event);
+
+    // 2. Extrear parámetros para replicar los filtros actuales que tiene el usuario en la interfaz
+    const search = event.queryStringParameters?.search || "";
+    const rol = event.queryStringParameters?.rol || "";
+
+    // 3. Obtener los datos formateados estrictamente como texto multilínea separado por comas (CSV)
+    const csvData = await generarCsvAuditoria(search, rol);
+
+    return {
+      statusCode: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        // Force attachment causará que el navegador intente descargar el archivo
+        "Content-Disposition": "attachment; filename=reporte_auditoria.csv",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: csvData,
+    };
+  } catch (error) {
+    const status = error.statusCode || 500;
+    return {
+      statusCode: status,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ success: false, message: error.message }),
+    };
   }
 };

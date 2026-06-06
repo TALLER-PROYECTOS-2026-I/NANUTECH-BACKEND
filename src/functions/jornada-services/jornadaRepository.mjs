@@ -66,6 +66,7 @@ const DURATION_SQL = `
 function buildFilters({
   q,
   conductor_id,
+  estado,
   fecha_desde,
   fecha_hasta,
   estado_alerta,
@@ -77,11 +78,17 @@ function buildFilters({
   if (q) {
     params.push(`%${q}%`);
     const idx = params.length;
-    conditions.push(`(un.placa ILIKE $${idx} OR u.nombres || ' ' || u.apellidos ILIKE $${idx})`);
+    conditions.push(
+      `(un.placa ILIKE $${idx} OR u.nombres || ' ' || u.apellidos ILIKE $${idx} OR c.codigo ILIKE $${idx})`
+    );
   }
   if (conductor_id) {
     params.push(conductor_id);
     conditions.push(`j.conductor_id = $${params.length}`);
+  }
+  if (estado) {
+    params.push(estado);
+    conditions.push(`j.estado = $${params.length}`);
   }
   if (fecha_desde) {
     params.push(fecha_desde);
@@ -395,7 +402,7 @@ export class JornadaRepository {
           j.fecha_jornada AS fecha,
           u.nombres || ' ' || u.apellidos AS conductor,
           un.placa || ' - ' || un.marca || ' ' || un.modelo AS camion,
-          c.codigo AS contrato,
+          c.cliente AS contrato,
           CASE
             WHEN j.hora_inicio IS NOT NULL AND j.hora_fin IS NOT NULL
               THEN TO_CHAR(j.hora_inicio, 'HH:MI AM') || ' - ' || TO_CHAR(j.hora_fin, 'HH:MI AM')
@@ -471,7 +478,7 @@ export class JornadaRepository {
           TO_CHAR(j.fecha_jornada, 'YYYY-MM-DD') AS fecha,
           u.nombres || ' ' || u.apellidos AS conductor,
           un.placa,
-          c.codigo AS contrato,
+          c.cliente AS contrato,
           TO_CHAR(j.hora_inicio, 'YYYY-MM-DD HH24:MI:SS') AS hora_inicio,
           TO_CHAR(j.hora_fin, 'YYYY-MM-DD HH24:MI:SS') AS hora_fin,
           ${DURATION_SQL} AS duracion_total,

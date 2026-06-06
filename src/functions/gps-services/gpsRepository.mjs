@@ -1,3 +1,4 @@
+
 // gpsRepository.mjs
 
 import db from "../../shared/config/database.mjs";

@@ -3,25 +3,21 @@ import { getDashboardService } from "./dashboardService.mjs";
 import { getCurrentSession } from "../auth-services/authService.mjs";
 
 // Importa helpers response.
-import {
-
-  successResponse,
-
-  errorResponse
-
-} from "../../shared/utils/response/response.mjs";
-
+import { successResponse, errorResponse } from "../../shared/utils/response/response.mjs";
 
 // CONTROLADOR DASHBOARD
 
-export const getDashboardController =
-async (event) => {
-
+export const getDashboardController = async (event) => {
   try {
     // Obtiene el token enviado en el header Authorization.
     const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
 
     // Valida el token y obtiene la sesión actual del usuario.
+    if (!authorizationHeader) {
+      return errorResponse("Token requerido", 401, {
+        code: "INVALID_TOKEN",
+      });
+    }
     const session = await getCurrentSession(authorizationHeader);
 
     // Regla de seguridad: solo el Administrador de Operaciones puede registrar contratos.
@@ -33,26 +29,21 @@ async (event) => {
 
     // OBTIENE DATA DEL DASHBOARD
 
-    const data =
-      await getDashboardService();
+    const data = await getDashboardService();
 
     // RESPUESTA EXITOSA
 
     return successResponse(
-
       data,
 
       "Dashboard obtenido correctamente",
 
       200
     );
-
   } catch (error) {
-
     // LOG ERROR
 
     console.error(
-
       "Error en dashboard controller:",
 
       error
@@ -61,7 +52,6 @@ async (event) => {
     // RESPUESTA ERROR
 
     return errorResponse(
-
       "Error interno del servidor",
 
       500

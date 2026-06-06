@@ -3,6 +3,7 @@ import {
   getConductorStatisticsController,
   updateLicenciaController,
   getConductorDetailController,
+  crearConductorController,
 } from "./conductorController.mjs";
 
 /**
@@ -35,6 +36,9 @@ const routes = {
    * =========================================================
    */
   "GET /conductores/{id}": getConductorDetailController,
+
+  // Enpoint para crear nuevo conductor
+  "POST /conductores": crearConductorController,
 };
 
 /**
