@@ -133,13 +133,13 @@ export class ConductorService {
    * =========================================================
    */
   async updateLicencia(conductorId, licenciaData) {
-    const licenciaActual = await this.conductorRepository.getLicenciaActiva(conductorId);
+    const licenciaActual = await this.conductorRepository.getLicenciaActual(conductorId);
 
     if (!licenciaActual) {
       throw new Error("Licencia no encontrada");
     }
 
-    const categorias = ["A-I", "A-IIa", "A-IIb", "A-IIIa", "A-IIIb", "A-IIIc"];
+    const categorias = ["A-I", "A-II-a", "A-II-b", "A-III-a", "A-III-b", "A-III-c"];
 
     const categoriaActual = categorias.indexOf(licenciaActual.categoria);
 
