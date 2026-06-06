@@ -202,19 +202,8 @@ CREATE TABLE sesiones_usuario (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE auditoria_accesos (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
-  correo VARCHAR(120),
-  rol rol_usuario,
-  accion VARCHAR(60) NOT NULL,
-  resultado resultado_auditoria NOT NULL,
-  ip_address INET,
-  user_agent TEXT,
-  dispositivo VARCHAR(120),
-  detalle TEXT,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
+-- NOTA: auditoria_accesos NO se crea aqui.
+-- La crea la migracion 1779678075986_auditoria-accesos.sql (HU-13).
 
 -- =========================================================
 -- CONDUCTORES
@@ -644,8 +633,8 @@ CREATE INDEX idx_usuarios_estado ON usuarios(estado);
 CREATE INDEX idx_sesiones_usuario ON sesiones_usuario(usuario_id);
 CREATE INDEX idx_sesiones_estado ON sesiones_usuario(estado);
 CREATE INDEX idx_reset_email ON password_reset_tokens(email);
-CREATE INDEX idx_auditoria_usuario ON auditoria_accesos(usuario_id);
-CREATE INDEX idx_auditoria_fecha ON auditoria_accesos(created_at);
+
+-- NOTA: los indices de auditoria_accesos se crean en la migracion HU-13.
 
 CREATE INDEX idx_conductores_estado_operacional ON conductores(estado_operacional);
 CREATE INDEX idx_contactos_emergencia_conductor ON contactos_emergencia(conductor_id);
@@ -1174,7 +1163,7 @@ DROP TABLE IF EXISTS conductores_historial CASCADE;
 DROP TABLE IF EXISTS licencias_conducir CASCADE;
 DROP TABLE IF EXISTS contactos_emergencia CASCADE;
 DROP TABLE IF EXISTS conductores CASCADE;
-DROP TABLE IF EXISTS auditoria_accesos CASCADE;
+-- auditoria_accesos la elimina la migracion HU-13 (su propio migrate:down)
 DROP TABLE IF EXISTS sesiones_usuario CASCADE;
 DROP TABLE IF EXISTS password_reset_tokens CASCADE;
 DROP TABLE IF EXISTS login_intentos CASCADE;
