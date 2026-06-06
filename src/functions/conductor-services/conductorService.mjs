@@ -126,6 +126,36 @@ export class ConductorService {
 
     return conductor;
   }
+
+  /**
+ * =====================================================
+ * HU18
+ * Obtiene licencia activa del conductor autenticado.
+ * =====================================================
+ */
+async getLicencia(conductorId) {
+  const licencia = await this.conductorRepository.getLicenciaDetalle(
+    conductorId
+  );
+
+  if (!licencia) {
+    const error = new Error("Licencia no encontrada");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return licencia;
+}
+
+/**
+ * HU18
+ * Obtiene el ID del conductor a partir del correo autenticado.
+ * Se usa principalmente para pruebas locales con AuthProvider=local.
+ */
+async getConductorIdByEmail(email) {
+  return this.conductorRepository.getConductorIdByEmail(email);
+}
+
   /**
    * =========================================================
    * HU18
