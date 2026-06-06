@@ -9,6 +9,6 @@ export const getAllDisponiblesController = async (event) => {
     return successResponse(unidades, SUCCESS_MESSAGES.UNIDADES_RETRIEVED);
   } catch (error) {
     console.error("Error en getAllDisponiblesController:", error);
-    return errorResponse(error.message, 500);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };

@@ -402,7 +402,7 @@ export class JornadaRepository {
           j.fecha_jornada AS fecha,
           u.nombres || ' ' || u.apellidos AS conductor,
           un.placa || ' - ' || un.marca || ' ' || un.modelo AS camion,
-          c.codigo AS contrato,
+          c.cliente AS contrato,
           CASE
             WHEN j.hora_inicio IS NOT NULL AND j.hora_fin IS NOT NULL
               THEN TO_CHAR(j.hora_inicio, 'HH:MI AM') || ' - ' || TO_CHAR(j.hora_fin, 'HH:MI AM')
@@ -478,7 +478,7 @@ export class JornadaRepository {
           TO_CHAR(j.fecha_jornada, 'YYYY-MM-DD') AS fecha,
           u.nombres || ' ' || u.apellidos AS conductor,
           un.placa,
-          c.codigo AS contrato,
+          c.cliente AS contrato,
           TO_CHAR(j.hora_inicio, 'YYYY-MM-DD HH24:MI:SS') AS hora_inicio,
           TO_CHAR(j.hora_fin, 'YYYY-MM-DD HH24:MI:SS') AS hora_fin,
           ${DURATION_SQL} AS duracion_total,

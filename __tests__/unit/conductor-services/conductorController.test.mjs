@@ -145,7 +145,7 @@ describe("conductorController", () => {
       const result = await getAllConductoresController(event);
 
       expect(result.statusCode).toBe(500);
-      expect(logError).toHaveBeenCalledWith("Error interno del servidor", 500);
+      expect(logError).toHaveBeenCalledWith("Error en la base de datos", 500);
     });
 
     it("debería retornar array vacío cuando no hay conductores con status 200", async () => {

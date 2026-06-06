@@ -48,7 +48,7 @@ export const getAllConductoresController = async (event) => {
   } catch (error) {
     console.error("Error en getAllConductoresController:", error);
 
-    return errorResponse("Error interno del servidor", 500);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
 
@@ -103,7 +103,7 @@ export const getConductorStatisticsController = async (event) => {
   } catch (error) {
     console.error("Error getConductorStatisticsController:", error);
 
-    return errorResponse("Error interno del servidor", 500);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
 /**
@@ -154,7 +154,7 @@ export const updateLicenciaController = async (event) => {
   } catch (error) {
     console.error("Error updateLicenciaController:", error);
 
-    return errorResponse(error.message, 400);
+    return errorResponse(error.message, error.statusCode || 400);
   }
 };
 /**
@@ -204,7 +204,7 @@ export const getConductorDetailController = async (event) => {
   } catch (error) {
     console.error("Error getConductorDetailController:", error);
 
-    return errorResponse(error.message, 500);
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
 
