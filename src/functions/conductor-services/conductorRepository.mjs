@@ -313,6 +313,57 @@ export class ConductorRepository {
 
     return result.rows[0];
   }
+
+  
+  /**
+ * HU18
+ * Obtiene detalle completo de licencia activa para la app móvil.
+ */
+async getLicenciaDetalle(conductorId) {
+  const result = await db.query(
+    `
+      SELECT
+        id,
+        conductor_id,
+        numero_licencia,
+        categoria,
+        fecha_emision,
+        fecha_vencimiento,
+        autoridad_emisora,
+        activa,
+        created_at,
+        updated_at
+      FROM licencias_conducir
+      WHERE conductor_id = $1
+        AND activa = TRUE
+      LIMIT 1
+    `,
+    [conductorId]
+  );
+
+  return result.rows[0];
+}
+
+/**
+ * HU18
+ * Obtiene el ID del conductor por correo.
+ * Permite que el token local de chofer pueda resolver su usuario.
+ */
+async getConductorIdByEmail(email) {
+  const result = await db.query(
+    `
+      SELECT id
+      FROM usuarios
+      WHERE correo = $1
+        AND rol = 'CHOFER'
+        AND activo = TRUE
+      LIMIT 1
+    `,
+    [email]
+  );
+
+  return result.rows[0]?.id ?? null;
+}
   /**
    * Valida duplicados por DNI, correo o número de licencia.
    */

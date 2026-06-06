@@ -616,6 +616,12 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /conductores/licencia
             Method: PUT
+        GetLicencia:
+          Type: Api
+          Properties:
+            RestApiId: !Ref NanutechApi
+            Path: /conductores/licencia
+            Method: GET
         GetStatistics:
           Type: Api
           Properties:

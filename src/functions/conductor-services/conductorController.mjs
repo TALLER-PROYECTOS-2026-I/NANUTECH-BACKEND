@@ -149,10 +149,27 @@ export const updateLicenciaController = async (event) => {
      * - Admin: debe enviar conductorId en el body
      * - Chofer: se obtiene desde session.user.id
      */
-    const conductorId =
-      session.role === "admin"
-        ? body.conductorId
-        : session.user?.id;
+    const conductorService = new ConductorService();
+
+let conductorId = null;
+
+if (session.role === "admin") {
+  conductorId = event.queryStringParameters?.conductorId;
+}
+
+if (session.role === "chofer") {
+  conductorId = session.user?.id;
+
+  if (!conductorId && session.user?.email) {
+    conductorId = await conductorService.getConductorIdByEmail(
+      session.user.email
+    );
+  }
+}
+
+if (!conductorId) {
+  return errorResponse("No se pudo obtener el ID del conductor desde la sesión", 400);
+}
 
     if (!conductorId) {
       return errorResponse(
@@ -163,10 +180,6 @@ export const updateLicenciaController = async (event) => {
       );
     }
 
-    /**
-     * SERVICE
-     */
-    const conductorService = new ConductorService();
 
     const result = await conductorService.updateLicencia(conductorId, licenciaData);
 
@@ -175,6 +188,64 @@ export const updateLicenciaController = async (event) => {
     console.error("Error updateLicenciaController:", error);
 
     return errorResponse(error.message, error.statusCode || 400);
+  }
+};
+
+/**
+ * =====================================================
+ * HU18
+ * Obtener licencia del conductor autenticado
+ *
+ * Acceso permitido:
+ * - CHOFER: obtiene su propia licencia
+ * - ADMIN: puede consultar por query conductorId
+ * =====================================================
+ */
+export const getLicenciaController = async (event) => {
+  try {
+    const authorizationHeader =
+      event.headers?.Authorization || event.headers?.authorization;
+
+    const session = await getCurrentSession(authorizationHeader);
+
+    if (session.role !== "chofer" && session.role !== "admin") {
+      return errorResponse("Acceso denegado", 403);
+    }
+
+    const conductorService = new ConductorService();
+
+    let conductorId = null;
+
+    if (session.role === "admin") {
+      conductorId = event.queryStringParameters?.conductorId;
+    }
+
+    if (session.role === "chofer") {
+      conductorId = session.user?.id;
+
+      if (!conductorId && session.user?.email) {
+        conductorId = await conductorService.getConductorIdByEmail(
+          session.user.email
+        );
+      }
+    }
+
+    if (!conductorId) {
+      return errorResponse(
+        session.role === "admin"
+          ? "El parámetro conductorId es requerido para administradores"
+          : "No se pudo obtener el ID del conductor desde la sesión",
+        400
+      );
+    }
+
+    const licencia = await conductorService.getLicencia(conductorId);
+
+    return successResponse(licencia, "Licencia obtenida exitosamente");
+  } catch (error) {
+    console.error("Error getLicenciaController:", error);
+
+    return errorResponse(error.message, error.statusCode || 500);
   }
 };
 
