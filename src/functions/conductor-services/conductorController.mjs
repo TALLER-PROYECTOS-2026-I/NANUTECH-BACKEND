@@ -21,10 +21,9 @@ export const getAllConductoresController = async (event) => {
     /**
      * VALIDACIÓN JWT
      */
+    const authorizationHeader =
+      event.headers?.Authorization || event.headers?.authorization;
 
-    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
-
-    // Valida token y obtiene sesión
     const session = await getCurrentSession(authorizationHeader);
 
     /**
@@ -39,7 +38,6 @@ export const getAllConductoresController = async (event) => {
     /**
      * LÓGICA PRINCIPAL
      */
-
     const conductorService = new ConductorService();
 
     const conductores = await conductorService.getAllActiveConductores();
@@ -60,10 +58,9 @@ export const getConductorStatisticsController = async (event) => {
     /**
      * VALIDACIÓN JWT
      */
+    const authorizationHeader =
+      event.headers?.Authorization || event.headers?.authorization;
 
-    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
-
-    // Valida token y obtiene sesión
     const session = await getCurrentSession(authorizationHeader);
 
     /**
@@ -78,13 +75,11 @@ export const getConductorStatisticsController = async (event) => {
     /**
      * OBTENER ID
      */
-
     const { id } = event.pathParameters;
 
     /**
      * VALIDACIÓN UUID
      */
-
     const uuidRegex = /^[0-9a-fA-F-]{36}$/;
 
     if (!uuidRegex.test(id)) {
@@ -94,7 +89,6 @@ export const getConductorStatisticsController = async (event) => {
     /**
      * LÓGICA PRINCIPAL
      */
-
     const conductorService = new ConductorService();
 
     const statistics = await conductorService.getConductorStatistics(id);
@@ -106,10 +100,17 @@ export const getConductorStatisticsController = async (event) => {
     return errorResponse(error.message, error.statusCode || 500);
   }
 };
+
 /**
  * =====================================================
  * HU18
  * Actualizar licencia de conductor
+ *
+ * Acceso permitido:
+ * - CHOFER: actualiza su propia licencia
+ *           (conductorId tomado de session.user.id)
+ * - ADMIN:  puede actualizar licencia de cualquier
+ *           conductor (debe enviar conductorId en body)
  * =====================================================
  */
 export const updateLicenciaController = async (event) => {
@@ -117,38 +118,57 @@ export const updateLicenciaController = async (event) => {
     /**
      * VALIDACIÓN JWT
      */
-
-    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    const authorizationHeader =
+      event.headers?.Authorization || event.headers?.authorization;
 
     const session = await getCurrentSession(authorizationHeader);
 
     /**
-     * Solo chofer puede actualizar
-     * su licencia.
+     * VALIDACIÓN DE ROLES
+     *
+     * Chofer: actualiza su propia licencia
+     * Admin: puede actualizar la de cualquier conductor
      */
-    if (session.role !== "chofer") {
+    if (session.role !== "chofer" && session.role !== "admin") {
       return errorResponse("Acceso denegado", 403);
     }
 
     /**
      * BODY REQUEST
      */
-
-    const body = JSON.parse(event.body);
+    const body = JSON.parse(event.body || "{}");
 
     /**
      * VALIDACIÓN HU18
      */
-
     const licenciaData = LicenciaValidator.validateUpdateLicencia(body);
+
+    /**
+     * DETERMINAR conductorId
+     *
+     * - Admin: debe enviar conductorId en el body
+     * - Chofer: se obtiene desde session.user.id
+     */
+    const conductorId =
+      session.role === "admin"
+        ? body.conductorId
+        : session.user?.id;
+
+    if (!conductorId) {
+      return errorResponse(
+        session.role === "admin"
+          ? "El campo conductorId es requerido para administradores"
+          : "No se pudo obtener el ID del conductor desde la sesión",
+        400
+      );
+    }
 
     /**
      * SERVICE
      */
-
     const conductorService = new ConductorService();
 
-    const result = await conductorService.updateLicencia(session.userId, licenciaData);
+    const result = await conductorService.updateLicencia(conductorId, licenciaData);
 
     return successResponse(result, SUCCESS_MESSAGES.LICENCIA_UPDATED);
   } catch (error) {
@@ -157,6 +177,7 @@ export const updateLicenciaController = async (event) => {
     return errorResponse(error.message, error.statusCode || 400);
   }
 };
+
 /**
  * =========================================================
  * HU18
@@ -173,8 +194,8 @@ export const getConductorDetailController = async (event) => {
     /**
      * VALIDACIÓN JWT
      */
-
-    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    const authorizationHeader =
+      event.headers?.Authorization || event.headers?.authorization;
 
     const session = await getCurrentSession(authorizationHeader);
 
@@ -208,7 +229,6 @@ export const getConductorDetailController = async (event) => {
   }
 };
 
-
 /**
  * Controller encargado de registrar un nuevo conductor.
  * HU22 - Registro de Nuevo Conductor
@@ -219,7 +239,8 @@ export const crearConductorController = async (event) => {
      * Obtiene token enviado
      * en el header Authorization.
      */
-    const authorizationHeader = event.headers?.Authorization || event.headers?.authorization;
+    const authorizationHeader =
+      event.headers?.Authorization || event.headers?.authorization;
 
     /**
      * Valida sesión del usuario
