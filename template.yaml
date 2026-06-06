@@ -469,7 +469,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
-            Path: /jornadas/historial
+            Path: /jornadas/historial-chofer
             Method: GET
 
         GetMetricasChofer:
