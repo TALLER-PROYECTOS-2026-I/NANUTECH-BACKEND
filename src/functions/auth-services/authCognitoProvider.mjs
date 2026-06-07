@@ -320,7 +320,6 @@ export const getCognitoSession = async (accessToken) => {
  */
 export const createConductorUserWithCognito = async ({
   email,
-  dni,
   nombreCompleto,
 }) => {
   try {
@@ -339,7 +338,6 @@ export const createConductorUserWithCognito = async ({
         { Name: "email", Value: email },
         { Name: "email_verified", Value: "true" },
         { Name: "name", Value: nombreCompleto },
-        { Name: "custom:dni", Value: dni },
         { Name: "custom:role", Value: "chofer" },
       ],
       /**
