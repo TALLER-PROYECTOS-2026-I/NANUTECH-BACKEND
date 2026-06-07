@@ -52,8 +52,34 @@ Parameters:
     Description: "ID del Security Group para las Lambdas"
   FrontendUrl:
     Type: String
-    Description: "URL del Frontend de Amplify (Testing o Producción)"
-    Default: "http://localhost:3000"
+    Description: "URL primaria del Frontend (Amplify Testing o Producción)"
+    Default: "https://testing.dcoqassfbrwx2.amplifyapp.com"
+  # ── CKV_AWS_115 ── Concurrencia reservada por función
+  LambdaReservedConcurrency:
+    Type: Number
+    Default: 10
+    Description: "Concurrencia reservada para cada función Lambda"
+  # ── CKV_AWS_173 ── KMS Key ARN para cifrar variables de entorno
+  LambdaKmsKeyArn:
+    Type: String
+    Default: ""
+    Description: "ARN de la KMS Key para cifrar variables de entorno de Lambda (dejar vacío usa la clave AWS por defecto)"
+  # ── CKV_AWS_120 ── Tamaño de caché de API Gateway (0.5 GB mínimo)
+  ApiCacheSize:
+    Type: String
+    Default: "0.5"
+    AllowedValues: ["0.5", "1.6", "6.1", "13.5", "28.4", "58.2", "118", "237"]
+    Description: "Tamaño del caché de API Gateway en GB"
+  ForceUpdate:
+    Type: String
+    Default: "0"
+    Description: "Timestamp para forzar actualizaciones"
+
+# ────────────────────────────────────────────────────────────────────────────
+# CONDICIONES
+# ────────────────────────────────────────────────────────────────────────────
+Conditions:
+  HasKmsKey: !Not [!Equals [!Ref LambdaKmsKeyArn, ""]]
 
 Globals:
   Function:
@@ -62,6 +88,14 @@ Globals:
     Runtime: nodejs20.x
     Architectures:
       - x86_64
+    # ── CKV_AWS_173 ── Cifrado KMS de variables de entorno
+    KmsKeyArn: !If [HasKmsKey, !Ref LambdaKmsKeyArn, !Ref AWS::NoValue]
+    # ── CKV_AWS_115 ── Límite de concurrencia a nivel de función
+    ReservedConcurrentExecutions: !Ref LambdaReservedConcurrency
+    # ── CKV_AWS_116 ── Dead Letter Queue global (SQS)
+    DeadLetterQueue:
+      Type: SQS
+      TargetArn: !GetAtt GlobalDLQ.Arn
     Environment:
       Variables:
         NODE_ENV: !Ref StageName
@@ -78,6 +112,9 @@ Globals:
         SESSION_TIMEOUT_SECONDS: !Ref SessionTimeoutSeconds
         AUTH_TOKEN_SECRET: !Ref AuthTokenSecret
         DB_SSL_ENABLED: !Ref DBSslEnabled
+        # Lista de origenes permitidos separados por coma — leidos por cada Lambda
+        # para devolver Access-Control-Allow-Origin dinamicamente
+        ALLOWED_ORIGINS: !Ref FrontendUrl
     LoggingConfig:
       LogFormat: JSON
     Tags:
@@ -90,8 +127,81 @@ Globals:
       SubnetIds: !Ref PrivateSubnets
 
 Resources:
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # CKV_AWS_116 — Dead Letter Queue global compartida por todas las Lambdas
+  # ══════════════════════════════════════════════════════════════════════════
+  GlobalDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${StageName}-lambda-dlq"
+      MessageRetentionPeriod: 1209600  # 14 días
+      # Cifrar la DLQ con la misma KMS key si está disponible
+      KmsMasterKeyId: !If [HasKmsKey, !Ref LambdaKmsKeyArn, "alias/aws/sqs"]
+      Tags:
+        - Key: Environment
+          Value: !Ref StageName
+        - Key: Proyecto
+          Value: Nanutech-Backend
+
+  # Política para que las Lambdas puedan escribir en la DLQ
+  GlobalDLQPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref GlobalDLQ
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowLambdaSendMessage
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt GlobalDLQ.Arn
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StageName}-*"
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # CKV_AWS_76 — Log Group de CloudWatch para Access Logging de API Gateway
+  # ══════════════════════════════════════════════════════════════════════════
+  ApiGatewayAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/${StageName}-nanutech-access-logs"
+      RetentionInDays: 90
+      Tags:
+        Environment: !Ref StageName
+        Proyecto: Nanutech-Backend
+
+  # Rol IAM para que API Gateway pueda escribir en CloudWatch
+  ApiGatewayCloudWatchRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${StageName}-apigateway-cloudwatch-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+
+  # Cuenta de API Gateway (necesaria para habilitar el rol de CloudWatch)
+  ApiGatewayAccount:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !GetAtt ApiGatewayCloudWatchRole.Arn
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # API GATEWAY — con CKV_AWS_76 (Access Logging) y CKV_AWS_120 (Caching)
+  # ══════════════════════════════════════════════════════════════════════════
   NanutechApi:
     Type: AWS::Serverless::Api
+    DependsOn: ApiGatewayAccount
     Properties:
       Name: !Sub "nanutech-api-${StageName}"
       StageName: !Ref StageName
@@ -100,14 +210,40 @@ Resources:
         AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
         AllowOrigin: !Sub "'${FrontendUrl}'"
       TracingEnabled: true
+      # ── CKV_AWS_76 ── Access Logging habilitado
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiGatewayAccessLogGroup.Arn
+        Format: >-
+          {"requestId":"$context.requestId",
+           "ip":"$context.identity.sourceIp",
+           "caller":"$context.identity.caller",
+           "user":"$context.identity.user",
+           "requestTime":"$context.requestTime",
+           "httpMethod":"$context.httpMethod",
+           "resourcePath":"$context.resourcePath",
+           "status":"$context.status",
+           "protocol":"$context.protocol",
+           "responseLength":"$context.responseLength",
+           "integrationLatency":"$context.integrationLatency",
+           "responseLatency":"$context.responseLatency"}
+      # ── CKV_AWS_120 ── Caching habilitado con cifrado
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          DataTraceEnabled: true
+          MetricsEnabled: true
+          CachingEnabled: true
+          CacheDataEncrypted: true
+          CacheTtlInSeconds: 300
+      CacheClusterEnabled: true
+      CacheClusterSize: !Ref ApiCacheSize
       Tags:
         Environment: !Ref StageName
         Proyecto: Nanutech-Backend
 
   # ===========================================================================
   # CAMIONES — solo ADMIN
-  # GET /camiones, GET /camiones/{id}, POST /camiones,
-  # GET /camiones/panel, GET /camiones/exportar/csv
   # ===========================================================================
   CamionFunction:
     Type: AWS::Serverless::Function
@@ -118,6 +254,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -166,9 +306,6 @@ Resources:
 
   # ===========================================================================
   # AUDITORÍA
-  # GET /auditoria/resumen
-  # GET /auditoria/registros
-  # GET /auditoria/exportar/csv
   # ===========================================================================
   AuditoriaFunction:
     Type: AWS::Serverless::Function
@@ -179,6 +316,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -215,12 +356,6 @@ Resources:
 
   # ===========================================================================
   # ALERTAS
-  # GET  /alertas/indicadores
-  # GET  /alertas/activas
-  # POST /alertas/sos
-  # POST /alertas/auxilio
-  # PATCH /alertas/{id}/resolver
-  # PATCH /alertas/{id}/estado
   # ===========================================================================
   AlertaFunction:
     Type: AWS::Serverless::Function
@@ -231,6 +366,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -284,12 +423,7 @@ Resources:
           - src/functions/alerta-services/alertaHandler.mjs
 
   # ===========================================================================
-  # DASHBOARD CONDUCTORES — solo ADMIN
-  # GET /conductores/dashboard/resumen
-  # GET /conductores/dashboard/listado
-  #
-  # FIX: se agrega RestApiId: !Ref NanutechApi que faltaba en el original,
-  # por eso estos endpoints devolvían 403 — no estaban en el API Gateway correcto.
+  # DASHBOARD CONDUCTORES
   # ===========================================================================
   DashboardConductoresFunction:
     Type: AWS::Serverless::Function
@@ -300,6 +434,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -329,8 +467,7 @@ Resources:
           - src/functions/dashboard-conductores-services/dashboardConductoresHandler.mjs
 
   # ===========================================================================
-  # DASHBOARD GERENCIAL — GERENTE (y ADMIN según código)
-  # GET /dashboard/gerencial
+  # DASHBOARD GERENCIAL
   # ===========================================================================
   DashboardGerencialFunction:
     Type: AWS::Serverless::Function
@@ -341,6 +478,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           DB_HOST: !Ref DBHost
@@ -367,8 +508,7 @@ Resources:
           - src/functions/dashboard-gerencial-services/dashboardGerencialHandler.mjs
 
   # ===========================================================================
-  # DASHBOARD ADMIN — solo ADMIN
-  # GET /dashboard
+  # DASHBOARD ADMIN
   # ===========================================================================
   DashboardFunction:
     Type: AWS::Serverless::Function
@@ -379,6 +519,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -402,18 +546,7 @@ Resources:
           - src/functions/dashboard-services/dashboardHandler.mjs
 
   # ===========================================================================
-  # JORNADAS — ADMIN, GERENTE y CHOFER
-  # POST /jornadas
-  # GET  /jornadas
-  # GET  /jornadas/exportar
-  # GET  /jornadas/actual/{conductorId}
-  # POST /jornadas/iniciar
-  # POST /jornadas/finalizar
-  # GET  /jornadas/historial-gerencial
-  # GET  /jornadas/historial-gerencial/metrics
-  # GET  /jornadas/alerta/{jornadaId}
-  # GET  /jornadas/historial
-  # GET  /jornadas/metricas
+  # JORNADAS
   # ===========================================================================
   JornadaFunction:
     Type: AWS::Serverless::Function
@@ -424,6 +557,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -507,16 +644,7 @@ Resources:
           - src/functions/jornada-services/jornadaHandler.mjs
 
   # ===========================================================================
-  # GPS — solo ADMIN
-  # GET  /gps/proveedores
-  # GET  /gps/plantilla
-  # GET  /gps/plantilla/{proveedor}
-  # POST /gps/validar
-  # POST /gps/importar
-  # GET  /gps/resumen
-  # GET  /gps/registros
-  # GET  /gps/tracking/resumen
-  # GET  /gps/tracking/export
+  # GPS
   # ===========================================================================
   GpsFunction:
     Type: AWS::Serverless::Function
@@ -527,6 +655,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -599,13 +731,7 @@ Resources:
           - src/functions/gps-services/gpsHandler.mjs
 
   # ===========================================================================
-  # CONDUCTORES — ADMIN y GERENTE
-  # GET  /conductores
-  # GET  /conductores/{id}
-  # PUT  /conductores/licencia
-  # GET  /conductores/licencia
-  # GET  /conductores/{id}/estadisticas
-  # POST /conductores
+  # CONDUCTORES
   # ===========================================================================
   ConductorFunction:
     Type: AWS::Serverless::Function
@@ -622,6 +748,10 @@ Resources:
                 - cognito-idp:AdminCreateUser
                 - cognito-idp:AdminDeleteUser
               Resource: "*"
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -677,14 +807,7 @@ Resources:
           - src/functions/conductor-services/conductorHandler.mjs
 
   # ===========================================================================
-  # CONTRATOS — GERENTE (vigentes también ADMIN)
-  # GET  /contratos/indicadores
-  # GET  /contratos/vigentes
-  # GET  /contratos/{id}
-  # GET  /contratos
-  # POST /contratos
-  # PUT  /contratos/{id}
-  # PUT  /contratos/{id}/unidades
+  # CONTRATOS
   # ===========================================================================
   ContratoFunction:
     Type: AWS::Serverless::Function
@@ -695,6 +818,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -754,8 +881,7 @@ Resources:
           - src/functions/contrato-services/contratoHandler.mjs
 
   # ===========================================================================
-  # UNIDADES — ADMIN y GERENTE
-  # GET /unidades/disponibles
+  # UNIDADES
   # ===========================================================================
   UnidadFunction:
     Type: AWS::Serverless::Function
@@ -766,6 +892,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -790,9 +920,6 @@ Resources:
 
   # ===========================================================================
   # COMBUSTIBLE
-  # POST /combustible
-  # GET  /combustible/ultimo-km/{unidadId}
-  # GET  /combustible/jornada/{jornadaId}
   # ===========================================================================
   CombustibleFunction:
     Type: AWS::Serverless::Function
@@ -803,6 +930,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -838,11 +969,7 @@ Resources:
           - src/functions/combustible-services/combustibleHandler.mjs
 
   # ===========================================================================
-  # AUTH — público y autenticado
-  # POST /auth/login
-  # POST /auth/forgot-password
-  # POST /auth/forgot-password/confirm
-  # GET  /auth/me
+  # AUTH
   # ===========================================================================
   AuthFunction:
     Type: AWS::Serverless::Function
@@ -862,6 +989,10 @@ Resources:
                 - cognito-idp:ConfirmForgotPassword
                 - cognito-idp:GetUser
               Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}"
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -913,9 +1044,18 @@ Resources:
       Handler: src/functions/migrator-services/migratorHandler.handler
       Timeout: 360
       MemorySize: 1024
+      # DLQ y concurrencia explícitas (override del Global)
+      DeadLetterQueue:
+        Type: SQS
+        TargetArn: !GetAtt GlobalDLQ.Arn
+      ReservedConcurrentExecutions: 1
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt GlobalDLQ.Arn
       Environment:
         Variables:
           LOG_LEVEL: "debug"
@@ -945,6 +1085,18 @@ Outputs:
   ApiEndpoint:
     Description: "URL del endpoint de API Gateway"
     Value: !Sub "https://${NanutechApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}"
+
+  GlobalDLQUrl:
+    Description: "URL de la Dead Letter Queue global"
+    Value: !Ref GlobalDLQ
+
+  GlobalDLQArn:
+    Description: "ARN de la Dead Letter Queue global"
+    Value: !GetAtt GlobalDLQ.Arn
+
+  ApiAccessLogGroupName:
+    Description: "Nombre del Log Group de Access Logs de API Gateway"
+    Value: !Ref ApiGatewayAccessLogGroup
 
   DashboardFunctionArn:
     Description: "ARN de la función Dashboard"

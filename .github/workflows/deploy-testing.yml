@@ -42,12 +42,12 @@ jobs:
       - name: Deploy SAM application
         run: |
           FORCE_UPDATE=$(date +%s)
-          
+
           sam deploy \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
             --stack-name nanutech-backend-testing \
-            --capabilities CAPABILITY_IAM \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             --region us-east-1 \
             --resolve-s3 \
             --parameter-overrides \
@@ -64,8 +64,11 @@ jobs:
               SessionTimeoutSeconds=${{ secrets.SESSION_TIMEOUT_SECONDS || '7200' }} \
               PrivateSubnets=${{ secrets.SUBNET_IDS }} \
               LambdaSecurityGroup=${{ secrets.LAMBDA_SG_ID }} \
+              LambdaReservedConcurrency=${{ secrets.LAMBDA_RESERVED_CONCURRENCY || '10' }} \
+              LambdaKmsKeyArn=${{ secrets.LAMBDA_KMS_KEY_ARN || '' }} \
+              ApiCacheSize=${{ secrets.API_CACHE_SIZE || '0.5' }} \
               ForceUpdate=${FORCE_UPDATE} \
-              FrontendUrl=*
+              FrontendUrl=${{ secrets.FRONTEND_URL }}
 
       - name: Wait for stack to be ready
         run: |
@@ -84,29 +87,29 @@ jobs:
           echo "⚠️  Se ELIMINARÁN todas las funciones"
           echo "⚠️  Esta acción es IRREVERSIBLE"
           echo "========================================="
-          
+
           TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
           echo "🕐 Iniciando migraciones: ${TIMESTAMP}"
-          
+
           echo "🧹 Limpieza en cascada habilitada - Eliminando todas las tablas y datos..."
           echo "🌱 Después de las migraciones se insertarán datos de prueba"
-          
+
           timeout 360 aws lambda invoke \
             --function-name testing-migrator \
             --region us-east-1 \
             --cli-binary-format raw-in-base64-out \
             --payload '{"action": "migrate", "clean": true, "seed": true}' \
             migration-response.json
-          
+
           EXIT_CODE=$?
-          
+
           if [ $EXIT_CODE -eq 124 ]; then
             echo "❌ Error: Las migraciones tomaron más de 6 minutos (timeout)"
             echo "🔍 Revisa los logs en CloudWatch:"
             echo "   aws logs tail /aws/lambda/testing-migrator --follow"
             exit 1
           fi
-          
+
           if [ $EXIT_CODE -ne 0 ]; then
             echo "❌ Error al invocar la Lambda (código: $EXIT_CODE)"
             echo "🔍 Posibles causas:"
@@ -115,7 +118,7 @@ jobs:
             echo "   - Problemas de VPC/conexión a la base de datos"
             exit $EXIT_CODE
           fi
-          
+
           echo ""
           echo "========================================="
           echo "📋 RESPUESTA DE LA LAMBDA:"
@@ -123,7 +126,7 @@ jobs:
           cat migration-response.json
           echo ""
           echo "========================================="
-          
+
           if grep -q '"success":false' migration-response.json; then
             echo "❌ Error: Las migraciones fallaron"
             echo ""
@@ -135,27 +138,27 @@ jobs:
             echo "   4. Revisa que la Lambda tenga acceso a la VPC"
             exit 1
           fi
-          
+
           if grep -q '"success":true' migration-response.json; then
             MESSAGE=$(grep -o '"message":"[^"]*"' migration-response.json | cut -d'"' -f4)
             CLEANED=$(grep -o '"cleaned":[^,}]*' migration-response.json | cut -d':' -f2)
             SEEDED=$(grep -o '"seeded":[^,}]*' migration-response.json | cut -d':' -f2)
-            
+
             echo "✅ Migraciones completadas exitosamente"
             echo "📊 Mensaje: ${MESSAGE}"
             echo "🧹 Limpieza realizada: ${CLEANED}"
             echo "🌱 Seed realizado: ${SEEDED}"
-            
+
             if [ "$CLEANED" = "true" ]; then
               echo "🗑️  TODOS los datos anteriores fueron eliminados"
               echo "✨ Base de datos completamente limpia y recreada"
             fi
-            
+
             if [ "$SEEDED" = "true" ]; then
               echo "🌱 Datos de prueba insertados correctamente"
             fi
           fi
-          
+
           echo ""
           echo "========================================="
           echo "🎉 PROCESO DE MIGRACIÓN FINALIZADO"
@@ -167,34 +170,41 @@ jobs:
           echo "========================================="
           echo "🔍 VERIFICANDO DEPLOYMENT"
           echo "========================================="
-          
+
           STACK_STATUS=$(aws cloudformation describe-stacks \
             --stack-name nanutech-backend-testing \
             --region us-east-1 \
             --query 'Stacks[0].StackStatus' \
             --output text)
-          
+
           echo "📊 Estado del stack: ${STACK_STATUS}"
-          
+
           API_URL=$(aws cloudformation describe-stacks \
             --stack-name nanutech-backend-testing \
             --region us-east-1 \
             --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
             --output text)
-          
+
           MIGRATOR_ARN=$(aws cloudformation describe-stacks \
             --stack-name nanutech-backend-testing \
             --region us-east-1 \
             --query 'Stacks[0].Outputs[?OutputKey==`MigratorFunctionArn`].OutputValue' \
             --output text)
-          
+
+          DLQ_URL=$(aws cloudformation describe-stacks \
+            --stack-name nanutech-backend-testing \
+            --region us-east-1 \
+            --query 'Stacks[0].Outputs[?OutputKey==`GlobalDLQUrl`].OutputValue' \
+            --output text)
+
           echo ""
           echo "========================================="
           echo "✅ DEPLOYMENT COMPLETADO EXITOSAMENTE"
           echo "========================================="
-          echo "🌐 API Endpoint: ${API_URL}"
-          echo "🔧 Migrator Function ARN: ${MIGRATOR_ARN}"
-          echo "🕐 Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "🌐 API Endpoint:        ${API_URL}"
+          echo "🔧 Migrator ARN:        ${MIGRATOR_ARN}"
+          echo "📬 DLQ URL:             ${DLQ_URL}"
+          echo "🕐 Timestamp:           $(date '+%Y-%m-%d %H:%M:%S')"
           echo ""
           echo "📝 NOTAS IMPORTANTES:"
           echo "   ✅ Las migraciones se ejecutaron con LIMPIEZA TOTAL (clean: true)"
