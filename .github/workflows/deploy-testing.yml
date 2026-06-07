@@ -66,7 +66,6 @@ jobs:
               SessionTimeoutSeconds=${{ secrets.SESSION_TIMEOUT_SECONDS || '7200' }} \
               PrivateSubnets=${{ secrets.SUBNET_IDS }} \
               LambdaSecurityGroup=${{ secrets.LAMBDA_SG_ID }} \
-              LambdaReservedConcurrency=${{ secrets.LAMBDA_RESERVED_CONCURRENCY || '10' }} \
               LambdaKmsKeyArn=${{ secrets.LAMBDA_KMS_KEY_ARN || '' }} \
               ApiCacheSize=${{ secrets.API_CACHE_SIZE || '0.5' }} \
               ForceUpdate=${FORCE_UPDATE} \
