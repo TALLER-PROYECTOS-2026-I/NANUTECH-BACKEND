@@ -164,6 +164,12 @@ Resources:
         EntryPoints:
           - src/functions/camion-services/camionHandler.mjs
 
+  # ===========================================================================
+  # AUDITORÍA
+  # GET /auditoria/resumen
+  # GET /auditoria/registros
+  # GET /auditoria/exportar/csv
+  # ===========================================================================
   AuditoriaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -206,6 +212,16 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/functions/auditoria-services/auditoriaHandler.mjs
+
+  # ===========================================================================
+  # ALERTAS
+  # GET  /alertas/indicadores
+  # GET  /alertas/activas
+  # POST /alertas/sos
+  # POST /alertas/auxilio
+  # PATCH /alertas/{id}/resolver
+  # PATCH /alertas/{id}/estado
+  # ===========================================================================
   AlertaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -291,13 +307,13 @@ Resources:
         GetDashboardConductoresResumen:
           Type: Api
           Properties:
-            RestApiId: !Ref NanutechApi # ← FALTABA ESTO en el original
+            RestApiId: !Ref NanutechApi
             Path: /conductores/dashboard/resumen
             Method: GET
         GetDashboardConductoresListado:
           Type: Api
           Properties:
-            RestApiId: !Ref NanutechApi # ← FALTABA ESTO en el original
+            RestApiId: !Ref NanutechApi
             Path: /conductores/dashboard/listado
             Method: GET
       Tags:
@@ -387,15 +403,17 @@ Resources:
 
   # ===========================================================================
   # JORNADAS — ADMIN, GERENTE y CHOFER
-  # POST /jornadas                              → ADMIN, GERENTE
-  # GET  /jornadas                              → ADMIN, GERENTE
-  # GET  /jornadas/exportar                     → ADMIN, GERENTE
-  # GET  /jornadas/actual/{conductorId}         → CHOFER
-  # POST /jornadas/iniciar                      → CHOFER
-  # POST /jornadas/finalizar                    → CHOFER
-  # GET  /jornadas/historial-gerencial          → ADMIN, GERENTE (NUEVO)
-  # GET  /jornadas/historial-gerencial/metrics  → ADMIN, GERENTE (NUEVO)
-  # GET  /jornadas/alerta/{jornadaId}           → ADMIN, GERENTE (NUEVO)
+  # POST /jornadas
+  # GET  /jornadas
+  # GET  /jornadas/exportar
+  # GET  /jornadas/actual/{conductorId}
+  # POST /jornadas/iniciar
+  # POST /jornadas/finalizar
+  # GET  /jornadas/historial-gerencial
+  # GET  /jornadas/historial-gerencial/metrics
+  # GET  /jornadas/alerta/{jornadaId}
+  # GET  /jornadas/historial
+  # GET  /jornadas/metricas
   # ===========================================================================
   JornadaFunction:
     Type: AWS::Serverless::Function
@@ -446,7 +464,6 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /jornadas/finalizar
             Method: POST
-        # ── NUEVOS ────────────────────────────────────────────────────────
         GetHistorialGerencial:
           Type: Api
           Properties:
@@ -471,7 +488,6 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /jornadas/historial
             Method: GET
-
         GetMetricasChofer:
           Type: Api
           Properties:
@@ -499,6 +515,8 @@ Resources:
   # POST /gps/importar
   # GET  /gps/resumen
   # GET  /gps/registros
+  # GET  /gps/tracking/resumen
+  # GET  /gps/tracking/export
   # ===========================================================================
   GpsFunction:
     Type: AWS::Serverless::Function
@@ -582,8 +600,12 @@ Resources:
 
   # ===========================================================================
   # CONDUCTORES — ADMIN y GERENTE
-  # GET /conductores
-  # GET /conductores/{id}/estadisticas
+  # GET  /conductores
+  # GET  /conductores/{id}
+  # PUT  /conductores/licencia
+  # GET  /conductores/licencia
+  # GET  /conductores/{id}/estadisticas
+  # POST /conductores
   # ===========================================================================
   ConductorFunction:
     Type: AWS::Serverless::Function
@@ -594,9 +616,17 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminDeleteUser
+              Resource: "*"
       Environment:
         Variables:
           LOG_LEVEL: "debug"
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          COGNITO_TEMP_PASSWORD: "Nanutech2026!"
       Events:
         GetAll:
           Type: Api
@@ -628,7 +658,7 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /conductores/{id}/estadisticas
             Method: GET
-        CreateConductor:
+        CrearConductor:
           Type: Api
           Properties:
             RestApiId: !Ref NanutechApi
@@ -648,13 +678,13 @@ Resources:
 
   # ===========================================================================
   # CONTRATOS — GERENTE (vigentes también ADMIN)
-  # GET  /contratos/indicadores   → GERENTE
-  # GET  /contratos/vigentes      → ADMIN, GERENTE
-  # GET  /contratos/{id}          → GERENTE
-  # GET  /contratos               → GERENTE
-  # POST /contratos               → GERENTE
-  # PUT  /contratos/{id}          → GERENTE (NUEVO)
-  # PUT  /contratos/{id}/unidades → GERENTE (NUEVO)
+  # GET  /contratos/indicadores
+  # GET  /contratos/vigentes
+  # GET  /contratos/{id}
+  # GET  /contratos
+  # POST /contratos
+  # PUT  /contratos/{id}
+  # PUT  /contratos/{id}/unidades
   # ===========================================================================
   ContratoFunction:
     Type: AWS::Serverless::Function
@@ -699,7 +729,6 @@ Resources:
             RestApiId: !Ref NanutechApi
             Path: /contratos
             Method: POST
-        # ── NUEVOS ────────────────────────────────────────────────────────
         UpdateContrato:
           Type: Api
           Properties:
@@ -964,6 +993,7 @@ Outputs:
   GpsFunctionArn:
     Description: "ARN de la función GPS"
     Value: !GetAtt GpsFunction.Arn
+
   AuditoriaFunctionArn:
     Description: "ARN de la función Auditoría"
     Value: !GetAtt AuditoriaFunction.Arn
