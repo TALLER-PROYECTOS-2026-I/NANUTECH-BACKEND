@@ -54,11 +54,6 @@ Parameters:
     Type: String
     Description: "URL primaria del Frontend (Amplify Testing o Producción)"
     Default: "https://testing.dcoqassfbrwx2.amplifyapp.com"
-  # ── CKV_AWS_115 ── Concurrencia reservada por función
-  LambdaReservedConcurrency:
-    Type: Number
-    Default: 10
-    Description: "Concurrencia reservada para cada función Lambda"
   # ── CKV_AWS_173 ── KMS Key ARN para cifrar variables de entorno
   LambdaKmsKeyArn:
     Type: String
@@ -90,8 +85,6 @@ Globals:
       - x86_64
     # ── CKV_AWS_173 ── Cifrado KMS de variables de entorno
     KmsKeyArn: !If [HasKmsKey, !Ref LambdaKmsKeyArn, !Ref AWS::NoValue]
-    # ── CKV_AWS_115 ── Límite de concurrencia a nivel de función
-    ReservedConcurrentExecutions: !Ref LambdaReservedConcurrency
     # ── CKV_AWS_116 ── Dead Letter Queue global (SQS)
     DeadLetterQueue:
       Type: SQS
@@ -1044,11 +1037,9 @@ Resources:
       Handler: src/functions/migrator-services/migratorHandler.handler
       Timeout: 360
       MemorySize: 1024
-      # DLQ y concurrencia explícitas (override del Global)
       DeadLetterQueue:
         Type: SQS
         TargetArn: !GetAtt GlobalDLQ.Arn
-      ReservedConcurrentExecutions: 1
       Policies:
         - AWSLambdaBasicExecutionRole
         - VPCAccessPolicy: {}
