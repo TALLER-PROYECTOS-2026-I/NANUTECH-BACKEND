@@ -308,17 +308,16 @@ export const getCognitoSession = async (accessToken) => {
   }
 };
 
-
-  /**
-   * Crea un usuario conductor en AWS Cognito.
-   *
-   * Al registrarse:
-   * - Se genera una contraseña temporal
-   * - Se registra el correo electrónico
-   * - Se registra el DNI como atributo personalizado
-   * - Cognito envía automáticamente
-   *   las credenciales por correo
-   */
+/**
+ * Crea un usuario conductor en AWS Cognito.
+ *
+ * Al registrarse:
+ * - Se genera una contraseña temporal
+ * - Se registra el correo electrónico
+ * - Se registra el DNI como atributo personalizado
+ * - Cognito envía automáticamente
+ *   las credenciales por correo
+ */
 export const createConductorUserWithCognito = async ({
   email,
   dni,
@@ -357,7 +356,7 @@ export const createConductorUserWithCognito = async ({
      */
     const result = await client.send(command);
 
-     /**
+    /**
      * Obtiene el identificador único
      * generado por Cognito.
      */
@@ -376,6 +375,8 @@ export const createConductorUserWithCognito = async ({
       cognitoSub: subAttribute?.Value || null,
     };
   } catch (error) {
+    // ── FIX: loggear el error real de Cognito antes de envolverlo ────────────
+    console.error("Error real de Cognito al crear conductor:", error.name, error.message);
     throw createAuthError(
       "Error al crear usuario conductor en Cognito",
       502,
@@ -384,16 +385,15 @@ export const createConductorUserWithCognito = async ({
   }
 };
 
-
-  /**
-   * Elimina un usuario conductor
-   * previamente creado en Cognito.
-   *
-   * Utilizado durante el proceso
-   * de rollback cuando ocurre
-   * un error después de crear
-   * las credenciales.
-   */
+/**
+ * Elimina un usuario conductor
+ * previamente creado en Cognito.
+ *
+ * Utilizado durante el proceso
+ * de rollback cuando ocurre
+ * un error después de crear
+ * las credenciales.
+ */
 export const deleteConductorUserWithCognito = async (email) => {
   try {
     const client = getClient();
@@ -409,6 +409,8 @@ export const deleteConductorUserWithCognito = async (email) => {
      */
     await client.send(command);
   } catch (error) {
+    // ── FIX: loggear el error real de Cognito antes de envolverlo ────────────
+    console.error("Error real de Cognito al eliminar conductor:", error.name, error.message);
     throw createAuthError(
       "Error al eliminar usuario conductor en Cognito",
       502,
