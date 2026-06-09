@@ -305,7 +305,7 @@
         </div>
         <div class="sidebar-item" style="cursor:default;font-size:11px;color:var(--text3);padding-top:4px;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          Build: 09 Jun 2026 16:03 UTC
+          Build: 09 Jun 2026 16:14 UTC
         </div>
       </div>
     </aside>
@@ -332,7 +332,7 @@
           <div class="meta-sep"></div>
           <div class="meta-item">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <strong>Actualizado:</strong>&nbsp;09 Jun 2026 16:03 UTC
+            <strong>Actualizado:</strong>&nbsp;09 Jun 2026 16:14 UTC
           </div>
         </div>
       </section>
@@ -350,7 +350,7 @@
       </div>
 
       <footer class="footer">
-        <span>© 09 Jun 2026 16:03 UTC · Nanutech API</span>
+        <span>© 09 Jun 2026 16:14 UTC · Nanutech API</span>
         <span>Generado automáticamente · <a href="https://swagger.io" target="_blank">Swagger UI v5</a></span>
       </footer>
 
@@ -360,6 +360,112 @@
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
   <script>
+    // ── Estado del filtro activo ─────────────────────────────────────────────
+    let _activeTag = 'all';
+
+    // ── Esperar a que el DOM de Swagger tenga elementos antes de actuar ──────
+    function waitForSwaggerDOM(selector, callback, maxWait) {
+      maxWait = maxWait || 10000;
+      const start = Date.now();
+      const interval = setInterval(function() {
+        const els = document.querySelectorAll(selector);
+        if (els.length > 0) {
+          clearInterval(interval);
+          callback(els);
+        } else if (Date.now() - start > maxWait) {
+          clearInterval(interval);
+        }
+      }, 200);
+    }
+
+    // ── Contar endpoints cuando el DOM esté listo ────────────────────────────
+    function countStats() {
+      waitForSwaggerDOM('#swagger-ui .opblock', function(ops) {
+        var get = 0, post = 0, pp = 0;
+        ops.forEach(function(op) {
+          if (op.classList.contains('opblock-get'))   get++;
+          if (op.classList.contains('opblock-post'))  post++;
+          if (op.classList.contains('opblock-patch') || op.classList.contains('opblock-put')) pp++;
+        });
+        document.getElementById('totalEndpoints').textContent = get + post + pp || ops.length;
+        document.getElementById('totalGet').textContent   = get;
+        document.getElementById('totalPost').textContent  = post;
+        document.getElementById('totalPatch').textContent = pp;
+      });
+    }
+
+    // ── Aplicar filtro por tag ────────────────────────────────────────────────
+    // Swagger UI renderiza secciones con clase .opblock-tag-section
+    // El heading puede estar en h3, span o data-tag dentro del section.
+    // Usamos el atributo data-tag del heading del grupo si existe,
+    // o bien comparamos el texto del h3 con el tag buscado.
+    function applyFilter(tag) {
+      var sections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
+      sections.forEach(function(section) {
+        if (tag === 'all') {
+          section.style.display = '';
+          return;
+        }
+        // Swagger UI pone el nombre del tag en el h3 dentro de .opblock-tag
+        var heading = section.querySelector('.opblock-tag h3, .opblock-tag span, h3');
+        var text = heading ? heading.textContent.toLowerCase().trim() : '';
+        // Comparación flexible: el tag del sidebar puede ser parte del texto
+        // Ej: sidebar tag "auth" debe coincidir con heading "Auth"
+        section.style.display = text.includes(tag.toLowerCase()) ? '' : 'none';
+      });
+    }
+
+    // ── Filtrar tag (llamado desde el sidebar) ────────────────────────────────
+    function filterTag(tag) {
+      _activeTag = tag;
+
+      // Actualizar estado visual del sidebar
+      document.querySelectorAll('.sidebar-item').forEach(function(el) {
+        el.classList.toggle('active', el.dataset.tag === tag);
+      });
+
+      // Si Swagger ya renderizó, aplicar inmediatamente
+      var sections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
+      if (sections.length > 0) {
+        applyFilter(tag);
+      } else {
+        // Swagger todavía no renderizó; esperar y reintentar
+        waitForSwaggerDOM('#swagger-ui .opblock-tag-section', function() {
+          applyFilter(tag);
+        });
+      }
+    }
+
+    // ── Búsqueda por texto ────────────────────────────────────────────────────
+    document.getElementById('searchInput').addEventListener('input', function() {
+      var q = this.value.toLowerCase().trim();
+      if (!q) {
+        filterTag(_activeTag);
+        return;
+      }
+
+      // Quitar activo del sidebar durante búsqueda libre
+      document.querySelectorAll('.sidebar-item').forEach(function(el) {
+        el.classList.remove('active');
+      });
+
+      var sections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
+      sections.forEach(function(section) {
+        section.style.display = '';
+        var anyVisible = false;
+        section.querySelectorAll('.opblock').forEach(function(op) {
+          var path = op.querySelector('.opblock-summary-path, .opblock-summary-path__deprecated');
+          var desc = op.querySelector('.opblock-summary-description');
+          var text = ((path ? path.textContent : '') + ' ' + (desc ? desc.textContent : '')).toLowerCase();
+          var visible = text.includes(q);
+          op.style.display = visible ? '' : 'none';
+          if (visible) anyVisible = true;
+        });
+        section.style.display = anyVisible ? '' : 'none';
+      });
+    });
+
+    // ── Inicializar Swagger UI ────────────────────────────────────────────────
     const ui = SwaggerUIBundle({
       url: "./swagger.json",
       dom_id: '#swagger-ui',
@@ -372,49 +478,13 @@
       docExpansion: 'none',
       filter: false,
       tryItOutEnabled: false,
-      onComplete: () => countStats()
-    });
-
-    function countStats() {
-      setTimeout(() => {
-        const ops = document.querySelectorAll('#swagger-ui .opblock');
-        let get = 0, post = 0, pp = 0;
-        ops.forEach(op => {
-          if (op.classList.contains('opblock-get'))  get++;
-          if (op.classList.contains('opblock-post')) post++;
-          if (op.classList.contains('opblock-patch') || op.classList.contains('opblock-put')) pp++;
-        });
-        document.getElementById('totalEndpoints').textContent = get + post + pp || ops.length;
-        document.getElementById('totalGet').textContent   = get;
-        document.getElementById('totalPost').textContent  = post;
-        document.getElementById('totalPatch').textContent = pp;
-      }, 800);
-    }
-
-    function filterTag(tag) {
-      document.querySelectorAll('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.tag === tag));
-      document.querySelectorAll('#swagger-ui .opblock-tag-section').forEach(section => {
-        if (tag === 'all') { section.style.display = ''; return; }
-        const heading = section.querySelector('.opblock-tag h3, .opblock-tag span');
-        const text = heading ? heading.textContent.toLowerCase() : '';
-        section.style.display = text.includes(tag) ? '' : 'none';
-      });
-    }
-
-    document.getElementById('searchInput').addEventListener('input', function() {
-      const q = this.value.toLowerCase().trim();
-      if (!q) { filterTag('all'); return; }
-      document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('#swagger-ui .opblock').forEach(op => {
-        const path = op.querySelector('.opblock-summary-path');
-        const desc = op.querySelector('.opblock-summary-description');
-        const text = ((path ? path.textContent : '') + ' ' + (desc ? desc.textContent : '')).toLowerCase();
-        const section = op.closest('.opblock-tag-section');
-        if (section) {
-          op.style.display = text.includes(q) ? '' : 'none';
-          if (text.includes(q)) section.style.display = '';
+      onComplete: function() {
+        countStats();
+        // Re-aplicar filtro activo si el usuario ya clickeó algo antes de que cargara
+        if (_activeTag !== 'all') {
+          applyFilter(_activeTag);
         }
-      });
+      }
     });
   </script>
 </body>
