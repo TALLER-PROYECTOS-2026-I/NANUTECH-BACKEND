@@ -1,0 +1,249 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# .github/workflows/publish-trivy.yml
+#
+# Workflow: Trivy Dependency Security Scan
+# Escanea dependencias npm + secretos en código fuente con Trivy,
+# genera un reporte HTML profesional y lo publica en GitHub Pages.
+#
+# Ejecución: MANUAL (workflow_dispatch)
+# Rama objetivo: develop (configurable)
+# Salida: gh-pages/trivy/index.html
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: 🔍 Trivy — Dependency Security Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Rama a escanear'
+        required: false
+        default: 'develop'
+        type: string
+
+permissions:
+  contents: write   # Para hacer push a gh-pages
+
+env:
+  TRIVY_VERSION: '0.51.1'   # Fijar versión para reproducibilidad
+  NODE_VERSION:  '20'
+
+jobs:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  trivy-scan:
+    name: 🔍 Escanear con Trivy
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # 1. Checkout del código fuente
+      - name: 📥 Checkout rama ${{ github.event.inputs.branch || 'develop' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'develop' }}
+          path: source
+
+      # 2. Checkout de gh-pages (para preservar otros reportes)
+      - name: 📥 Checkout rama gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+        continue-on-error: true
+
+      # 3. Inicializar gh-pages si no existe
+      - name: 🔧 Inicializar gh-pages si no existe
+        run: |
+          if [ ! -d "gh-pages" ] || [ -z "$(ls -A gh-pages 2>/dev/null)" ]; then
+            mkdir -p gh-pages
+            cd gh-pages
+            git init
+            git checkout -b gh-pages
+            echo "# GitHub Pages" > README.md
+          fi
+
+      # 4. Setup Node.js (para instalar dependencias y que Trivy las detecte)
+      - name: ⚙️ Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: source/package-lock.json
+
+      - name: 📦 Instalar dependencias npm
+        working-directory: source
+        run: npm ci --prefer-offline
+
+      # 5. Instalar Trivy
+      - name: 🛠️ Instalar Trivy v${{ env.TRIVY_VERSION }}
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin v${{ env.TRIVY_VERSION }}
+          trivy --version
+
+      # 6. Actualizar base de datos de vulnerabilidades
+      - name: 🔄 Actualizar DB de vulnerabilidades
+        run: trivy image --download-db-only
+
+      # 7. Escaneo de vulnerabilidades en dependencias npm
+      - name: 🔍 Escanear vulnerabilidades npm (CVEs)
+        run: |
+          trivy fs \
+            --scanners vuln \
+            --format json \
+            --output source/trivy-vuln.json \
+            --severity CRITICAL,HIGH,MEDIUM,LOW \
+            --pkg-types library \
+            --exit-code 0 \
+            source/
+        continue-on-error: true
+
+      # 8. Escaneo de secretos en código fuente
+      - name: 🔐 Escanear secretos hardcodeados
+        run: |
+          trivy fs \
+            --scanners secret \
+            --format json \
+            --output source/trivy-secrets.json \
+            --exit-code 0 \
+            source/
+        continue-on-error: true
+
+      # 9. Combinar resultados en un solo JSON
+      - name: 🔗 Combinar resultados vuln + secret
+        run: |
+          python3 << 'PYEOF'
+          import json, os
+
+          def load(path):
+              if not os.path.exists(path):
+                  return {"Results": []}
+              with open(path) as f:
+                  return json.load(f)
+
+          vuln    = load("source/trivy-vuln.json")
+          secrets = load("source/trivy-secrets.json")
+
+          # Unir Results de ambos archivos
+          combined_results = vuln.get("Results", []) + [
+              r for r in secrets.get("Results", [])
+              if r.get("Class") == "secret"
+          ]
+
+          combined = {
+              "SchemaVersion": 2,
+              "ArtifactName":  vuln.get("ArtifactName", "."),
+              "ArtifactType":  "filesystem",
+              "Results":       combined_results,
+          }
+
+          with open("source/trivy-output.json", "w") as f:
+              json.dump(combined, f, indent=2)
+
+          # Stats rápidas
+          total_cves     = sum(len(r.get("Vulnerabilities", [])) for r in combined_results)
+          total_secrets  = sum(len(r.get("Secrets", [])) for r in combined_results)
+          print(f"✅ CVEs: {total_cves}  |  Secretos: {total_secrets}")
+          PYEOF
+
+      # 10. Instalar PyYAML (por si el script lo necesita)
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 11. Generar el reporte HTML
+      - name: 📄 Generar reporte HTML
+        env:
+          TRIVY_FILE: source/trivy-output.json
+          OUT:        gh-pages/trivy/index.html
+          FECHA:      ${{ github.event.repository.updated_at }}
+          RUN_URL:    ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO:       ${{ github.repository }}
+          BRANCH:     ${{ github.event.inputs.branch || 'develop' }}
+          COMMIT:     ${{ github.sha }}
+        run: |
+          FECHA=$(date -u "+%d %b %Y %H:%M UTC")
+          export FECHA
+          mkdir -p gh-pages/trivy
+          python3 source/.github/scripts/generate-report-trivy.py
+
+      # 12. Publicar en gh-pages
+      - name: 🚀 Publicar en gh-pages
+        run: |
+          cd gh-pages
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Agregar solo la carpeta trivy/ (no toca el resto de gh-pages)
+          git add trivy/
+
+          if git diff --cached --quiet; then
+            echo "ℹ️  Sin cambios en trivy/ — no se generó commit."
+            exit 0
+          fi
+
+          FECHA=$(date -u "+%d %b %Y %H:%M UTC")
+          COMMIT_SHORT="${{ github.sha }}"
+          COMMIT_SHORT="${COMMIT_SHORT:0:7}"
+
+          git commit -m "security(trivy): actualizar reporte de dependencias 🔍 [${COMMIT_SHORT}] [skip ci]"
+          git push origin gh-pages
+          echo "✅ Reporte publicado correctamente."
+
+      # 13. Mostrar URL del reporte
+      - name: 🌐 URL del reporte
+        run: |
+          REPO="${{ github.repository }}"
+          OWNER=$(echo "$REPO" | cut -d'/' -f1)
+          NAME=$(echo  "$REPO" | cut -d'/' -f2)
+          echo ""
+          echo "╔══════════════════════════════════════════════════════════╗"
+          echo "║  🔍 Trivy Report publicado                               ║"
+          echo "╠══════════════════════════════════════════════════════════╣"
+          echo "║  URL: https://${OWNER}.github.io/${NAME}/trivy/          ║"
+          echo "╚══════════════════════════════════════════════════════════╝"
+          echo ""
+
+      # 14. Fallar el job si hay CVEs críticos o HIGH (opcional — comentar para no bloquear)
+      - name: 🚨 Verificar umbral de severidad (informativo)
+        run: |
+          python3 << 'PYEOF'
+          import json, os, sys
+
+          path = "source/trivy-output.json"
+          if not os.path.exists(path):
+              print("⚠️  No se encontró trivy-output.json")
+              sys.exit(0)
+
+          with open(path) as f:
+              data = json.load(f)
+
+          critical = high = 0
+          for result in data.get("Results", []):
+              for v in result.get("Vulnerabilities", []):
+                  sev = v.get("Severity", "").upper()
+                  if sev == "CRITICAL": critical += 1
+                  elif sev == "HIGH":   high += 1
+
+          secrets = sum(
+              len(r.get("Secrets", []))
+              for r in data.get("Results", [])
+          )
+
+          print(f"📊 Resumen del scan:")
+          print(f"   CRITICAL → {critical}")
+          print(f"   HIGH     → {high}")
+          print(f"   Secretos → {secrets}")
+
+          # ── Descomenta las líneas siguientes para bloquear el pipeline ──
+          # if critical > 0:
+          #     print("🚨 Se encontraron vulnerabilidades CRITICAL — pipeline bloqueado")
+          #     sys.exit(1)
+          # if secrets > 0:
+          #     print("🚨 Se encontraron secretos en el código — pipeline bloqueado")
+          #     sys.exit(1)
+
+          print("✅ Verificación completada (modo informativo).")
+          PYEOF
