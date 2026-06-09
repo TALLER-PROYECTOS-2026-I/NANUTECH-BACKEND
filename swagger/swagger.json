@@ -2,25 +2,154 @@
   "swagger": "2.0",
   "info": {
     "version": "1.0",
-    "title": "nanutech-api-testing"
+    "title": "Nanutech API",
+    "description": "API REST para el sistema de gestión de flotas Nanutech.\n\n## Autenticación\n1. Ejecuta `POST /auth/login` con tu usuario y contraseña\n2. Copia el token de la respuesta\n3. Haz clic en **Authorize** (🔒) y pega el token como: `Bearer <token>`\n4. Ya puedes ejecutar cualquier endpoint autenticado\n\n## Roles\n- **ADMIN** — acceso total\n- **GERENTE** — dashboard gerencial, contratos, conductores\n- **CHOFER** — jornadas propias, alertas, combustible\n"
   },
   "host": "q26dwk17da.execute-api.us-east-1.amazonaws.com",
   "basePath": "/Stage",
   "schemes": [
     "https"
   ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "securityDefinitions": {
+    "BearerAuth": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "Authorization",
+      "description": "Ingresa tu token con el prefijo Bearer. Ejemplo: **Bearer eyJhbGci...**"
+    }
+  },
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Autenticación y sesión de usuario"
+    },
+    {
+      "name": "Alertas",
+      "description": "Gestión de alertas SOS y de auxilio"
+    },
+    {
+      "name": "Auditoria",
+      "description": "Registros de auditoría del sistema"
+    },
+    {
+      "name": "Camiones",
+      "description": "Gestión de unidades vehiculares"
+    },
+    {
+      "name": "Combustible",
+      "description": "Registro y consulta de combustible"
+    },
+    {
+      "name": "Conductores",
+      "description": "Gestión de conductores y licencias"
+    },
+    {
+      "name": "Contratos",
+      "description": "Gestión de contratos"
+    },
+    {
+      "name": "Dashboard",
+      "description": "Paneles de control por rol"
+    },
+    {
+      "name": "GPS",
+      "description": "Importación y tracking GPS"
+    },
+    {
+      "name": "Jornadas",
+      "description": "Gestión de jornadas de trabajo"
+    },
+    {
+      "name": "Unidades",
+      "description": "Unidades disponibles"
+    }
+  ],
   "paths": {
-    "/alertas/activas": {
-      "get": {
-        "responses": {}
-      },
-      "options": {
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Iniciar sesión",
+        "description": "Retorna un token JWT para usar en el resto de endpoints",
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "email",
+                "password"
+              ],
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "admin@nanutech.com"
+                },
+                "password": {
+                  "type": "string",
+                  "example": "Password123!"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Login exitoso",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string",
+                  "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "ADMIN",
+                        "GERENTE",
+                        "CHOFER"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciales inválidas"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -39,17 +168,262 @@
         }
       }
     },
-    "/alertas/auxilio": {
+    "/auth/forgot-password": {
       "post": {
-        "responses": {}
-      },
-      "options": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Solicitar recuperación de contraseña",
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "email"
+              ],
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "usuario@nanutech.com"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Correo de recuperación enviado"
+          },
+          "404": {
+            "description": "Usuario no encontrado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/forgot-password/confirm": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Confirmar nueva contraseña",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "email",
+                "code",
+                "newPassword"
+              ],
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "usuario@nanutech.com"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "123456"
+                },
+                "newPassword": {
+                  "type": "string",
+                  "example": "NuevaPassword123!"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contraseña actualizada correctamente"
+          },
+          "400": {
+            "description": "Código inválido o expirado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Obtener sesión actual",
+        "description": "Retorna los datos del usuario autenticado",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos del usuario autenticado",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "nombre": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido o expirado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/alertas/activas": {
+      "get": {
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "Listar alertas activas",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de alertas activas",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "tipo": {
+                    "type": "string",
+                    "enum": [
+                      "SOS",
+                      "AUXILIO"
+                    ]
+                  },
+                  "estado": {
+                    "type": "string"
+                  },
+                  "conductorId": {
+                    "type": "string"
+                  },
+                  "creadoEn": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -70,15 +444,52 @@
     },
     "/alertas/indicadores": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "Obtener indicadores de alertas",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
+        "responses": {
+          "200": {
+            "description": "Indicadores de alertas",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "total": {
+                  "type": "integer"
+                },
+                "activas": {
+                  "type": "integer"
+                },
+                "resueltas": {
+                  "type": "integer"
+                },
+                "sos": {
+                  "type": "integer"
+                },
+                "auxilio": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -99,15 +510,154 @@
     },
     "/alertas/sos": {
       "post": {
-        "responses": {}
-      },
-      "options": {
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "Crear alerta SOS",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "conductorId",
+                "jornadaId"
+              ],
+              "properties": {
+                "conductorId": {
+                  "type": "string",
+                  "example": "uuid-conductor"
+                },
+                "jornadaId": {
+                  "type": "string",
+                  "example": "uuid-jornada"
+                },
+                "ubicacion": {
+                  "type": "string",
+                  "example": "Av. Principal 123"
+                },
+                "descripcion": {
+                  "type": "string",
+                  "example": "Emergencia en ruta"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Alerta SOS creada"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/alertas/auxilio": {
+      "post": {
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "Crear alerta de auxilio mecánico",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "conductorId",
+                "jornadaId"
+              ],
+              "properties": {
+                "conductorId": {
+                  "type": "string",
+                  "example": "uuid-conductor"
+                },
+                "jornadaId": {
+                  "type": "string",
+                  "example": "uuid-jornada"
+                },
+                "descripcion": {
+                  "type": "string",
+                  "example": "Falla en motor"
+                },
+                "ubicacion": {
+                  "type": "string",
+                  "example": "Km 45 carretera norte"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Alerta de auxilio creada"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -127,7 +677,16 @@
       }
     },
     "/alertas/{id}/estado": {
-      "options": {
+      "patch": {
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "Actualizar estado de una alerta",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "consumes": [
           "application/json"
         ],
@@ -136,8 +695,56 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string",
+            "description": "ID de la alerta"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "estado"
+              ],
+              "properties": {
+                "estado": {
+                  "type": "string",
+                  "enum": [
+                    "EN_PROCESO",
+                    "RESUELTA",
+                    "CANCELADA"
+                  ],
+                  "example": "EN_PROCESO"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          },
+          "404": {
+            "description": "Alerta no encontrada"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "CORS preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
             "required": true,
             "type": "string"
           }
@@ -158,103 +765,72 @@
             }
           }
         }
-      },
-      "patch": {
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {}
       }
     },
     "/alertas/{id}/resolver": {
-      "options": {
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      },
       "patch": {
-        "parameters": [
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "Resolver una alerta",
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "BearerAuth": []
           }
         ],
-        "responses": {}
-      }
-    },
-    "/auditoria/exportar/csv": {
-      "get": {
-        "responses": {}
-      },
-      "options": {
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
         ],
-        "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string",
+            "description": "ID de la alerta"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "observacion": {
+                  "type": "string",
+                  "example": "Alerta atendida y resuelta por equipo de soporte"
+                }
               }
             }
           }
+        ],
+        "responses": {
+          "200": {
+            "description": "Alerta resuelta correctamente"
+          },
+          "404": {
+            "description": "Alerta no encontrada"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
         }
-      }
-    },
-    "/auditoria/registros": {
-      "get": {
-        "responses": {}
       },
       "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Alertas"
         ],
-        "produces": [
-          "application/json"
+        "summary": "CORS preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
           "200": {
@@ -276,15 +852,48 @@
     },
     "/auditoria/resumen": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Auditoria"
+        ],
+        "summary": "Resumen de auditoría",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "desde",
+            "type": "string",
+            "format": "date",
+            "example": "2026-01-01"
+          },
+          {
+            "in": "query",
+            "name": "hasta",
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-01"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumen de auditoría"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Auditoria"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -303,104 +912,116 @@
         }
       }
     },
-    "/auth/forgot-password": {
-      "post": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/forgot-password/confirm": {
-      "post": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/login": {
-      "post": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/me": {
+    "/auditoria/registros": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Auditoria"
+        ],
+        "summary": "Listar registros de auditoría",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pagina",
+            "type": "integer",
+            "example": 1
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "type": "integer",
+            "example": 20
+          },
+          {
+            "in": "query",
+            "name": "accion",
+            "type": "string",
+            "example": "LOGIN"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registros de auditoría paginados"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Auditoria"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auditoria/exportar/csv": {
+      "get": {
+        "tags": [
+          "Auditoria"
+        ],
+        "summary": "Exportar auditoría a CSV",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "text/csv"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "desde",
+            "type": "string",
+            "format": "date",
+            "example": "2026-01-01"
+          },
+          {
+            "in": "query",
+            "name": "hasta",
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-01"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo CSV de auditoría"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Auditoria"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -421,47 +1042,131 @@
     },
     "/camiones": {
       "get": {
-        "responses": {}
-      },
-      "post": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Camiones"
+        ],
+        "summary": "Listar todos los camiones",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "estado",
+            "type": "string",
+            "enum": [
+              "ACTIVO",
+              "INACTIVO",
+              "MANTENIMIENTO"
+            ]
+          },
+          {
+            "in": "query",
+            "name": "pagina",
+            "type": "integer",
+            "example": 1
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "type": "integer",
+            "example": 20
+          }
         ],
         "responses": {
           "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
+            "description": "Lista de camiones"
+          },
+          "401": {
+            "description": "No autorizado"
           }
         }
-      }
-    },
-    "/camiones/exportar/csv": {
-      "get": {
-        "responses": {}
       },
-      "options": {
+      "post": {
+        "tags": [
+          "Camiones"
+        ],
+        "summary": "Crear un nuevo camión",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "placa",
+                "marca",
+                "modelo",
+                "anio"
+              ],
+              "properties": {
+                "placa": {
+                  "type": "string",
+                  "example": "ABC-123"
+                },
+                "marca": {
+                  "type": "string",
+                  "example": "Volvo"
+                },
+                "modelo": {
+                  "type": "string",
+                  "example": "FH16"
+                },
+                "anio": {
+                  "type": "integer",
+                  "example": 2022
+                },
+                "capacidad": {
+                  "type": "number",
+                  "example": 30000
+                },
+                "estado": {
+                  "type": "string",
+                  "enum": [
+                    "ACTIVO",
+                    "INACTIVO",
+                    "MANTENIMIENTO"
+                  ],
+                  "example": "ACTIVO"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Camión creado correctamente"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Camiones"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -482,15 +1187,78 @@
     },
     "/camiones/panel": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Camiones"
+        ],
+        "summary": "Panel de estado de camiones",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
+        "responses": {
+          "200": {
+            "description": "Panel con estado actual de todos los camiones"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Camiones"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/camiones/exportar/csv": {
+      "get": {
+        "tags": [
+          "Camiones"
+        ],
+        "summary": "Exportar camiones a CSV",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "text/csv"
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo CSV con datos de camiones"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Camiones"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -511,27 +1279,49 @@
     },
     "/camiones/{id}": {
       "get": {
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
+        "tags": [
+          "Camiones"
         ],
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "summary": "Obtener camión por ID",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string",
+            "description": "ID del camión",
+            "example": "uuid-camion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos del camión"
+          },
+          "404": {
+            "description": "Camión no encontrado"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Camiones"
+        ],
+        "summary": "CORS preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
             "required": true,
             "type": "string"
           }
@@ -556,14 +1346,157 @@
     },
     "/combustible": {
       "post": {
-        "responses": {}
-      },
-      "options": {
+        "tags": [
+          "Combustible"
+        ],
+        "summary": "Registrar carga de combustible",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "jornadaId",
+                "unidadId",
+                "litros",
+                "kmActual"
+              ],
+              "properties": {
+                "jornadaId": {
+                  "type": "string",
+                  "example": "uuid-jornada"
+                },
+                "unidadId": {
+                  "type": "string",
+                  "example": "uuid-unidad"
+                },
+                "litros": {
+                  "type": "number",
+                  "example": 120.5
+                },
+                "kmActual": {
+                  "type": "number",
+                  "example": 45230
+                },
+                "estacion": {
+                  "type": "string",
+                  "example": "Grifo Norte"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Registro de combustible creado"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Combustible"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/combustible/ultimo-km/{unidadId}": {
+      "get": {
+        "tags": [
+          "Combustible"
+        ],
+        "summary": "Obtener último kilometraje registrado de una unidad",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "unidadId",
+            "required": true,
+            "type": "string",
+            "description": "ID de la unidad vehicular",
+            "example": "uuid-unidad"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Último KM registrado",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "unidadId": {
+                  "type": "string"
+                },
+                "kmActual": {
+                  "type": "number"
+                },
+                "fecha": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unidad no encontrada"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Combustible"
+        ],
+        "summary": "CORS preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "unidadId",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
           "200": {
@@ -585,72 +1518,49 @@
     },
     "/combustible/jornada/{jornadaId}": {
       "get": {
-        "parameters": [
-          {
-            "name": "jornadaId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
+        "tags": [
+          "Combustible"
         ],
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "summary": "Obtener combustible registrado en una jornada",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
         "parameters": [
           {
-            "name": "jornadaId",
             "in": "path",
+            "name": "jornadaId",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "description": "ID de la jornada",
+            "example": "uuid-jornada"
           }
         ],
         "responses": {
           "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
+            "description": "Registros de combustible de la jornada"
+          },
+          "404": {
+            "description": "Jornada no encontrada"
+          },
+          "401": {
+            "description": "No autorizado"
           }
         }
-      }
-    },
-    "/combustible/ultimo-km/{unidadId}": {
-      "get": {
-        "parameters": [
-          {
-            "name": "unidadId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {}
       },
       "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Combustible"
         ],
-        "produces": [
-          "application/json"
-        ],
+        "summary": "CORS preflight",
         "parameters": [
           {
-            "name": "unidadId",
             "in": "path",
+            "name": "jornadaId",
             "required": true,
             "type": "string"
           }
@@ -675,76 +1585,140 @@
     },
     "/conductores": {
       "get": {
-        "responses": {}
+        "tags": [
+          "Conductores"
+        ],
+        "summary": "Listar todos los conductores",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "estado",
+            "type": "string",
+            "enum": [
+              "ACTIVO",
+              "INACTIVO"
+            ]
+          },
+          {
+            "in": "query",
+            "name": "pagina",
+            "type": "integer",
+            "example": 1
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "type": "integer",
+            "example": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de conductores"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
       },
       "post": {
-        "responses": {}
-      },
-      "options": {
+        "tags": [
+          "Conductores"
+        ],
+        "summary": "Crear nuevo conductor",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
         ],
-        "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "nombre",
+                "apellido",
+                "email",
+                "dni",
+                "licencia"
+              ],
+              "properties": {
+                "nombre": {
+                  "type": "string",
+                  "example": "Juan"
+                },
+                "apellido": {
+                  "type": "string",
+                  "example": "Pérez"
+                },
+                "email": {
+                  "type": "string",
+                  "example": "juan.perez@nanutech.com"
+                },
+                "dni": {
+                  "type": "string",
+                  "example": "12345678"
+                },
+                "telefono": {
+                  "type": "string",
+                  "example": "+51999888777"
+                },
+                "licencia": {
+                  "type": "object",
+                  "properties": {
+                    "numero": {
+                      "type": "string",
+                      "example": "L001234"
+                    },
+                    "categoria": {
+                      "type": "string",
+                      "example": "A-IIIb"
+                    },
+                    "vencimiento": {
+                      "type": "string",
+                      "format": "date",
+                      "example": "2027-12-31"
+                    }
+                  }
+                }
               }
             }
           }
-        }
-      }
-    },
-    "/conductores/dashboard/listado": {
-      "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
         ],
         "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
+          "201": {
+            "description": "Conductor creado correctamente"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "No autorizado"
           }
         }
-      }
-    },
-    "/conductores/dashboard/resumen": {
-      "get": {
-        "responses": {}
       },
       "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Conductores"
         ],
-        "produces": [
-          "application/json"
-        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -765,18 +1739,174 @@
     },
     "/conductores/licencia": {
       "get": {
-        "responses": {}
+        "tags": [
+          "Conductores"
+        ],
+        "summary": "Obtener licencia del conductor autenticado",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos de la licencia"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
       },
       "put": {
-        "responses": {}
-      },
-      "options": {
+        "tags": [
+          "Conductores"
+        ],
+        "summary": "Actualizar licencia del conductor",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "numero": {
+                  "type": "string",
+                  "example": "L001234"
+                },
+                "categoria": {
+                  "type": "string",
+                  "example": "A-IIIb"
+                },
+                "vencimiento": {
+                  "type": "string",
+                  "format": "date",
+                  "example": "2027-12-31"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Licencia actualizada"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Conductores"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/conductores/dashboard/resumen": {
+      "get": {
+        "tags": [
+          "Conductores"
+        ],
+        "summary": "Resumen del dashboard de conductores",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumen estadístico de conductores"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Conductores"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/conductores/dashboard/listado": {
+      "get": {
+        "tags": [
+          "Conductores"
+        ],
+        "summary": "Listado de conductores para dashboard",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Listado de conductores con métricas"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Conductores"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -797,27 +1927,49 @@
     },
     "/conductores/{id}": {
       "get": {
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
+        "tags": [
+          "Conductores"
         ],
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "summary": "Obtener conductor por ID",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string",
+            "description": "ID del conductor",
+            "example": "uuid-conductor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos del conductor"
+          },
+          "404": {
+            "description": "Conductor no encontrado"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Conductores"
+        ],
+        "summary": "CORS preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
             "required": true,
             "type": "string"
           }
@@ -842,27 +1994,63 @@
     },
     "/conductores/{id}/estadisticas": {
       "get": {
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
+        "tags": [
+          "Conductores"
         ],
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "summary": "Estadísticas de un conductor",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string",
+            "description": "ID del conductor",
+            "example": "uuid-conductor"
+          },
+          {
+            "in": "query",
+            "name": "desde",
+            "type": "string",
+            "format": "date",
+            "example": "2026-01-01"
+          },
+          {
+            "in": "query",
+            "name": "hasta",
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-01"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estadísticas del conductor"
+          },
+          "404": {
+            "description": "Conductor no encontrado"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Conductores"
+        ],
+        "summary": "CORS preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
             "required": true,
             "type": "string"
           }
@@ -887,18 +2075,123 @@
     },
     "/contratos": {
       "get": {
-        "responses": {}
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Listar todos los contratos",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "estado",
+            "type": "string",
+            "enum": [
+              "VIGENTE",
+              "VENCIDO",
+              "CANCELADO"
+            ]
+          },
+          {
+            "in": "query",
+            "name": "pagina",
+            "type": "integer",
+            "example": 1
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "type": "integer",
+            "example": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de contratos"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
       },
       "post": {
-        "responses": {}
-      },
-      "options": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Crear nuevo contrato",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "cliente",
+                "fechaInicio",
+                "fechaFin"
+              ],
+              "properties": {
+                "cliente": {
+                  "type": "string",
+                  "example": "Empresa ABC S.A."
+                },
+                "fechaInicio": {
+                  "type": "string",
+                  "format": "date",
+                  "example": "2026-01-01"
+                },
+                "fechaFin": {
+                  "type": "string",
+                  "format": "date",
+                  "example": "2026-12-31"
+                },
+                "descripcion": {
+                  "type": "string",
+                  "example": "Contrato de transporte de carga"
+                },
+                "monto": {
+                  "type": "number",
+                  "example": 50000.0
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Contrato creado"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -919,15 +2212,32 @@
     },
     "/contratos/indicadores": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Indicadores de contratos",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
+        "responses": {
+          "200": {
+            "description": "Indicadores de contratos"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -948,15 +2258,32 @@
     },
     "/contratos/vigentes": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Listar contratos vigentes",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
+        "responses": {
+          "200": {
+            "description": "Lista de contratos vigentes"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -977,28 +2304,49 @@
     },
     "/contratos/{id}": {
       "get": {
-        "parameters": [
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Obtener contrato por ID",
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "BearerAuth": []
           }
         ],
-        "responses": {}
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string",
+            "example": "uuid-contrato"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos del contrato"
+          },
+          "404": {
+            "description": "Contrato no encontrado"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
       },
       "put": {
-        "parameters": [
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Actualizar contrato",
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "BearerAuth": []
           }
         ],
-        "responses": {}
-      },
-      "options": {
         "consumes": [
           "application/json"
         ],
@@ -1007,8 +2355,64 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string",
+            "example": "uuid-contrato"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "cliente": {
+                  "type": "string",
+                  "example": "Empresa ABC S.A."
+                },
+                "fechaFin": {
+                  "type": "string",
+                  "format": "date",
+                  "example": "2027-12-31"
+                },
+                "estado": {
+                  "type": "string",
+                  "enum": [
+                    "VIGENTE",
+                    "CANCELADO"
+                  ]
+                },
+                "monto": {
+                  "type": "number",
+                  "example": 60000.0
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contrato actualizado"
+          },
+          "404": {
+            "description": "Contrato no encontrado"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "CORS preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
             "required": true,
             "type": "string"
           }
@@ -1033,17 +2437,15 @@
     },
     "/contratos/{id}/unidades": {
       "put": {
-        "parameters": [
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Asignar unidades a un contrato",
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "BearerAuth": []
           }
         ],
-        "responses": {}
-      },
-      "options": {
         "consumes": [
           "application/json"
         ],
@@ -1052,8 +2454,57 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string",
+            "example": "uuid-contrato"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "unidadIds"
+              ],
+              "properties": {
+                "unidadIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": [
+                    "uuid-unidad-1",
+                    "uuid-unidad-2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unidades asignadas al contrato"
+          },
+          "404": {
+            "description": "Contrato no encontrado"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "CORS preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
             "required": true,
             "type": "string"
           }
@@ -1078,15 +2529,32 @@
     },
     "/dashboard": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Dashboard principal (ADMIN)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
+        "responses": {
+          "200": {
+            "description": "Datos del dashboard principal"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -1107,118 +2575,32 @@
     },
     "/dashboard/gerencial": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Dashboard"
         ],
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/gps/importar": {
-      "post": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/gps/plantilla": {
-      "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/gps/plantilla/{proveedor}": {
-      "get": {
-        "parameters": [
+        "summary": "Dashboard gerencial (GERENTE/ADMIN)",
+        "security": [
           {
-            "name": "proveedor",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "BearerAuth": []
           }
-        ],
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
         ],
         "produces": [
           "application/json"
         ],
-        "parameters": [
-          {
-            "name": "proveedor",
-            "in": "path",
-            "required": true,
-            "type": "string"
+        "responses": {
+          "200": {
+            "description": "Datos del dashboard gerencial"
+          },
+          "401": {
+            "description": "No autorizado"
           }
+        }
+      },
+      "options": {
+        "tags": [
+          "Dashboard"
         ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -1239,15 +2621,32 @@
     },
     "/gps/proveedores": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "GPS"
+        ],
+        "summary": "Listar proveedores GPS disponibles",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
+        "responses": {
+          "200": {
+            "description": "Lista de proveedores GPS"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -1266,17 +2665,34 @@
         }
       }
     },
-    "/gps/registros": {
+    "/gps/plantilla": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "GPS"
+        ],
+        "summary": "Descargar plantilla CSV genérica de GPS",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
-          "application/json"
+          "text/csv"
         ],
+        "responses": {
+          "200": {
+            "description": "Plantilla CSV"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -1295,74 +2711,54 @@
         }
       }
     },
-    "/gps/resumen": {
+    "/gps/plantilla/{proveedor}": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "GPS"
+        ],
+        "summary": "Descargar plantilla CSV de un proveedor específico",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
-          "application/json"
+          "text/csv"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proveedor",
+            "required": true,
+            "type": "string",
+            "description": "Nombre del proveedor GPS",
+            "example": "wialon"
+          }
         ],
         "responses": {
           "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
+            "description": "Plantilla CSV del proveedor"
+          },
+          "404": {
+            "description": "Proveedor no encontrado"
+          },
+          "401": {
+            "description": "No autorizado"
           }
         }
-      }
-    },
-    "/gps/tracking/export": {
-      "get": {
-        "responses": {}
       },
       "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "GPS"
         ],
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
+        "summary": "CORS preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proveedor",
+            "required": true,
+            "type": "string"
           }
-        }
-      }
-    },
-    "/gps/tracking/resumen": {
-      "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
         ],
         "responses": {
           "200": {
@@ -1384,15 +2780,384 @@
     },
     "/gps/validar": {
       "post": {
-        "responses": {}
-      },
-      "options": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "Validar archivo CSV de GPS antes de importar",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "proveedor",
+                "datos"
+              ],
+              "properties": {
+                "proveedor": {
+                  "type": "string",
+                  "example": "wialon"
+                },
+                "datos": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "example": [
+                    {
+                      "placa": "ABC-123",
+                      "fecha": "2026-06-01",
+                      "km": 45000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado de validación"
+          },
+          "400": {
+            "description": "Datos con errores"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gps/importar": {
+      "post": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "Importar datos GPS desde CSV",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "proveedor",
+                "datos"
+              ],
+              "properties": {
+                "proveedor": {
+                  "type": "string",
+                  "example": "wialon"
+                },
+                "datos": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "example": [
+                    {
+                      "placa": "ABC-123",
+                      "fecha": "2026-06-01",
+                      "km": 45000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos GPS importados correctamente"
+          },
+          "400": {
+            "description": "Error en los datos"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gps/resumen": {
+      "get": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "Resumen de registros GPS",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumen GPS"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gps/registros": {
+      "get": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "Listar registros GPS",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "unidadId",
+            "type": "string",
+            "example": "uuid-unidad"
+          },
+          {
+            "in": "query",
+            "name": "desde",
+            "type": "string",
+            "format": "date",
+            "example": "2026-01-01"
+          },
+          {
+            "in": "query",
+            "name": "hasta",
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-01"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registros GPS"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gps/tracking/resumen": {
+      "get": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "Resumen de tracking GPS",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumen de tracking"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gps/tracking/export": {
+      "get": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "Exportar tracking GPS a CSV",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "text/csv"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "unidadId",
+            "type": "string",
+            "example": "uuid-unidad"
+          },
+          {
+            "in": "query",
+            "name": "desde",
+            "type": "string",
+            "format": "date",
+            "example": "2026-01-01"
+          },
+          {
+            "in": "query",
+            "name": "hasta",
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-01"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo CSV de tracking"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "GPS"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -1413,18 +3178,118 @@
     },
     "/jornadas": {
       "get": {
-        "responses": {}
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "Listar todas las jornadas",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "estado",
+            "type": "string",
+            "enum": [
+              "ACTIVA",
+              "FINALIZADA"
+            ]
+          },
+          {
+            "in": "query",
+            "name": "conductorId",
+            "type": "string",
+            "example": "uuid-conductor"
+          },
+          {
+            "in": "query",
+            "name": "pagina",
+            "type": "integer",
+            "example": 1
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "type": "integer",
+            "example": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de jornadas"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
       },
       "post": {
-        "responses": {}
-      },
-      "options": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "Crear jornada manualmente",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "conductorId",
+                "unidadId"
+              ],
+              "properties": {
+                "conductorId": {
+                  "type": "string",
+                  "example": "uuid-conductor"
+                },
+                "unidadId": {
+                  "type": "string",
+                  "example": "uuid-unidad"
+                },
+                "fechaInicio": {
+                  "type": "string",
+                  "format": "date-time",
+                  "example": "2026-06-09T08:00:00Z"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Jornada creada"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -1443,19 +3308,17 @@
         }
       }
     },
-    "/jornadas/actual/{conductorId}": {
-      "get": {
-        "parameters": [
+    "/jornadas/iniciar": {
+      "post": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "Iniciar jornada (CHOFER)",
+        "security": [
           {
-            "name": "conductorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "BearerAuth": []
           }
         ],
-        "responses": {}
-      },
-      "options": {
         "consumes": [
           "application/json"
         ],
@@ -1464,86 +3327,45 @@
         ],
         "parameters": [
           {
-            "name": "conductorId",
-            "in": "path",
+            "in": "body",
+            "name": "body",
             "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
+            "schema": {
+              "type": "object",
+              "required": [
+                "unidadId",
+                "kmInicial"
+              ],
+              "properties": {
+                "unidadId": {
+                  "type": "string",
+                  "example": "uuid-unidad"
+                },
+                "kmInicial": {
+                  "type": "number",
+                  "example": 45000
+                }
               }
             }
           }
-        }
-      }
-    },
-    "/jornadas/alerta/{jornadaId}": {
-      "get": {
-        "parameters": [
-          {
-            "name": "jornadaId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "jornadaId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
         ],
         "responses": {
-          "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
+          "201": {
+            "description": "Jornada iniciada correctamente"
+          },
+          "400": {
+            "description": "Ya existe una jornada activa"
+          },
+          "401": {
+            "description": "No autorizado"
           }
         }
-      }
-    },
-    "/jornadas/exportar": {
-      "get": {
-        "responses": {}
       },
       "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Jornadas"
         ],
-        "produces": [
-          "application/json"
-        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -1564,14 +3386,131 @@
     },
     "/jornadas/finalizar": {
       "post": {
-        "responses": {}
-      },
-      "options": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "Finalizar jornada activa (CHOFER)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "consumes": [
           "application/json"
         ],
         "produces": [
           "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "jornadaId",
+                "kmFinal"
+              ],
+              "properties": {
+                "jornadaId": {
+                  "type": "string",
+                  "example": "uuid-jornada"
+                },
+                "kmFinal": {
+                  "type": "number",
+                  "example": 45350
+                },
+                "observacion": {
+                  "type": "string",
+                  "example": "Jornada sin incidentes"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jornada finalizada correctamente"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jornadas/actual/{conductorId}": {
+      "get": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "Obtener jornada activa de un conductor",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conductorId",
+            "required": true,
+            "type": "string",
+            "example": "uuid-conductor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jornada activa del conductor"
+          },
+          "404": {
+            "description": "Sin jornada activa"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "CORS preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conductorId",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
           "200": {
@@ -1593,15 +3532,48 @@
     },
     "/jornadas/historial": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "Historial de jornadas del chofer autenticado",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "desde",
+            "type": "string",
+            "format": "date",
+            "example": "2026-01-01"
+          },
+          {
+            "in": "query",
+            "name": "hasta",
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-01"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historial de jornadas"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -1622,15 +3594,54 @@
     },
     "/jornadas/historial-gerencial": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "Historial gerencial de jornadas",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "desde",
+            "type": "string",
+            "format": "date",
+            "example": "2026-01-01"
+          },
+          {
+            "in": "query",
+            "name": "hasta",
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-01"
+          },
+          {
+            "in": "query",
+            "name": "conductorId",
+            "type": "string",
+            "example": "uuid-conductor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historial gerencial"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -1651,44 +3662,32 @@
     },
     "/jornadas/historial-gerencial/metrics": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "Métricas del historial gerencial",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
         "responses": {
           "200": {
-            "description": "200 response",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Methods": {
-                "type": "string"
-              },
-              "Access-Control-Allow-Headers": {
-                "type": "string"
-              }
-            }
+            "description": "Métricas gerenciales"
+          },
+          "401": {
+            "description": "No autorizado"
           }
         }
-      }
-    },
-    "/jornadas/iniciar": {
-      "post": {
-        "responses": {}
       },
       "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Jornadas"
         ],
-        "produces": [
-          "application/json"
-        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
@@ -1709,14 +3708,159 @@
     },
     "/jornadas/metricas": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "Métricas de jornadas del chofer",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Métricas del chofer"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jornadas/exportar": {
+      "get": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "Exportar jornadas a CSV",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "text/csv"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "desde",
+            "type": "string",
+            "format": "date",
+            "example": "2026-01-01"
+          },
+          {
+            "in": "query",
+            "name": "hasta",
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-01"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo CSV de jornadas"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "CORS preflight",
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jornadas/alerta/{jornadaId}": {
+      "get": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "Obtener alerta de una jornada",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jornadaId",
+            "required": true,
+            "type": "string",
+            "example": "uuid-jornada"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Alerta de la jornada"
+          },
+          "404": {
+            "description": "Jornada no encontrada"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Jornadas"
+        ],
+        "summary": "CORS preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jornadaId",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
           "200": {
@@ -1738,15 +3882,52 @@
     },
     "/unidades/disponibles": {
       "get": {
-        "responses": {}
-      },
-      "options": {
-        "consumes": [
-          "application/json"
+        "tags": [
+          "Unidades"
+        ],
+        "summary": "Listar unidades disponibles para asignar",
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "produces": [
           "application/json"
         ],
+        "responses": {
+          "200": {
+            "description": "Lista de unidades disponibles",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "placa": {
+                    "type": "string"
+                  },
+                  "marca": {
+                    "type": "string"
+                  },
+                  "modelo": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Unidades"
+        ],
+        "summary": "CORS preflight",
         "responses": {
           "200": {
             "description": "200 response",
