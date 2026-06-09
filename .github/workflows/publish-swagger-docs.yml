@@ -41,7 +41,11 @@ jobs:
       - name: Preparar carpeta swagger/
         run: mkdir -p gh-pages/swagger
 
-      # 5. Encontrar el swagger YAML en el repo y copiarlo
+      # 5. Instalar dependencia para conversión YAML→JSON
+      - name: Instalar PyYAML
+        run: pip install pyyaml --quiet
+
+      # 6. Encontrar el swagger YAML en el repo y copiarlo
       - name: Copiar swagger YAML
         run: |
           # Busca en orden: open_api/, openapi/, raíz del proyecto
@@ -64,7 +68,7 @@ jobs:
           echo "YAML_SRC=$YAML_SRC" >> $GITHUB_ENV
           cp "$YAML_SRC" gh-pages/swagger/
 
-      # 6. Ejecutar el script que genera la página HTML profesional
+      # 7. Ejecutar el script que genera la página HTML profesional
       - name: Generar página HTML
         run: |
           chmod +x source/.github/scripts/generate-swagger-page.sh
@@ -72,7 +76,7 @@ jobs:
             "$YAML_SRC" \
             "gh-pages/swagger"
 
-      # 7. Commit y push SOLO de la carpeta swagger/ (no toca nada más de gh-pages)
+      # 8. Commit y push SOLO de la carpeta swagger/ (no toca nada más de gh-pages)
       - name: Publicar en gh-pages
         run: |
           cd gh-pages
@@ -94,7 +98,7 @@ jobs:
 
           echo "✅ Documentación publicada correctamente"
 
-      # 8. Mostrar la URL donde quedó publicada
+      # 9. Mostrar la URL donde quedó publicada
       - name: Mostrar URL de la documentación
         run: |
           REPO="${{ github.repository }}"
