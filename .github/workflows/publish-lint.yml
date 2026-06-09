@@ -1,0 +1,132 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# .github/workflows/publish-lint.yml
+#
+# Workflow: Linting & Formatting — reporte en GitHub Pages
+# Ejecuta ESLint, Prettier y TypeScript check, genera reporte HTML
+# y lo publica en gh-pages/lint/index.html
+#
+# Ejecución: MANUAL (workflow_dispatch)
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: "\u2728 Linting & Formatting Report"
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Rama a analizar'
+        required: false
+        default: 'develop'
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  lint-report:
+    name: "Linting, Formatting & Report"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+
+      # 1. Checkout código fuente
+      - name: Checkout rama
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'develop' }}
+          path: source
+
+      # 2. Checkout gh-pages
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+        continue-on-error: true
+
+      # 3. Inicializar gh-pages si no existe
+      - name: Inicializar gh-pages
+        run: |
+          if [ ! -d "gh-pages" ] || [ -z "$(ls -A gh-pages 2>/dev/null)" ]; then
+            mkdir -p gh-pages
+            cd gh-pages && git init && git checkout -b gh-pages
+          fi
+
+      # 4. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: source/package-lock.json
+
+      # 5. Instalar dependencias
+      - name: npm ci
+        working-directory: source
+        run: npm ci
+
+      # 6. Ejecutar ESLint + Prettier + TypeScript
+      #    Toda la lógica con grep/awk está en run-lint.sh para evitar
+      #    problemas de sintaxis YAML con caracteres especiales (\[warn\] etc.)
+      - name: ESLint + Prettier + TypeScript
+        id: lint
+        run: |
+          chmod +x source/.github/scripts/run-lint.sh
+          source/.github/scripts/run-lint.sh source .
+        continue-on-error: true
+
+      # 7. Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 8. Generar reporte HTML
+      - name: Generar reporte HTML
+        run: |
+          FECHA=$(date -u "+%d %b %Y %H:%M UTC")
+          mkdir -p gh-pages/lint
+
+          ESLINT_STATUS="${{ steps.lint.outputs.eslint_status }}"     \
+          ESLINT_ERRORS="${{ steps.lint.outputs.eslint_errors }}"     \
+          ESLINT_WARNINGS="${{ steps.lint.outputs.eslint_warnings }}" \
+          ESLINT_FILES="${{ steps.lint.outputs.eslint_files }}"       \
+          PRETTIER_STATUS="${{ steps.lint.outputs.prettier_status }}" \
+          PRETTIER_ISSUES="${{ steps.lint.outputs.prettier_issues }}" \
+          TS_STATUS="${{ steps.lint.outputs.ts_status }}"             \
+          TS_ERRORS="${{ steps.lint.outputs.ts_errors }}"             \
+          FECHA="$FECHA"                                              \
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+          REPO="${{ github.repository }}"                             \
+          BRANCH="${{ github.event.inputs.branch || 'develop' }}"    \
+          COMMIT="${{ github.sha }}"                                  \
+          OUT="gh-pages/lint/index.html"                             \
+          python3 source/.github/scripts/generate-report-lint.py
+
+      # 9. Publicar en gh-pages
+      - name: Publicar en gh-pages
+        run: |
+          cd gh-pages
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add lint/
+          if git diff --cached --quiet; then
+            echo "Sin cambios — no se genero commit."
+            exit 0
+          fi
+          COMMIT_SHORT="${{ github.sha }}"
+          git commit -m "lint: actualizar reporte de linting [${COMMIT_SHORT:0:7}] [skip ci]"
+          git push origin gh-pages
+          echo "Reporte publicado."
+
+      # 10. URL final
+      - name: URL del reporte
+        run: |
+          OWNER=$(echo "${{ github.repository }}" | cut -d'/' -f1)
+          NAME=$(echo  "${{ github.repository }}" | cut -d'/' -f2)
+          echo ""
+          echo "Lint Report: https://${OWNER}.github.io/${NAME}/lint/"
