@@ -10,6 +10,8 @@ set -e
 SWAGGER_FILE="${1}"
 OUTPUT_DIR="${2:-./swagger-docs}"
 SWAGGER_FILENAME=$(basename "$SWAGGER_FILE")
+# Swagger UI lee JSON sin problemas de parsing YAML
+SWAGGER_JSON="swagger.json"
 
 if [ -z "$SWAGGER_FILE" ]; then
   echo "❌ Error: debes pasar la ruta del archivo swagger como primer argumento"
@@ -20,7 +22,41 @@ echo "📄 Generando documentación desde: $SWAGGER_FILE"
 echo "📁 Directorio de salida: $OUTPUT_DIR"
 
 mkdir -p "$OUTPUT_DIR"
-cp "$SWAGGER_FILE" "$OUTPUT_DIR/$SWAGGER_FILENAME"
+
+# ============================================================
+# CONVERTIR YAML → JSON (evita errores de !Ref y version field)
+# ============================================================
+echo "🔄 Convirtiendo YAML → JSON..."
+
+pip install pyyaml --quiet 2>/dev/null || true
+
+python3 - << PYEOF
+import yaml, json, sys, re
+
+with open("${SWAGGER_FILE}", "r", encoding="utf-8") as f:
+    raw = f.read()
+
+# Eliminar tags YAML problemáticos como !<!Ref>, !Ref, etc.
+raw = re.sub(r'!\w*<[^>]*>', '', raw)
+raw = re.sub(r'!\w+\s', ' ', raw)
+
+data = yaml.safe_load(raw)
+
+# Asegurar que el campo swagger/openapi esté como string limpio
+if "swagger" in data:
+    data["swagger"] = str(data["swagger"]).strip().strip('"').strip("'")
+if "openapi" in data:
+    data["openapi"] = str(data["openapi"]).strip().strip('"').strip("'")
+
+# Asegurar que info.version sea string
+if "info" in data and "version" in data["info"]:
+    data["info"]["version"] = str(data["info"]["version"])
+
+with open("${OUTPUT_DIR}/${SWAGGER_JSON}", "w", encoding="utf-8") as f:
+    json.dump(data, f, ensure_ascii=False, indent=2)
+
+print("✅ JSON generado correctamente")
+PYEOF
 
 # ============================================================
 # EXTRAE METADATA DEL SWAGGER (titulo, version, host)
@@ -772,7 +808,7 @@ cat > "$OUTPUT_DIR/index.html" << HTMLEOF
   <script>
     // ── SWAGGER INIT ─────────────────────────────
     const ui = SwaggerUIBundle({
-      url: "./${SWAGGER_FILENAME}",
+      url: "./${SWAGGER_JSON}",
       dom_id: '#swagger-ui',
       presets: [
         SwaggerUIBundle.presets.apis,
