@@ -548,6 +548,7 @@ jobs:
               .card-checkov   { --card-accent: #D97706; --card-icon-bg: #FFFBEB; --card-icon-border: #FDE68A; --card-cta-bg: #D97706; }
               .card-trivy     { --card-accent: #7C3AED; --card-icon-bg: #F5F3FF; --card-icon-border: #DDD6FE; --card-cta-bg: #7C3AED; }
               .card-swagger   { --card-accent: #0284C7; --card-icon-bg: #F0F9FF; --card-icon-border: #BAE6FD; --card-cta-bg: #0284C7; }
+              .card-lint      { --card-accent: #059669; --card-icon-bg: #ECFDF5; --card-icon-border: #A7F3D0; --card-cta-bg: #059669; }
 
               /* ── STATUS BAR ── */
               .status-bar {
@@ -693,6 +694,22 @@ jobs:
                   <span class="card-cta outline">Ver docs →</span>
                 </a>
 
+                <!-- Linting & Formatting -->
+                <a href="https://$OWNER.github.io/$REPO_NAME/lint/" class="card card-lint">
+                  <div class="card-icon-wrap">✨</div>
+                  <div class="card-title">Linting &amp; Formatting</div>
+                  <p class="card-desc">
+                    Análisis estático de código con ESLint, formato con Prettier
+                    y verificación de tipos con TypeScript.
+                  </p>
+                  <div class="card-tags">
+                    <span class="card-tag">ESLint</span>
+                    <span class="card-tag">Prettier</span>
+                    <span class="card-tag">TypeScript</span>
+                  </div>
+                  <span class="card-cta outline">Ver reporte →</span>
+                </a>
+
               </div>
             </div>
 
@@ -741,5 +758,6 @@ jobs:
           echo "║  🏗️  Checkov  : https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/checkov/"
           echo "║  🔍 Trivy    : https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/trivy/"
           echo "║  📚 Swagger  : https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/swagger/"
+          echo "║  ✨ Lint     : https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/lint/"
           echo "╚══════════════════════════════════════════════════════════════╝"
           echo ""
