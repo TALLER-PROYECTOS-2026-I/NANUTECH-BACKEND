@@ -225,6 +225,76 @@ vuln_rows   = build_vuln_rows(vulns_sorted)
 secret_rows = build_secret_rows(secrets_sorted)
 pkg_rows    = build_pkg_summary()
 
+# ── Pre-calcular bloques HTML condicionales ───────────────────────────────────
+# Evita f-strings anidados con triple-comilla (SyntaxError en Python < 3.12)
+
+EMPTY_VULN = '<div class="card"><div class="empty-state"><span class="empty-icon">✨</span><p>Sin vulnerabilidades CVE detectadas</p><span>Todas las dependencias npm están en versiones seguras.</span></div></div>'
+
+EMPTY_SECRET = '<div class="card"><div class="empty-state"><span class="empty-icon">🔒</span><p>Sin secretos detectados</p><span>No se encontraron credenciales hardcodeadas en el código fuente.</span></div></div>'
+
+if vuln_rows:
+    block_vulns = f"""<div class="card">
+      <div class="filter-bar">
+        <span class="filter-lbl">Filtrar:</span>
+        <button class="fbtn active"   onclick="filterVulns('ALL',this)">Todos ({total_vulns})</button>
+        <button class="fbtn btn-crit" onclick="filterVulns('CRITICAL',this)">Critical ({count_critical})</button>
+        <button class="fbtn btn-high" onclick="filterVulns('HIGH',this)">High ({count_high})</button>
+        <button class="fbtn btn-med"  onclick="filterVulns('MEDIUM',this)">Medium ({count_medium})</button>
+        <button class="fbtn btn-low"  onclick="filterVulns('LOW',this)">Low ({count_low})</button>
+      </div>
+      <div class="table-wrap">
+        <table id="table-vulns">
+          <thead>
+            <tr>
+              <th style="width:96px">Severidad</th>
+              <th style="width:160px">CVE / ID</th>
+              <th style="width:140px">Paquete</th>
+              <th style="width:110px">Instalado</th>
+              <th style="width:120px">Fix disponible</th>
+              <th style="width:70px">CVSS</th>
+              <th>Título del advisory</th>
+            </tr>
+          </thead>
+          <tbody>{vuln_rows}</tbody>
+        </table>
+      </div>
+    </div>"""
+else:
+    block_vulns = EMPTY_VULN
+
+if secret_rows:
+    block_secrets = f"""<div class="card">
+      <div class="table-wrap">
+        <table id="table-secrets">
+          <thead>
+            <tr>
+              <th style="width:96px">Severidad</th>
+              <th style="width:160px">Regla</th>
+              <th style="width:100px">Categoría</th>
+              <th>Descripción</th>
+              <th style="min-width:180px">Archivo / Línea</th>
+              <th style="min-width:160px">Coincidencia</th>
+            </tr>
+          </thead>
+          <tbody>{secret_rows}</tbody>
+        </table>
+      </div>
+    </div>"""
+else:
+    block_secrets = EMPTY_SECRET
+
+# Banner de alerta de secretos (solo si hay)
+if total_secrets > 0:
+    alert_banner = f"""<div class="alert-banner alert-critical">
+  <span class="alert-icon">🚨</span>
+  <div class="alert-body">
+    <div class="alert-title">Secretos hardcodeados detectados en el código</div>
+    <div class="alert-desc">Se encontraron {total_secrets} secreto(s) en el repositorio. Rotar las credenciales inmediatamente y eliminarlas del historial de Git.</div>
+  </div>
+</div>"""
+else:
+    alert_banner = ""
+
 # ─────────────────────────────────────────────────────────────────────────────
 html = f"""<!DOCTYPE html>
 <html lang="es">
@@ -640,7 +710,7 @@ html = f"""<!DOCTYPE html>
     <a href="{RUN_URL}" target="_blank">Ver ejecución en GitHub Actions →</a>
   </div>
 
-  {'<div class="alert-banner alert-critical"><span class="alert-icon">🚨</span><div class="alert-body"><div class="alert-title">Secretos hardcodeados detectados en el código</div><div class="alert-desc">Se encontraron ' + str(total_secrets) + ' secreto(s) en el repositorio. Rotar las credenciales inmediatamente y eliminarlas del historial de Git.</div></div></div>' if total_secrets > 0 else ''}
+  {alert_banner}
 
   <!-- ═══ RESUMEN ══════════════════════════════════════════════════ -->
   <section class="section" id="resumen">
@@ -739,33 +809,7 @@ html = f"""<!DOCTYPE html>
     </p>
     <div class="section-divider"></div>
 
-    {'<div class="card"><div class="empty-state"><span class="empty-icon">✨</span><p>Sin vulnerabilidades CVE detectadas</p><span>Todas las dependencias npm están en versiones seguras.</span></div></div>' if not vuln_rows else f"""
-    <div class="card">
-      <div class="filter-bar">
-        <span class="filter-lbl">Filtrar:</span>
-        <button class="fbtn active"     onclick="filterVulns('ALL',this)">Todos ({total_vulns})</button>
-        <button class="fbtn btn-crit"   onclick="filterVulns('CRITICAL',this)">Critical ({count_critical})</button>
-        <button class="fbtn btn-high"   onclick="filterVulns('HIGH',this)">High ({count_high})</button>
-        <button class="fbtn btn-med"    onclick="filterVulns('MEDIUM',this)">Medium ({count_medium})</button>
-        <button class="fbtn btn-low"    onclick="filterVulns('LOW',this)">Low ({count_low})</button>
-      </div>
-      <div class="table-wrap">
-        <table id="table-vulns">
-          <thead>
-            <tr>
-              <th style="width:96px">Severidad</th>
-              <th style="width:160px">CVE / ID</th>
-              <th style="width:140px">Paquete</th>
-              <th style="width:110px">Instalado</th>
-              <th style="width:120px">Fix disponible</th>
-              <th style="width:70px">CVSS</th>
-              <th>Título del advisory</th>
-            </tr>
-          </thead>
-          <tbody>{vuln_rows}</tbody>
-        </table>
-      </div>
-    </div>"""}
+    {block_vulns}
   </section>
 
   <!-- ═══ SECRETOS ════════════════════════════════════════════════ -->
@@ -780,24 +824,7 @@ html = f"""<!DOCTYPE html>
     </p>
     <div class="section-divider"></div>
 
-    {'<div class="card"><div class="empty-state"><span class="empty-icon">🔒</span><p>Sin secretos detectados</p><span>No se encontraron credenciales hardcodeadas en el código fuente.</span></div></div>' if not secret_rows else f"""
-    <div class="card">
-      <div class="table-wrap">
-        <table id="table-secrets">
-          <thead>
-            <tr>
-              <th style="width:96px">Severidad</th>
-              <th style="width:160px">Regla</th>
-              <th style="width:100px">Categoría</th>
-              <th>Descripción</th>
-              <th style="min-width:180px">Archivo / Línea</th>
-              <th style="min-width:160px">Coincidencia</th>
-            </tr>
-          </thead>
-          <tbody>{secret_rows}</tbody>
-        </table>
-      </div>
-    </div>"""}
+    {block_secrets}
   </section>
 
 </div>
