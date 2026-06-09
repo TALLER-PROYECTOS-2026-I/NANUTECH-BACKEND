@@ -2,1101 +2,2336 @@
 swagger: "2.0"
 info:
   version: "1.0"
-  title: "nanutech-api-testing"
+  title: "Nanutech API"
+  description: |
+    API REST para el sistema de gestión de flotas Nanutech.
+
+    ## Autenticación
+    1. Ejecuta `POST /auth/login` con tu usuario y contraseña
+    2. Copia el token de la respuesta
+    3. Haz clic en **Authorize** (🔒) y pega el token como: `Bearer <token>`
+    4. Ya puedes ejecutar cualquier endpoint autenticado
+
+    ## Roles
+    - **ADMIN** — acceso total
+    - **GERENTE** — dashboard gerencial, contratos, conductores
+    - **CHOFER** — jornadas propias, alertas, combustible
+
 host: "q26dwk17da.execute-api.us-east-1.amazonaws.com"
 basePath: "/Stage"
 schemes:
-- "https"
+  - "https"
+
+consumes:
+  - "application/json"
+produces:
+  - "application/json"
+
+securityDefinitions:
+  BearerAuth:
+    type: apiKey
+    in: header
+    name: Authorization
+    description: "Ingresa tu token con el prefijo Bearer. Ejemplo: **Bearer eyJhbGci...**"
+
+tags:
+  - name: Auth
+    description: Autenticación y sesión de usuario
+  - name: Alertas
+    description: Gestión de alertas SOS y de auxilio
+  - name: Auditoria
+    description: Registros de auditoría del sistema
+  - name: Camiones
+    description: Gestión de unidades vehiculares
+  - name: Combustible
+    description: Registro y consulta de combustible
+  - name: Conductores
+    description: Gestión de conductores y licencias
+  - name: Contratos
+    description: Gestión de contratos
+  - name: Dashboard
+    description: Paneles de control por rol
+  - name: GPS
+    description: Importación y tracking GPS
+  - name: Jornadas
+    description: Gestión de jornadas de trabajo
+  - name: Unidades
+    description: Unidades disponibles
+
 paths:
-  /alertas/activas:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /alertas/auxilio:
-    post:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /alertas/indicadores:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /alertas/sos:
-    post:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /alertas/{id}/estado:
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-    patch:
-      parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-  /alertas/{id}/resolver:
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-    patch:
-      parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-  /auditoria/exportar/csv:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /auditoria/registros:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /auditoria/resumen:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /auth/forgot-password:
-    post:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /auth/forgot-password/confirm:
-    post:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
+
+  # ─────────────────────────────────────────────
+  # AUTH
+  # ─────────────────────────────────────────────
   /auth/login:
     post:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Auth]
+      summary: Iniciar sesión
+      description: Retorna un token JWT para usar en el resto de endpoints
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [email, password]
+            properties:
+              email:
+                type: string
+                example: "admin@nanutech.com"
+              password:
+                type: string
+                example: "Password123!"
       responses:
         "200":
-          description: "200 response"
+          description: Login exitoso
+          schema:
+            type: object
+            properties:
+              token:
+                type: string
+                example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              user:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                  role:
+                    type: string
+                    enum: [ADMIN, GERENTE, CHOFER]
+        "401":
+          description: Credenciales inválidas
+    options:
+      tags: [Auth]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Solicitar recuperación de contraseña
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [email]
+            properties:
+              email:
+                type: string
+                example: "usuario@nanutech.com"
+      responses:
+        "200":
+          description: Correo de recuperación enviado
+        "404":
+          description: Usuario no encontrado
+    options:
+      tags: [Auth]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /auth/forgot-password/confirm:
+    post:
+      tags: [Auth]
+      summary: Confirmar nueva contraseña
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [email, code, newPassword]
+            properties:
+              email:
+                type: string
+                example: "usuario@nanutech.com"
+              code:
+                type: string
+                example: "123456"
+              newPassword:
+                type: string
+                example: "NuevaPassword123!"
+      responses:
+        "200":
+          description: Contraseña actualizada correctamente
+        "400":
+          description: Código inválido o expirado
+    options:
+      tags: [Auth]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
   /auth/me:
     get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Auth]
+      summary: Obtener sesión actual
+      description: Retorna los datos del usuario autenticado
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       responses:
         "200":
-          description: "200 response"
+          description: Datos del usuario autenticado
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+              email:
+                type: string
+              role:
+                type: string
+              nombre:
+                type: string
+        "401":
+          description: Token inválido o expirado
+    options:
+      tags: [Auth]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  # ─────────────────────────────────────────────
+  # ALERTAS
+  # ─────────────────────────────────────────────
+  /alertas/activas:
+    get:
+      tags: [Alertas]
+      summary: Listar alertas activas
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      responses:
+        "200":
+          description: Lista de alertas activas
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                tipo:
+                  type: string
+                  enum: [SOS, AUXILIO]
+                estado:
+                  type: string
+                conductorId:
+                  type: string
+                creadoEn:
+                  type: string
+                  format: date-time
+        "401":
+          description: No autorizado
+    options:
+      tags: [Alertas]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /alertas/indicadores:
+    get:
+      tags: [Alertas]
+      summary: Obtener indicadores de alertas
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      responses:
+        "200":
+          description: Indicadores de alertas
+          schema:
+            type: object
+            properties:
+              total:
+                type: integer
+              activas:
+                type: integer
+              resueltas:
+                type: integer
+              sos:
+                type: integer
+              auxilio:
+                type: integer
+        "401":
+          description: No autorizado
+    options:
+      tags: [Alertas]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /alertas/sos:
+    post:
+      tags: [Alertas]
+      summary: Crear alerta SOS
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [conductorId, jornadaId]
+            properties:
+              conductorId:
+                type: string
+                example: "uuid-conductor"
+              jornadaId:
+                type: string
+                example: "uuid-jornada"
+              ubicacion:
+                type: string
+                example: "Av. Principal 123"
+              descripcion:
+                type: string
+                example: "Emergencia en ruta"
+      responses:
+        "201":
+          description: Alerta SOS creada
+        "400":
+          description: Datos inválidos
+        "401":
+          description: No autorizado
+    options:
+      tags: [Alertas]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /alertas/auxilio:
+    post:
+      tags: [Alertas]
+      summary: Crear alerta de auxilio mecánico
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [conductorId, jornadaId]
+            properties:
+              conductorId:
+                type: string
+                example: "uuid-conductor"
+              jornadaId:
+                type: string
+                example: "uuid-jornada"
+              descripcion:
+                type: string
+                example: "Falla en motor"
+              ubicacion:
+                type: string
+                example: "Km 45 carretera norte"
+      responses:
+        "201":
+          description: Alerta de auxilio creada
+        "400":
+          description: Datos inválidos
+        "401":
+          description: No autorizado
+    options:
+      tags: [Alertas]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /alertas/{id}/estado:
+    patch:
+      tags: [Alertas]
+      summary: Actualizar estado de una alerta
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+          description: ID de la alerta
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [estado]
+            properties:
+              estado:
+                type: string
+                enum: [EN_PROCESO, RESUELTA, CANCELADA]
+                example: "EN_PROCESO"
+      responses:
+        "200":
+          description: Estado actualizado
+        "404":
+          description: Alerta no encontrada
+        "401":
+          description: No autorizado
+    options:
+      tags: [Alertas]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /alertas/{id}/resolver:
+    patch:
+      tags: [Alertas]
+      summary: Resolver una alerta
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+          description: ID de la alerta
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              observacion:
+                type: string
+                example: "Alerta atendida y resuelta por equipo de soporte"
+      responses:
+        "200":
+          description: Alerta resuelta correctamente
+        "404":
+          description: Alerta no encontrada
+        "401":
+          description: No autorizado
+    options:
+      tags: [Alertas]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  # ─────────────────────────────────────────────
+  # AUDITORIA
+  # ─────────────────────────────────────────────
+  /auditoria/resumen:
+    get:
+      tags: [Auditoria]
+      summary: Resumen de auditoría
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: query
+          name: desde
+          type: string
+          format: date
+          example: "2026-01-01"
+        - in: query
+          name: hasta
+          type: string
+          format: date
+          example: "2026-06-01"
+      responses:
+        "200":
+          description: Resumen de auditoría
+        "401":
+          description: No autorizado
+    options:
+      tags: [Auditoria]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /auditoria/registros:
+    get:
+      tags: [Auditoria]
+      summary: Listar registros de auditoría
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: query
+          name: pagina
+          type: integer
+          example: 1
+        - in: query
+          name: limite
+          type: integer
+          example: 20
+        - in: query
+          name: accion
+          type: string
+          example: "LOGIN"
+      responses:
+        "200":
+          description: Registros de auditoría paginados
+        "401":
+          description: No autorizado
+    options:
+      tags: [Auditoria]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /auditoria/exportar/csv:
+    get:
+      tags: [Auditoria]
+      summary: Exportar auditoría a CSV
+      security:
+        - BearerAuth: []
+      produces: ["text/csv"]
+      parameters:
+        - in: query
+          name: desde
+          type: string
+          format: date
+          example: "2026-01-01"
+        - in: query
+          name: hasta
+          type: string
+          format: date
+          example: "2026-06-01"
+      responses:
+        "200":
+          description: Archivo CSV de auditoría
+        "401":
+          description: No autorizado
+    options:
+      tags: [Auditoria]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  # ─────────────────────────────────────────────
+  # CAMIONES
+  # ─────────────────────────────────────────────
   /camiones:
     get:
-      responses: {}
+      tags: [Camiones]
+      summary: Listar todos los camiones
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: query
+          name: estado
+          type: string
+          enum: [ACTIVO, INACTIVO, MANTENIMIENTO]
+        - in: query
+          name: pagina
+          type: integer
+          example: 1
+        - in: query
+          name: limite
+          type: integer
+          example: 20
+      responses:
+        "200":
+          description: Lista de camiones
+        "401":
+          description: No autorizado
     post:
-      responses: {}
+      tags: [Camiones]
+      summary: Crear un nuevo camión
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [placa, marca, modelo, anio]
+            properties:
+              placa:
+                type: string
+                example: "ABC-123"
+              marca:
+                type: string
+                example: "Volvo"
+              modelo:
+                type: string
+                example: "FH16"
+              anio:
+                type: integer
+                example: 2022
+              capacidad:
+                type: number
+                example: 30000
+              estado:
+                type: string
+                enum: [ACTIVO, INACTIVO, MANTENIMIENTO]
+                example: "ACTIVO"
+      responses:
+        "201":
+          description: Camión creado correctamente
+        "400":
+          description: Datos inválidos
+        "401":
+          description: No autorizado
     options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Camiones]
+      summary: CORS preflight
       responses:
         "200":
-          description: "200 response"
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
-  /camiones/exportar/csv:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
   /camiones/panel:
     get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Camiones]
+      summary: Panel de estado de camiones
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       responses:
         "200":
-          description: "200 response"
+          description: Panel con estado actual de todos los camiones
+        "401":
+          description: No autorizado
+    options:
+      tags: [Camiones]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  /camiones/exportar/csv:
+    get:
+      tags: [Camiones]
+      summary: Exportar camiones a CSV
+      security:
+        - BearerAuth: []
+      produces: ["text/csv"]
+      responses:
+        "200":
+          description: Archivo CSV con datos de camiones
+        "401":
+          description: No autorizado
+    options:
+      tags: [Camiones]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
   /camiones/{id}:
     get:
+      tags: [Camiones]
+      summary: Obtener camión por ID
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
+        - in: path
+          name: id
+          required: true
+          type: string
+          description: ID del camión
+          example: "uuid-camion"
       responses:
         "200":
-          description: "200 response"
+          description: Datos del camión
+        "404":
+          description: Camión no encontrado
+        "401":
+          description: No autorizado
+    options:
+      tags: [Camiones]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  # ─────────────────────────────────────────────
+  # COMBUSTIBLE
+  # ─────────────────────────────────────────────
   /combustible:
     post:
-      responses: {}
+      tags: [Combustible]
+      summary: Registrar carga de combustible
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [jornadaId, unidadId, litros, kmActual]
+            properties:
+              jornadaId:
+                type: string
+                example: "uuid-jornada"
+              unidadId:
+                type: string
+                example: "uuid-unidad"
+              litros:
+                type: number
+                example: 120.5
+              kmActual:
+                type: number
+                example: 45230
+              estacion:
+                type: string
+                example: "Grifo Norte"
+      responses:
+        "201":
+          description: Registro de combustible creado
+        "400":
+          description: Datos inválidos
+        "401":
+          description: No autorizado
     options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Combustible]
+      summary: CORS preflight
       responses:
         "200":
-          description: "200 response"
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
-  /combustible/jornada/{jornadaId}:
-    get:
-      parameters:
-      - name: "jornadaId"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "jornadaId"
-        in: "path"
-        required: true
-        type: "string"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
   /combustible/ultimo-km/{unidadId}:
     get:
+      tags: [Combustible]
+      summary: Obtener último kilometraje registrado de una unidad
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       parameters:
-      - name: "unidadId"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "unidadId"
-        in: "path"
-        required: true
-        type: "string"
+        - in: path
+          name: unidadId
+          required: true
+          type: string
+          description: ID de la unidad vehicular
+          example: "uuid-unidad"
       responses:
         "200":
-          description: "200 response"
+          description: Último KM registrado
+          schema:
+            type: object
+            properties:
+              unidadId:
+                type: string
+              kmActual:
+                type: number
+              fecha:
+                type: string
+                format: date-time
+        "404":
+          description: Unidad no encontrada
+        "401":
+          description: No autorizado
+    options:
+      tags: [Combustible]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: unidadId
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  /combustible/jornada/{jornadaId}:
+    get:
+      tags: [Combustible]
+      summary: Obtener combustible registrado en una jornada
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: path
+          name: jornadaId
+          required: true
+          type: string
+          description: ID de la jornada
+          example: "uuid-jornada"
+      responses:
+        "200":
+          description: Registros de combustible de la jornada
+        "404":
+          description: Jornada no encontrada
+        "401":
+          description: No autorizado
+    options:
+      tags: [Combustible]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: jornadaId
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  # ─────────────────────────────────────────────
+  # CONDUCTORES
+  # ─────────────────────────────────────────────
   /conductores:
     get:
-      responses: {}
+      tags: [Conductores]
+      summary: Listar todos los conductores
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: query
+          name: estado
+          type: string
+          enum: [ACTIVO, INACTIVO]
+        - in: query
+          name: pagina
+          type: integer
+          example: 1
+        - in: query
+          name: limite
+          type: integer
+          example: 20
+      responses:
+        "200":
+          description: Lista de conductores
+        "401":
+          description: No autorizado
     post:
-      responses: {}
+      tags: [Conductores]
+      summary: Crear nuevo conductor
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [nombre, apellido, email, dni, licencia]
+            properties:
+              nombre:
+                type: string
+                example: "Juan"
+              apellido:
+                type: string
+                example: "Pérez"
+              email:
+                type: string
+                example: "juan.perez@nanutech.com"
+              dni:
+                type: string
+                example: "12345678"
+              telefono:
+                type: string
+                example: "+51999888777"
+              licencia:
+                type: object
+                properties:
+                  numero:
+                    type: string
+                    example: "L001234"
+                  categoria:
+                    type: string
+                    example: "A-IIIb"
+                  vencimiento:
+                    type: string
+                    format: date
+                    example: "2027-12-31"
+      responses:
+        "201":
+          description: Conductor creado correctamente
+        "400":
+          description: Datos inválidos
+        "401":
+          description: No autorizado
     options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Conductores]
+      summary: CORS preflight
       responses:
         "200":
-          description: "200 response"
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
-  /conductores/dashboard/listado:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /conductores/dashboard/resumen:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
   /conductores/licencia:
     get:
-      responses: {}
-    put:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Conductores]
+      summary: Obtener licencia del conductor autenticado
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       responses:
         "200":
-          description: "200 response"
+          description: Datos de la licencia
+        "401":
+          description: No autorizado
+    put:
+      tags: [Conductores]
+      summary: Actualizar licencia del conductor
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              numero:
+                type: string
+                example: "L001234"
+              categoria:
+                type: string
+                example: "A-IIIb"
+              vencimiento:
+                type: string
+                format: date
+                example: "2027-12-31"
+      responses:
+        "200":
+          description: Licencia actualizada
+        "401":
+          description: No autorizado
+    options:
+      tags: [Conductores]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  /conductores/dashboard/resumen:
+    get:
+      tags: [Conductores]
+      summary: Resumen del dashboard de conductores
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      responses:
+        "200":
+          description: Resumen estadístico de conductores
+        "401":
+          description: No autorizado
+    options:
+      tags: [Conductores]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /conductores/dashboard/listado:
+    get:
+      tags: [Conductores]
+      summary: Listado de conductores para dashboard
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      responses:
+        "200":
+          description: Listado de conductores con métricas
+        "401":
+          description: No autorizado
+    options:
+      tags: [Conductores]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
   /conductores/{id}:
     get:
+      tags: [Conductores]
+      summary: Obtener conductor por ID
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
+        - in: path
+          name: id
+          required: true
+          type: string
+          description: ID del conductor
+          example: "uuid-conductor"
       responses:
         "200":
-          description: "200 response"
+          description: Datos del conductor
+        "404":
+          description: Conductor no encontrado
+        "401":
+          description: No autorizado
+    options:
+      tags: [Conductores]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
   /conductores/{id}/estadisticas:
     get:
+      tags: [Conductores]
+      summary: Estadísticas de un conductor
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
+        - in: path
+          name: id
+          required: true
+          type: string
+          description: ID del conductor
+          example: "uuid-conductor"
+        - in: query
+          name: desde
+          type: string
+          format: date
+          example: "2026-01-01"
+        - in: query
+          name: hasta
+          type: string
+          format: date
+          example: "2026-06-01"
       responses:
         "200":
-          description: "200 response"
+          description: Estadísticas del conductor
+        "404":
+          description: Conductor no encontrado
+        "401":
+          description: No autorizado
+    options:
+      tags: [Conductores]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  # ─────────────────────────────────────────────
+  # CONTRATOS
+  # ─────────────────────────────────────────────
   /contratos:
     get:
-      responses: {}
-    post:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Contratos]
+      summary: Listar todos los contratos
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: query
+          name: estado
+          type: string
+          enum: [VIGENTE, VENCIDO, CANCELADO]
+        - in: query
+          name: pagina
+          type: integer
+          example: 1
+        - in: query
+          name: limite
+          type: integer
+          example: 20
       responses:
         "200":
-          description: "200 response"
+          description: Lista de contratos
+        "401":
+          description: No autorizado
+    post:
+      tags: [Contratos]
+      summary: Crear nuevo contrato
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [cliente, fechaInicio, fechaFin]
+            properties:
+              cliente:
+                type: string
+                example: "Empresa ABC S.A."
+              fechaInicio:
+                type: string
+                format: date
+                example: "2026-01-01"
+              fechaFin:
+                type: string
+                format: date
+                example: "2026-12-31"
+              descripcion:
+                type: string
+                example: "Contrato de transporte de carga"
+              monto:
+                type: number
+                example: 50000.00
+      responses:
+        "201":
+          description: Contrato creado
+        "400":
+          description: Datos inválidos
+        "401":
+          description: No autorizado
+    options:
+      tags: [Contratos]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
   /contratos/indicadores:
     get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Contratos]
+      summary: Indicadores de contratos
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       responses:
         "200":
-          description: "200 response"
+          description: Indicadores de contratos
+        "401":
+          description: No autorizado
+    options:
+      tags: [Contratos]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
   /contratos/vigentes:
     get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Contratos]
+      summary: Listar contratos vigentes
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       responses:
         "200":
-          description: "200 response"
+          description: Lista de contratos vigentes
+        "401":
+          description: No autorizado
+    options:
+      tags: [Contratos]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
   /contratos/{id}:
     get:
+      tags: [Contratos]
+      summary: Obtener contrato por ID
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-    put:
-      parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
+        - in: path
+          name: id
+          required: true
+          type: string
+          example: "uuid-contrato"
       responses:
         "200":
-          description: "200 response"
+          description: Datos del contrato
+        "404":
+          description: Contrato no encontrado
+        "401":
+          description: No autorizado
+    put:
+      tags: [Contratos]
+      summary: Actualizar contrato
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+          example: "uuid-contrato"
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              cliente:
+                type: string
+                example: "Empresa ABC S.A."
+              fechaFin:
+                type: string
+                format: date
+                example: "2027-12-31"
+              estado:
+                type: string
+                enum: [VIGENTE, CANCELADO]
+              monto:
+                type: number
+                example: 60000.00
+      responses:
+        "200":
+          description: Contrato actualizado
+        "404":
+          description: Contrato no encontrado
+        "401":
+          description: No autorizado
+    options:
+      tags: [Contratos]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
   /contratos/{id}/unidades:
     put:
+      tags: [Contratos]
+      summary: Asignar unidades a un contrato
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
       parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "id"
-        in: "path"
-        required: true
-        type: "string"
+        - in: path
+          name: id
+          required: true
+          type: string
+          example: "uuid-contrato"
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [unidadIds]
+            properties:
+              unidadIds:
+                type: array
+                items:
+                  type: string
+                example: ["uuid-unidad-1", "uuid-unidad-2"]
       responses:
         "200":
-          description: "200 response"
+          description: Unidades asignadas al contrato
+        "404":
+          description: Contrato no encontrado
+        "401":
+          description: No autorizado
+    options:
+      tags: [Contratos]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  # ─────────────────────────────────────────────
+  # DASHBOARD
+  # ─────────────────────────────────────────────
   /dashboard:
     get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Dashboard]
+      summary: Dashboard principal (ADMIN)
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       responses:
         "200":
-          description: "200 response"
+          description: Datos del dashboard principal
+        "401":
+          description: No autorizado
+    options:
+      tags: [Dashboard]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
   /dashboard/gerencial:
     get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Dashboard]
+      summary: Dashboard gerencial (GERENTE/ADMIN)
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       responses:
         "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /gps/importar:
-    post:
-      responses: {}
+          description: Datos del dashboard gerencial
+        "401":
+          description: No autorizado
     options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Dashboard]
+      summary: CORS preflight
       responses:
         "200":
-          description: "200 response"
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
-  /gps/plantilla:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /gps/plantilla/{proveedor}:
-    get:
-      parameters:
-      - name: "proveedor"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "proveedor"
-        in: "path"
-        required: true
-        type: "string"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  # ─────────────────────────────────────────────
+  # GPS
+  # ─────────────────────────────────────────────
   /gps/proveedores:
     get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [GPS]
+      summary: Listar proveedores GPS disponibles
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       responses:
         "200":
-          description: "200 response"
+          description: Lista de proveedores GPS
+        "401":
+          description: No autorizado
+    options:
+      tags: [GPS]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
-  /gps/registros:
+              type: string
+
+  /gps/plantilla:
     get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [GPS]
+      summary: Descargar plantilla CSV genérica de GPS
+      security:
+        - BearerAuth: []
+      produces: ["text/csv"]
       responses:
         "200":
-          description: "200 response"
+          description: Plantilla CSV
+        "401":
+          description: No autorizado
+    options:
+      tags: [GPS]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
-  /gps/resumen:
+              type: string
+
+  /gps/plantilla/{proveedor}:
     get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [GPS]
+      summary: Descargar plantilla CSV de un proveedor específico
+      security:
+        - BearerAuth: []
+      produces: ["text/csv"]
+      parameters:
+        - in: path
+          name: proveedor
+          required: true
+          type: string
+          description: Nombre del proveedor GPS
+          example: "wialon"
       responses:
         "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /gps/tracking/export:
-    get:
-      responses: {}
+          description: Plantilla CSV del proveedor
+        "404":
+          description: Proveedor no encontrado
+        "401":
+          description: No autorizado
     options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [GPS]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: proveedor
+          required: true
+          type: string
       responses:
         "200":
-          description: "200 response"
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
-  /gps/tracking/resumen:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
   /gps/validar:
     post:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [GPS]
+      summary: Validar archivo CSV de GPS antes de importar
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [proveedor, datos]
+            properties:
+              proveedor:
+                type: string
+                example: "wialon"
+              datos:
+                type: array
+                items:
+                  type: object
+                example: [{"placa": "ABC-123", "fecha": "2026-06-01", "km": 45000}]
       responses:
         "200":
-          description: "200 response"
+          description: Resultado de validación
+        "400":
+          description: Datos con errores
+        "401":
+          description: No autorizado
+    options:
+      tags: [GPS]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  /gps/importar:
+    post:
+      tags: [GPS]
+      summary: Importar datos GPS desde CSV
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [proveedor, datos]
+            properties:
+              proveedor:
+                type: string
+                example: "wialon"
+              datos:
+                type: array
+                items:
+                  type: object
+                example: [{"placa": "ABC-123", "fecha": "2026-06-01", "km": 45000}]
+      responses:
+        "200":
+          description: Datos GPS importados correctamente
+        "400":
+          description: Error en los datos
+        "401":
+          description: No autorizado
+    options:
+      tags: [GPS]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /gps/resumen:
+    get:
+      tags: [GPS]
+      summary: Resumen de registros GPS
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      responses:
+        "200":
+          description: Resumen GPS
+        "401":
+          description: No autorizado
+    options:
+      tags: [GPS]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /gps/registros:
+    get:
+      tags: [GPS]
+      summary: Listar registros GPS
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: query
+          name: unidadId
+          type: string
+          example: "uuid-unidad"
+        - in: query
+          name: desde
+          type: string
+          format: date
+          example: "2026-01-01"
+        - in: query
+          name: hasta
+          type: string
+          format: date
+          example: "2026-06-01"
+      responses:
+        "200":
+          description: Registros GPS
+        "401":
+          description: No autorizado
+    options:
+      tags: [GPS]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /gps/tracking/resumen:
+    get:
+      tags: [GPS]
+      summary: Resumen de tracking GPS
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      responses:
+        "200":
+          description: Resumen de tracking
+        "401":
+          description: No autorizado
+    options:
+      tags: [GPS]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /gps/tracking/export:
+    get:
+      tags: [GPS]
+      summary: Exportar tracking GPS a CSV
+      security:
+        - BearerAuth: []
+      produces: ["text/csv"]
+      parameters:
+        - in: query
+          name: unidadId
+          type: string
+          example: "uuid-unidad"
+        - in: query
+          name: desde
+          type: string
+          format: date
+          example: "2026-01-01"
+        - in: query
+          name: hasta
+          type: string
+          format: date
+          example: "2026-06-01"
+      responses:
+        "200":
+          description: Archivo CSV de tracking
+        "401":
+          description: No autorizado
+    options:
+      tags: [GPS]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  # ─────────────────────────────────────────────
+  # JORNADAS
+  # ─────────────────────────────────────────────
   /jornadas:
     get:
-      responses: {}
+      tags: [Jornadas]
+      summary: Listar todas las jornadas
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: query
+          name: estado
+          type: string
+          enum: [ACTIVA, FINALIZADA]
+        - in: query
+          name: conductorId
+          type: string
+          example: "uuid-conductor"
+        - in: query
+          name: pagina
+          type: integer
+          example: 1
+        - in: query
+          name: limite
+          type: integer
+          example: 20
+      responses:
+        "200":
+          description: Lista de jornadas
+        "401":
+          description: No autorizado
     post:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /jornadas/actual/{conductorId}:
-    get:
+      tags: [Jornadas]
+      summary: Crear jornada manualmente
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
       parameters:
-      - name: "conductorId"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [conductorId, unidadId]
+            properties:
+              conductorId:
+                type: string
+                example: "uuid-conductor"
+              unidadId:
+                type: string
+                example: "uuid-unidad"
+              fechaInicio:
+                type: string
+                format: date-time
+                example: "2026-06-09T08:00:00Z"
+      responses:
+        "201":
+          description: Jornada creada
+        "400":
+          description: Datos inválidos
+        "401":
+          description: No autorizado
     options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "conductorId"
-        in: "path"
-        required: true
-        type: "string"
+      tags: [Jornadas]
+      summary: CORS preflight
       responses:
         "200":
-          description: "200 response"
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
-  /jornadas/alerta/{jornadaId}:
-    get:
-      parameters:
-      - name: "jornadaId"
-        in: "path"
-        required: true
-        type: "string"
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "jornadaId"
-        in: "path"
-        required: true
-        type: "string"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /jornadas/exportar:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /jornadas/finalizar:
-    post:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /jornadas/historial:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /jornadas/historial-gerencial:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
-  /jornadas/historial-gerencial/metrics:
-    get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      responses:
-        "200":
-          description: "200 response"
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-            Access-Control-Allow-Methods:
-              type: "string"
-            Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
   /jornadas/iniciar:
     post:
-      responses: {}
+      tags: [Jornadas]
+      summary: Iniciar jornada (CHOFER)
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [unidadId, kmInicial]
+            properties:
+              unidadId:
+                type: string
+                example: "uuid-unidad"
+              kmInicial:
+                type: number
+                example: 45000
+      responses:
+        "201":
+          description: Jornada iniciada correctamente
+        "400":
+          description: Ya existe una jornada activa
+        "401":
+          description: No autorizado
     options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Jornadas]
+      summary: CORS preflight
       responses:
         "200":
-          description: "200 response"
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  /jornadas/finalizar:
+    post:
+      tags: [Jornadas]
+      summary: Finalizar jornada activa (CHOFER)
+      security:
+        - BearerAuth: []
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [jornadaId, kmFinal]
+            properties:
+              jornadaId:
+                type: string
+                example: "uuid-jornada"
+              kmFinal:
+                type: number
+                example: 45350
+              observacion:
+                type: string
+                example: "Jornada sin incidentes"
+      responses:
+        "200":
+          description: Jornada finalizada correctamente
+        "400":
+          description: Datos inválidos
+        "401":
+          description: No autorizado
+    options:
+      tags: [Jornadas]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /jornadas/actual/{conductorId}:
+    get:
+      tags: [Jornadas]
+      summary: Obtener jornada activa de un conductor
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: path
+          name: conductorId
+          required: true
+          type: string
+          example: "uuid-conductor"
+      responses:
+        "200":
+          description: Jornada activa del conductor
+        "404":
+          description: Sin jornada activa
+        "401":
+          description: No autorizado
+    options:
+      tags: [Jornadas]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: conductorId
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /jornadas/historial:
+    get:
+      tags: [Jornadas]
+      summary: Historial de jornadas del chofer autenticado
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: query
+          name: desde
+          type: string
+          format: date
+          example: "2026-01-01"
+        - in: query
+          name: hasta
+          type: string
+          format: date
+          example: "2026-06-01"
+      responses:
+        "200":
+          description: Historial de jornadas
+        "401":
+          description: No autorizado
+    options:
+      tags: [Jornadas]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /jornadas/historial-gerencial:
+    get:
+      tags: [Jornadas]
+      summary: Historial gerencial de jornadas
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: query
+          name: desde
+          type: string
+          format: date
+          example: "2026-01-01"
+        - in: query
+          name: hasta
+          type: string
+          format: date
+          example: "2026-06-01"
+        - in: query
+          name: conductorId
+          type: string
+          example: "uuid-conductor"
+      responses:
+        "200":
+          description: Historial gerencial
+        "401":
+          description: No autorizado
+    options:
+      tags: [Jornadas]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /jornadas/historial-gerencial/metrics:
+    get:
+      tags: [Jornadas]
+      summary: Métricas del historial gerencial
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      responses:
+        "200":
+          description: Métricas gerenciales
+        "401":
+          description: No autorizado
+    options:
+      tags: [Jornadas]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
   /jornadas/metricas:
     get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Jornadas]
+      summary: Métricas de jornadas del chofer
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       responses:
         "200":
-          description: "200 response"
+          description: Métricas del chofer
+        "401":
+          description: No autorizado
+    options:
+      tags: [Jornadas]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
+  /jornadas/exportar:
+    get:
+      tags: [Jornadas]
+      summary: Exportar jornadas a CSV
+      security:
+        - BearerAuth: []
+      produces: ["text/csv"]
+      parameters:
+        - in: query
+          name: desde
+          type: string
+          format: date
+          example: "2026-01-01"
+        - in: query
+          name: hasta
+          type: string
+          format: date
+          example: "2026-06-01"
+      responses:
+        "200":
+          description: Archivo CSV de jornadas
+        "401":
+          description: No autorizado
+    options:
+      tags: [Jornadas]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  /jornadas/alerta/{jornadaId}:
+    get:
+      tags: [Jornadas]
+      summary: Obtener alerta de una jornada
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
+      parameters:
+        - in: path
+          name: jornadaId
+          required: true
+          type: string
+          example: "uuid-jornada"
+      responses:
+        "200":
+          description: Alerta de la jornada
+        "404":
+          description: Jornada no encontrada
+        "401":
+          description: No autorizado
+    options:
+      tags: [Jornadas]
+      summary: CORS preflight
+      parameters:
+        - in: path
+          name: jornadaId
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+
+  # ─────────────────────────────────────────────
+  # UNIDADES
+  # ─────────────────────────────────────────────
   /unidades/disponibles:
     get:
-      responses: {}
-    options:
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
+      tags: [Unidades]
+      summary: Listar unidades disponibles para asignar
+      security:
+        - BearerAuth: []
+      produces: ["application/json"]
       responses:
         "200":
-          description: "200 response"
+          description: Lista de unidades disponibles
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                placa:
+                  type: string
+                marca:
+                  type: string
+                modelo:
+                  type: string
+        "401":
+          description: No autorizado
+    options:
+      tags: [Unidades]
+      summary: CORS preflight
+      responses:
+        "200":
+          description: 200 response
           headers:
             Access-Control-Allow-Origin:
-              type: "string"
+              type: string
             Access-Control-Allow-Methods:
-              type: "string"
+              type: string
             Access-Control-Allow-Headers:
-              type: "string"
+              type: string
+
 x-amazon-apigateway-security-policy: "TLS_1_0"
