@@ -1,0 +1,1215 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "API para gestión de camiones - Nanutech Backend",
+  "Transform": [
+    "AWS::Serverless-2016-10-31"
+  ],
+  "Parameters": {
+    "StageName": {
+      "Type": "String",
+      "Default": "dev",
+      "Description": "dev: 'dev' | testing: 'testing' | production: ''"
+    },
+    "DBHost": {
+      "Type": "String",
+      "Default": "database-demo.c56g84wquc58.us-east-2.rds.amazonaws.com"
+    },
+    "DBUser": {
+      "Type": "String",
+      "Default": "backend_user"
+    },
+    "DBPassword": {
+      "Type": "String",
+      "Default": "Backend123!",
+      "NoEcho": true
+    },
+    "DBName": {
+      "Type": "String",
+      "Default": "postgres"
+    },
+    "DBPort": {
+      "Type": "String",
+      "Default": "5432"
+    },
+    "AuthProvider": {
+      "Type": "String",
+      "Default": "local"
+    },
+    "CognitoUserPoolId": {
+      "Type": "String",
+      "Default": ""
+    },
+    "CognitoClientId": {
+      "Type": "String",
+      "Default": ""
+    },
+    "SessionTimeoutSeconds": {
+      "Type": "String",
+      "Default": "7200"
+    },
+    "AuthTokenSecret": {
+      "Type": "String",
+      "Default": "nanutech-local-auth-secret",
+      "NoEcho": true
+    },
+    "DBSslEnabled": {
+      "Type": "String",
+      "Default": "true"
+    },
+    "PrivateSubnets": {
+      "Type": "CommaDelimitedList",
+      "Description": "IDs de las subredes privadas para las Lambdas"
+    },
+    "LambdaSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Description": "ID del Security Group para las Lambdas"
+    },
+    "FrontendUrl": {
+      "Type": "String",
+      "Description": "URL del Frontend de Amplify (Testing o Producción)",
+      "Default": "http://localhost:3000"
+    }
+  },
+  "Globals": {
+    "Function": {
+      "Timeout": 30,
+      "MemorySize": 512,
+      "Runtime": "nodejs20.x",
+      "Architectures": [
+        "x86_64"
+      ],
+      "Environment": {
+        "Variables": {
+          "NODE_ENV": "StageName",
+          "DB_HOST": "DBHost",
+          "DB_USER": "DBUser",
+          "DB_PASSWORD": "DBPassword",
+          "DB_NAME": "DBName",
+          "DB_PORT": "DBPort",
+          "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+          "NODE_OPTIONS": "--enable-source-maps",
+          "AUTH_PROVIDER": "AuthProvider",
+          "COGNITO_USER_POOL_ID": "CognitoUserPoolId",
+          "COGNITO_CLIENT_ID": "CognitoClientId",
+          "SESSION_TIMEOUT_SECONDS": "SessionTimeoutSeconds",
+          "AUTH_TOKEN_SECRET": "AuthTokenSecret",
+          "DB_SSL_ENABLED": "DBSslEnabled"
+        }
+      },
+      "LoggingConfig": {
+        "LogFormat": "JSON"
+      },
+      "Tags": {
+        "Environment": "StageName",
+        "Proyecto": "Nanutech-Backend"
+      },
+      "Tracing": "Active",
+      "VpcConfig": {
+        "SecurityGroupIds": [
+          "LambdaSecurityGroup"
+        ],
+        "SubnetIds": "PrivateSubnets"
+      }
+    }
+  },
+  "Resources": {
+    "NanutechApi": {
+      "Type": "AWS::Serverless::Api",
+      "Properties": {
+        "Name": "nanutech-api-${StageName}",
+        "StageName": "StageName",
+        "Cors": {
+          "AllowMethods": "'GET,POST,PUT,PATCH,DELETE,OPTIONS'",
+          "AllowHeaders": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+          "AllowOrigin": "'${FrontendUrl}'"
+        },
+        "TracingEnabled": true,
+        "Tags": {
+          "Environment": "StageName",
+          "Proyecto": "Nanutech-Backend"
+        }
+      }
+    },
+    "CamionFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-camiones",
+        "CodeUri": ".",
+        "Handler": "src/functions/camion-services/camionHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug"
+          }
+        },
+        "Events": {
+          "GetCamiones": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/camiones",
+              "Method": "GET"
+            }
+          },
+          "GetCamionById": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/camiones/{id}",
+              "Method": "GET"
+            }
+          },
+          "CreateCamion": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/camiones",
+              "Method": "POST"
+            }
+          },
+          "GetPanelCamiones": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/camiones/panel",
+              "Method": "GET"
+            }
+          },
+          "ExportCamionesCsv": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/camiones/exportar/csv",
+              "Method": "GET"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "camion"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/camion-services/camionHandler.mjs"
+          ]
+        }
+      }
+    },
+    "AuditoriaFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-auditoria",
+        "CodeUri": ".",
+        "Handler": "src/functions/auditoria-services/auditoriaHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug"
+          }
+        },
+        "Events": {
+          "GetResumen": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/auditoria/resumen",
+              "Method": "GET"
+            }
+          },
+          "GetRegistros": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/auditoria/registros",
+              "Method": "GET"
+            }
+          },
+          "ExportarCsv": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/auditoria/exportar/csv",
+              "Method": "GET"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "auditoria"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/auditoria-services/auditoriaHandler.mjs"
+          ]
+        }
+      }
+    },
+    "AlertaFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-alertas",
+        "CodeUri": ".",
+        "Handler": "src/functions/alerta-services/alertaHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug"
+          }
+        },
+        "Events": {
+          "GetIndicadoresAlertas": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/alertas/indicadores",
+              "Method": "GET"
+            }
+          },
+          "GetAlertasActivas": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/alertas/activas",
+              "Method": "GET"
+            }
+          },
+          "CreateSosAlert": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/alertas/sos",
+              "Method": "POST"
+            }
+          },
+          "CreateMechanicalAssistance": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/alertas/auxilio",
+              "Method": "POST"
+            }
+          },
+          "ResolverAlerta": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/alertas/{id}/resolver",
+              "Method": "PATCH"
+            }
+          },
+          "ActualizarEstadoAlerta": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/alertas/{id}/estado",
+              "Method": "PATCH"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "alerta"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/alerta-services/alertaHandler.mjs"
+          ]
+        }
+      }
+    },
+    "DashboardConductoresFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-dashboard-conductores",
+        "CodeUri": ".",
+        "Handler": "src/functions/dashboard-conductores-services/dashboardConductoresHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug"
+          }
+        },
+        "Events": {
+          "GetDashboardConductoresResumen": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/conductores/dashboard/resumen",
+              "Method": "GET"
+            }
+          },
+          "GetDashboardConductoresListado": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/conductores/dashboard/listado",
+              "Method": "GET"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "dashboard-conductores"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/dashboard-conductores-services/dashboardConductoresHandler.mjs"
+          ]
+        }
+      }
+    },
+    "DashboardGerencialFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-dashboard-gerencial",
+        "CodeUri": ".",
+        "Handler": "src/functions/dashboard-gerencial-services/dashboardGerencialHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "DB_HOST": "DBHost",
+            "DB_USER": "DBUser",
+            "DB_PASSWORD": "DBPassword",
+            "DB_NAME": "DBName",
+            "DB_PORT": "DBPort"
+          }
+        },
+        "Events": {
+          "GetDashboardGerencial": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/dashboard/gerencial",
+              "Method": "GET"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "dashboard-gerencial"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "EntryPoints": [
+            "src/functions/dashboard-gerencial-services/dashboardGerencialHandler.mjs"
+          ]
+        }
+      }
+    },
+    "DashboardFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-dashboard",
+        "CodeUri": ".",
+        "Handler": "src/functions/dashboard-services/dashboardHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug"
+          }
+        },
+        "Events": {
+          "GetDashboard": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/dashboard",
+              "Method": "GET"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "dashboard"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/dashboard-services/dashboardHandler.mjs"
+          ]
+        }
+      }
+    },
+    "JornadaFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-jornadas",
+        "CodeUri": ".",
+        "Handler": "src/functions/jornada-services/jornadaHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug"
+          }
+        },
+        "Events": {
+          "CreateJornada": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/jornadas",
+              "Method": "POST"
+            }
+          },
+          "GetAllJornadas": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/jornadas",
+              "Method": "GET"
+            }
+          },
+          "ExportJornadas": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/jornadas/exportar",
+              "Method": "GET"
+            }
+          },
+          "GetCurrentJornada": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/jornadas/actual/{conductorId}",
+              "Method": "GET"
+            }
+          },
+          "StartTurn": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/jornadas/iniciar",
+              "Method": "POST"
+            }
+          },
+          "FinishTurn": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/jornadas/finalizar",
+              "Method": "POST"
+            }
+          },
+          "GetHistorialGerencial": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/jornadas/historial-gerencial",
+              "Method": "GET"
+            }
+          },
+          "GetHistorialGerencialMetrics": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/jornadas/historial-gerencial/metrics",
+              "Method": "GET"
+            }
+          },
+          "GetAlertaDetail": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/jornadas/alerta/{jornadaId}",
+              "Method": "GET"
+            }
+          },
+          "GetHistorialChofer": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/jornadas/historial",
+              "Method": "GET"
+            }
+          },
+          "GetMetricasChofer": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/jornadas/metricas",
+              "Method": "GET"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "jornada"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/jornada-services/jornadaHandler.mjs"
+          ]
+        }
+      }
+    },
+    "GpsFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-gps",
+        "CodeUri": ".",
+        "Handler": "src/functions/gps-services/gpsHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug",
+            "GPS_SPEED_LIMIT_KMH": "90"
+          }
+        },
+        "Events": {
+          "GetGpsProviders": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/gps/proveedores",
+              "Method": "GET"
+            }
+          },
+          "GetGpsTemplate": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/gps/plantilla",
+              "Method": "GET"
+            }
+          },
+          "GetGpsTemplateByProvider": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/gps/plantilla/{proveedor}",
+              "Method": "GET"
+            }
+          },
+          "ValidateGpsCsv": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/gps/validar",
+              "Method": "POST"
+            }
+          },
+          "ImportGpsCsv": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/gps/importar",
+              "Method": "POST"
+            }
+          },
+          "GetGpsSummary": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/gps/resumen",
+              "Method": "GET"
+            }
+          },
+          "ListGpsRegistros": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/gps/registros",
+              "Method": "GET"
+            }
+          },
+          "TrackingGpsSummary": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/gps/tracking/resumen",
+              "Method": "GET"
+            }
+          },
+          "ExportTrackingCsv": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/gps/tracking/export",
+              "Method": "GET"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "gps"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/gps-services/gpsHandler.mjs"
+          ]
+        }
+      }
+    },
+    "ConductorFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-conductores",
+        "CodeUri": ".",
+        "Handler": "src/functions/conductor-services/conductorHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          },
+          {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "cognito-idp:AdminCreateUser",
+                  "cognito-idp:AdminDeleteUser"
+                ],
+                "Resource": "*"
+              }
+            ]
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug",
+            "COGNITO_USER_POOL_ID": "CognitoUserPoolId",
+            "COGNITO_TEMP_PASSWORD": "Nanutech2026!"
+          }
+        },
+        "Events": {
+          "GetAll": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/conductores",
+              "Method": "GET"
+            }
+          },
+          "GetConductorById": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/conductores/{id}",
+              "Method": "GET"
+            }
+          },
+          "UpdateLicencia": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/conductores/licencia",
+              "Method": "PUT"
+            }
+          },
+          "GetLicencia": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/conductores/licencia",
+              "Method": "GET"
+            }
+          },
+          "GetStatistics": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/conductores/{id}/estadisticas",
+              "Method": "GET"
+            }
+          },
+          "CrearConductor": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/conductores",
+              "Method": "POST"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "conductor"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/conductor-services/conductorHandler.mjs"
+          ]
+        }
+      }
+    },
+    "ContratoFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-contratos",
+        "CodeUri": ".",
+        "Handler": "src/functions/contrato-services/contratoHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug"
+          }
+        },
+        "Events": {
+          "GetIndicadores": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/contratos/indicadores",
+              "Method": "GET"
+            }
+          },
+          "GetVigentes": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/contratos/vigentes",
+              "Method": "GET"
+            }
+          },
+          "GetContratoById": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/contratos/{id}",
+              "Method": "GET"
+            }
+          },
+          "GetAllContratos": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/contratos",
+              "Method": "GET"
+            }
+          },
+          "CreateContrato": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/contratos",
+              "Method": "POST"
+            }
+          },
+          "UpdateContrato": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/contratos/{id}",
+              "Method": "PUT"
+            }
+          },
+          "AssignUnidades": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/contratos/{id}/unidades",
+              "Method": "PUT"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "contrato"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/contrato-services/contratoHandler.mjs"
+          ]
+        }
+      }
+    },
+    "UnidadFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-unidades",
+        "CodeUri": ".",
+        "Handler": "src/functions/unidad-services/unidadHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug"
+          }
+        },
+        "Events": {
+          "GetDisponibles": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/unidades/disponibles",
+              "Method": "GET"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "unidad"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/unidad-services/unidadHandler.mjs"
+          ]
+        }
+      }
+    },
+    "CombustibleFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-combustible",
+        "CodeUri": ".",
+        "Handler": "src/functions/combustible-services/combustibleHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug"
+          }
+        },
+        "Events": {
+          "CreateCombustible": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/combustible",
+              "Method": "POST"
+            }
+          },
+          "GetUltimoKmCombustible": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/combustible/ultimo-km/{unidadId}",
+              "Method": "GET"
+            }
+          },
+          "GetCombustibleByJornada": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/combustible/jornada/{jornadaId}",
+              "Method": "GET"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "combustible"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/combustible-services/combustibleHandler.mjs"
+          ]
+        }
+      }
+    },
+    "AuthFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-auth",
+        "CodeUri": ".",
+        "Handler": "src/functions/auth-services/authHandler.handler",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          },
+          {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "cognito-idp:AdminInitiateAuth",
+                  "cognito-idp:InitiateAuth",
+                  "cognito-idp:ForgotPassword",
+                  "cognito-idp:ConfirmForgotPassword",
+                  "cognito-idp:GetUser"
+                ],
+                "Resource": "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}"
+              }
+            ]
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug"
+          }
+        },
+        "Events": {
+          "Login": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/auth/login",
+              "Method": "POST"
+            }
+          },
+          "ForgotPassword": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/auth/forgot-password",
+              "Method": "POST"
+            }
+          },
+          "ConfirmForgotPassword": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/auth/forgot-password/confirm",
+              "Method": "POST"
+            }
+          },
+          "GetCurrentSession": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": "NanutechApi",
+              "Path": "/auth/me",
+              "Method": "GET"
+            }
+          }
+        },
+        "Tags": {
+          "Environment": "StageName",
+          "Servicio": "auth"
+        }
+      },
+      "Metadata": {
+        "BuildMethod": "esbuild",
+        "BuildProperties": {
+          "Minify": false,
+          "Target": "es2022",
+          "Sourcemap": true,
+          "EntryPoints": [
+            "src/functions/auth-services/authHandler.mjs"
+          ]
+        }
+      }
+    },
+    "MigratorFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "${StageName}-migrator",
+        "CodeUri": ".",
+        "Handler": "src/functions/migrator-services/migratorHandler.handler",
+        "Timeout": 360,
+        "MemorySize": 1024,
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "VPCAccessPolicy": {}
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "debug"
+          }
+        }
+      }
+    },
+    "MigratorFunctionPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": "MigratorFunction",
+        "Action": "lambda:InvokeFunction",
+        "Principal": "cloudformation.amazonaws.com",
+        "SourceArn": "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"
+      }
+    },
+    "ApplicationResourceGroup": {
+      "Type": "AWS::ResourceGroups::Group",
+      "Properties": {
+        "Name": "ApplicationInsights-SAM-${AWS::StackName}",
+        "ResourceQuery": {
+          "Type": "CLOUDFORMATION_STACK_1_0"
+        }
+      }
+    },
+    "ApplicationInsightsMonitoring": {
+      "Type": "AWS::ApplicationInsights::Application",
+      "Properties": {
+        "ResourceGroupName": "ApplicationResourceGroup",
+        "AutoConfigurationEnabled": true
+      }
+    }
+  },
+  "Outputs": {
+    "ApiEndpoint": {
+      "Description": "URL del endpoint de API Gateway",
+      "Value": "https://${NanutechApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}"
+    },
+    "DashboardFunctionArn": {
+      "Description": "ARN de la función Dashboard",
+      "Value": "DashboardFunction.Arn"
+    },
+    "DashboardGerencialFunctionArn": {
+      "Description": "ARN de la función Dashboard Gerencial",
+      "Value": "DashboardGerencialFunction.Arn"
+    },
+    "DashboardConductoresFunctionArn": {
+      "Description": "ARN de la función Dashboard Conductores",
+      "Value": "DashboardConductoresFunction.Arn"
+    },
+    "JornadaFunctionArn": {
+      "Description": "ARN de la función Jornada",
+      "Value": "JornadaFunction.Arn"
+    },
+    "AlertaFunctionArn": {
+      "Description": "ARN de la función Alerta",
+      "Value": "AlertaFunction.Arn"
+    },
+    "ConductorFunctionArn": {
+      "Description": "ARN de la función Conductor",
+      "Value": "ConductorFunction.Arn"
+    },
+    "ContratoFunctionArn": {
+      "Description": "ARN de la función Contrato",
+      "Value": "ContratoFunction.Arn"
+    },
+    "UnidadFunctionArn": {
+      "Description": "ARN de la función Unidad",
+      "Value": "UnidadFunction.Arn"
+    },
+    "AuthFunctionArn": {
+      "Description": "ARN de la función Auth",
+      "Value": "AuthFunction.Arn"
+    },
+    "CamionFunctionArn": {
+      "Description": "ARN de la función Camión",
+      "Value": "CamionFunction.Arn"
+    },
+    "MigratorFunctionArn": {
+      "Description": "ARN de la función Migrator",
+      "Value": "MigratorFunction.Arn"
+    },
+    "GpsFunctionArn": {
+      "Description": "ARN de la función GPS",
+      "Value": "GpsFunction.Arn"
+    },
+    "AuditoriaFunctionArn": {
+      "Description": "ARN de la función Auditoría",
+      "Value": "AuditoriaFunction.Arn"
+    },
+    "CombustibleFunctionArn": {
+      "Description": "ARN de la función Combustible",
+      "Value": "CombustibleFunction.Arn"
+    }
+  }
+}
