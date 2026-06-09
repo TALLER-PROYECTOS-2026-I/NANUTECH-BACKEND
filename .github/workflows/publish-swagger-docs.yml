@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout rama principal (swagger + script)
+      # 1. Checkout rama principal (contiene el swagger y el script)
       - name: Checkout rama develop
         uses: actions/checkout@v4
         with:
@@ -45,34 +45,14 @@ jobs:
       - name: Instalar PyYAML
         run: pip install pyyaml --quiet --break-system-packages 2>/dev/null || pip install pyyaml --quiet
 
-      # 6. Detectar el swagger YAML en el repo
-      - name: Detectar swagger YAML
-        run: |
-          YAML_SRC=""
-          if ls source/open_api/*.yaml 2>/dev/null | head -1 | grep -q yaml; then
-            YAML_SRC=$(ls source/open_api/*.yaml | head -1)
-          elif ls source/openapi/*.yaml 2>/dev/null | head -1 | grep -q yaml; then
-            YAML_SRC=$(ls source/openapi/*.yaml | head -1)
-          elif ls source/*.yaml 2>/dev/null | head -1 | grep -q yaml; then
-            YAML_SRC=$(ls source/*.yaml | head -1)
-          fi
-
-          if [ -z "$YAML_SRC" ]; then
-            echo "❌ No se encontró ningún archivo .yaml"
-            exit 1
-          fi
-
-          echo "📄 Swagger encontrado: $YAML_SRC"
-          echo "YAML_SRC=$YAML_SRC" >> $GITHUB_ENV
-
-      # 7. Ejecutar el script Python que convierte YAML→JSON y genera el HTML
+      # 6. Ejecutar el script Python con la ruta fija del swagger
       - name: Generar documentación
         run: |
           python3 source/.github/scripts/generate_swagger_page.py \
-            "$YAML_SRC" \
-            "gh-pages/swagger"
+            source/openapi/openapi.yml \
+            gh-pages/swagger
 
-      # 8. Commit y push SOLO de swagger/ (el resto de gh-pages queda intacto)
+      # 7. Commit y push SOLO de swagger/ (el resto de gh-pages queda intacto)
       - name: Publicar en gh-pages
         run: |
           cd gh-pages
@@ -87,7 +67,7 @@ jobs:
           git push origin gh-pages
           echo "✅ Documentación publicada."
 
-      # 9. Mostrar URL final
+      # 8. Mostrar URL final
       - name: URL de la documentación
         run: |
           REPO="${{ github.repository }}"
