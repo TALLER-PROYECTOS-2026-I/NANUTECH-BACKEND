@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lint Report — TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --bg:           #F0F4F9;
+      --bg2:          #FFFFFF;
+      --bg3:          #F8FAFC;
+      --border:       #E2E8F0;
+      --border2:      #CBD5E1;
+      --accent:       #2563EB;
+      --accent-h:     #1D4ED8;
+      --accent-light: #EFF6FF;
+      --accent-mid:   #BFDBFE;
+      --green:        #059669;
+      --green-bg:     #ECFDF5;
+      --green-border: #A7F3D0;
+      --green-light:  #D1FAE5;
+      --amber:        #D97706;
+      --amber-bg:     #FFFBEB;
+      --amber-border: #FDE68A;
+      --red:          #DC2626;
+      --red-bg:       #FEF2F2;
+      --red-border:   #FECACA;
+      --red-light:    #FEE2E2;
+      --purple:       #7C3AED;
+      --purple-bg:    #F5F3FF;
+      --purple-border:#DDD6FE;
+      --slate:        #0F172A;
+      --text2:        #475569;
+      --text3:        #94A3B8;
+      --text4:        #CBD5E1;
+      --font:         'Inter', system-ui, sans-serif;
+      --mono:         'JetBrains Mono', monospace;
+      --radius:       10px;
+      --shadow-sm:    0 1px 3px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.05);
+      --shadow:       0 4px 16px rgba(15,23,42,.09);
+      --header-h:     64px;
+    }
+
+    html { scroll-behavior:smooth; scroll-padding-top:calc(var(--header-h) + 52px); }
+    body { font-family:var(--font); background:var(--bg); color:var(--slate); min-height:100vh; font-size:13px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:var(--accent); }
+
+    /* ── HEADER ── */
+    header {
+      position:sticky; top:0; z-index:200;
+      background:rgba(255,255,255,.94); backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--border); box-shadow:var(--shadow-sm);
+      height:var(--header-h); display:flex; align-items:center; padding:0 32px; gap:16px;
+    }
+    .header-icon {
+      width:38px; height:38px;
+      background:linear-gradient(135deg,#2563EB,#7C3AED);
+      border-radius:10px; display:flex; align-items:center; justify-content:center;
+      font-size:18px; box-shadow:0 2px 10px rgba(37,99,235,.28); flex-shrink:0;
+    }
+    .header-title-wrap { display:flex; flex-direction:column; gap:2px; }
+    .header-title { font-size:14px; font-weight:800; color:var(--slate); letter-spacing:-.2px; }
+    .header-sub {
+      font-size:11px; color:var(--text3);
+      display:flex; gap:10px; align-items:center; font-family:var(--mono);
+    }
+    .header-sub strong { color:var(--text2); }
+    .header-divider { width:1px; height:20px; background:var(--border); }
+    .status-badge {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:5px 14px; border-radius:20px;
+      font-size:11px; font-weight:800; letter-spacing:1.5px; font-family:var(--mono);
+      background:#FFFBEB; color:#D97706; border:1px solid #FDE68A;
+      margin-left:auto;
+    }
+    .status-badge::before {
+      content:''; width:7px; height:7px; background:#D97706;
+      border-radius:50%; animation:pulse-dot 2s infinite;
+    }
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.7)} }
+
+    /* ── NAV ── */
+    .nav-bar {
+      position:sticky; top:var(--header-h); z-index:150;
+      background:var(--bg2); border-bottom:1px solid var(--border);
+      padding:0 32px; display:flex; overflow-x:auto;
+      box-shadow:0 1px 3px rgba(15,23,42,.05);
+    }
+    .nav-bar a {
+      display:inline-flex; align-items:center; gap:7px;
+      padding:13px 18px; font-size:12px; font-weight:600;
+      color:var(--text2); border-bottom:2px solid transparent;
+      text-decoration:none; white-space:nowrap; transition:all .14s;
+    }
+    .nav-bar a:hover { color:var(--accent); border-bottom-color:var(--accent-mid); }
+
+    /* ── LAYOUT ── */
+    .container { max-width:1380px; margin:0 auto; padding:32px 28px 64px; }
+
+    /* ── COMMIT STRIP ── */
+    .commit-strip {
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius); padding:14px 20px;
+      display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+      margin-bottom:28px; font-size:11px; box-shadow:var(--shadow-sm);
+    }
+    .commit-item { display:flex; align-items:center; gap:5px; color:var(--text3); font-family:var(--mono); }
+    .commit-item strong { color:var(--text2); font-weight:600; }
+    .commit-sep { color:var(--border2); }
+    .commit-strip a { color:var(--accent); text-decoration:none; font-weight:600; font-family:var(--mono); font-size:11px; margin-left:auto; }
+    .commit-strip a:hover { text-decoration:underline; }
+
+    /* ── TOOL CARDS ── */
+    .tools-grid {
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:12px; margin-bottom:28px;
+    }
+    .tool-card {
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius); padding:20px 18px;
+      box-shadow:var(--shadow-sm); position:relative; overflow:hidden;
+      display:flex; flex-direction:column; gap:8px;
+    }
+    .tool-card::after {
+      content:''; position:absolute; top:0; left:0; right:0; height:3px;
+      border-radius:var(--radius) var(--radius) 0 0;
+      background:var(--tool-color, var(--accent));
+    }
+    .tool-name { font-size:12px; font-weight:700; color:var(--slate); display:flex; align-items:center; gap:7px; }
+    .tool-stats { display:flex; gap:10px; flex-wrap:wrap; }
+    .tool-stat {
+      display:flex; flex-direction:column;
+      background:var(--bg3); border:1px solid var(--border);
+      border-radius:7px; padding:8px 12px; min-width:60px;
+    }
+    .tool-stat-num { font-size:1.6rem; font-weight:800; line-height:1; font-family:var(--mono); letter-spacing:-1px; }
+    .tool-stat-lbl { font-size:9px; color:var(--text3); font-weight:700; text-transform:uppercase; letter-spacing:.6px; margin-top:3px; }
+
+    /* ── SECTIONS ── */
+    .section { margin-bottom:40px; }
+    .section-header { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+    .section-header h2 { font-size:16px; font-weight:800; color:var(--slate); letter-spacing:-.3px; }
+    .section-desc { color:var(--text2); font-size:12px; margin-bottom:18px; line-height:1.7; max-width:680px; }
+    .section-divider { height:1px; background:var(--border); margin:0 0 18px; }
+
+    /* ── CARD CONTAINER ── */
+    .card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow-sm); }
+    .card-header {
+      padding:13px 20px; border-bottom:1px solid var(--border);
+      background:var(--bg3); display:flex; align-items:center; justify-content:space-between;
+    }
+    .card-title { font-size:13px; font-weight:700; color:var(--slate); display:flex; align-items:center; gap:8px; }
+    .card-subtitle { font-size:11px; color:var(--text3); }
+
+    /* ── TABLES ── */
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    th {
+      background:var(--bg3); color:var(--text3);
+      padding:9px 14px; text-align:left;
+      font-weight:700; font-size:10px;
+      text-transform:uppercase; letter-spacing:.6px;
+      border-bottom:1px solid var(--border); white-space:nowrap;
+    }
+    td { padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:top; background:var(--bg2); }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:var(--bg3); }
+    .empty-row { text-align:center; color:var(--text3); padding:36px 20px !important; font-size:13px; background:var(--bg2) !important; }
+
+    /* ── SEVERITY BADGES ── */
+    .sev-high    { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:5px; font-size:10px; font-weight:700; font-family:var(--mono); white-space:nowrap; background:var(--red-bg);   color:var(--red);   border:1px solid var(--red-border); }
+    .sev-medium  { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:5px; font-size:10px; font-weight:700; font-family:var(--mono); white-space:nowrap; background:var(--amber-bg); color:var(--amber); border:1px solid var(--amber-border); }
+    .sev-mini    { padding:1px 5px !important; font-size:9px !important; border-radius:3px !important; }
+    .sev-high::before  { content:''; width:5px; height:5px; border-radius:50%; background:var(--red);   flex-shrink:0; }
+    .sev-medium::before{ content:''; width:5px; height:5px; border-radius:50%; background:var(--amber); flex-shrink:0; }
+
+    /* ── STATUS BADGES ── */
+    .st-pass { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:5px; font-size:10px; font-weight:700; font-family:var(--mono); background:var(--green-bg);  color:var(--green);  border:1px solid var(--green-border); }
+    .st-fail { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:5px; font-size:10px; font-weight:700; font-family:var(--mono); background:var(--red-bg);    color:var(--red);    border:1px solid var(--red-border); }
+    .st-warn { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:5px; font-size:10px; font-weight:700; font-family:var(--mono); background:var(--amber-bg);  color:var(--amber);  border:1px solid var(--amber-border); }
+    .st-skip { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:5px; font-size:10px; font-weight:700; font-family:var(--mono); background:var(--bg3);       color:var(--text3);  border:1px solid var(--border); }
+
+    /* ── INLINE CODE ── */
+    code { font-family:var(--mono); font-size:11px; }
+    .rule-id  { background:var(--accent-light); color:var(--accent); border:1px solid var(--accent-mid); padding:2px 7px; border-radius:5px; font-size:10px; font-weight:600; }
+    .file-tag { background:var(--bg3); color:var(--text2); border:1px solid var(--border); padding:2px 7px; border-radius:5px; }
+    .loc      { background:var(--purple-bg); color:var(--purple); border:1px solid var(--purple-border); padding:1px 5px; border-radius:4px; font-size:10px; }
+    .rule-ref { color:var(--text3); font-size:11px; }
+    .count-badge-red   { background:var(--red-bg);   color:var(--red);   border:1px solid var(--red-border);   padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; font-family:var(--mono); }
+    .count-badge-amber { background:var(--amber-bg); color:var(--amber); border:1px solid var(--amber-border); padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; font-family:var(--mono); }
+
+    /* ── FILE & MSG CELLS ── */
+    .file-cell { min-width:200px; }
+    .msgs-cell { min-width:300px; }
+    .msg-item  { margin-bottom:5px; font-size:11px; color:var(--text2); display:flex; align-items:flex-start; gap:6px; flex-wrap:wrap; }
+    .msg-more  { font-size:11px; color:var(--text3); font-style:italic; margin-top:4px; }
+
+    /* ── EMPTY STATE ── */
+    .empty-state { text-align:center; padding:48px 32px; color:var(--text3); background:var(--bg2); }
+    .empty-icon  { font-size:2.5rem; display:block; margin-bottom:10px; }
+    .empty-state p { font-size:14px; color:var(--text2); font-weight:500; }
+
+    /* ── FOOTER ── */
+    footer {
+      background:var(--bg2); border-top:1px solid var(--border);
+      padding:18px 32px; display:flex; align-items:center;
+      justify-content:space-between; flex-wrap:wrap; gap:8px;
+      font-size:11px; color:var(--text3);
+    }
+    footer a { color:var(--accent); text-decoration:none; font-weight:600; }
+    .footer-brand { display:flex; align-items:center; gap:8px; font-weight:600; color:var(--text2); }
+    .footer-logo  { width:24px; height:24px; background:linear-gradient(135deg,#2563EB,#7C3AED); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; }
+
+    @media (max-width:768px) {
+      .container { padding:20px 16px 48px; }
+      header, .nav-bar { padding-left:16px; padding-right:16px; }
+      .tools-grid { grid-template-columns:1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-icon">✨</div>
+  <div class="header-title-wrap">
+    <div class="header-title">Linting &amp; Formatting Report</div>
+    <div class="header-sub">
+      <span>📦 <strong>TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND</strong></span>
+      <span>·</span>
+      <span>🌿 <strong>develop</strong></span>
+      <span>·</span>
+      <span>🔖 <strong>701cf37</strong></span>
+      <span>·</span>
+      <span>09 Jun 2026 22:29 UTC</span>
+    </div>
+  </div>
+  <div class="header-divider"></div>
+  <span class="status-badge">WARNINGS</span>
+</header>
+
+<!-- NAV -->
+<nav class="nav-bar">
+  <a href="#resumen">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    Resumen
+  </a>
+  <a href="#eslint">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    ESLint
+  </a>
+  <a href="#prettier">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    Prettier
+  </a>
+  <a href="#typescript">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
+    TypeScript
+  </a>
+</nav>
+
+<!-- CONTENIDO -->
+<div class="container">
+
+  <!-- Commit strip -->
+  <div class="commit-strip">
+    <div class="commit-item">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Scan: <strong>09 Jun 2026 22:29 UTC</strong>
+    </div>
+    <span class="commit-sep">·</span>
+    <div class="commit-item">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      Node.js: <strong>v20 · npm</strong>
+    </div>
+    <span class="commit-sep">·</span>
+    <div class="commit-item">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Herramientas: <strong>ESLint · Prettier · TypeScript</strong>
+    </div>
+    <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/27240003848" target="_blank">Ver ejecución en GitHub Actions →</a>
+  </div>
+
+  <!-- ═══ RESUMEN ═══════════════════════════════════════════════════ -->
+  <section class="section" id="resumen">
+    <div class="section-header"><h2>Resumen de herramientas</h2></div>
+    <p class="section-desc">Estado general de cada herramienta de análisis estático ejecutada en este pipeline.</p>
+    <div class="section-divider"></div>
+
+    <div class="tools-grid">
+
+      <!-- ESLint -->
+      <div class="tool-card" style="--tool-color:#DC2626">
+        <div class="tool-name">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          ESLint
+          &nbsp;<span class="st-pass">✓ Passed</span>
+        </div>
+        <div class="tool-stats">
+          <div class="tool-stat">
+            <span class="tool-stat-num" style="color:var(--red)">0</span>
+            <span class="tool-stat-lbl">Errores</span>
+          </div>
+          <div class="tool-stat">
+            <span class="tool-stat-num" style="color:var(--amber)">11</span>
+            <span class="tool-stat-lbl">Avisos</span>
+          </div>
+          <div class="tool-stat">
+            <span class="tool-stat-num" style="color:var(--text2)">8</span>
+            <span class="tool-stat-lbl">Archivos</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prettier -->
+      <div class="tool-card" style="--tool-color:#D97706">
+        <div class="tool-name">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          Prettier
+          &nbsp;<span class="st-pass">✓ Passed</span>
+        </div>
+        <div class="tool-stats">
+          <div class="tool-stat">
+            <span class="tool-stat-num" style="color:var(--amber)">0</span>
+            <span class="tool-stat-lbl">Sin formato</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TypeScript -->
+      <div class="tool-card" style="--tool-color:#2563EB">
+        <div class="tool-name">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
+          TypeScript
+          &nbsp;<span class="st-skip">— Skipped</span>
+        </div>
+        <div class="tool-stats">
+          <div class="tool-stat">
+            <span class="tool-stat-num" style="color:var(--red)">0</span>
+            <span class="tool-stat-lbl">Errores TS</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══ ESLINT ════════════════════════════════════════════════════ -->
+  <section class="section" id="eslint">
+    <div class="section-header">
+      <h2>ESLint — Análisis de reglas</h2>
+      <span style="font-size:12px;color:var(--text3);font-weight:600;">(0 errores · 11 avisos)</span>
+    </div>
+    <p class="section-desc">Reglas violadas agrupadas por ID, ordenadas por severidad. Los errores bloquean el pipeline; los avisos son informativos.</p>
+    <div class="section-divider"></div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <div class="card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+          Resumen por regla
+        </div>
+      </div>
+      <div class="table-wrap"><table id="table-eslint-rules">
+      <thead><tr>
+        <th style="width:90px">Tipo</th>
+        <th>Regla ESLint</th>
+        <th style="width:80px;text-align:center">Errores</th>
+        <th style="width:80px;text-align:center">Avisos</th>
+      </tr></thead>
+      <tbody><tr>
+          <td><span class="sev-medium">WARNING</span></td>
+          <td><code class="rule-id">no-unused-vars</code></td>
+          <td style="text-align:center"><span class="count-badge-red">0</span></td>
+          <td style="text-align:center"><span class="count-badge-amber">11</span></td>
+        </tr>
+</tbody>
+    </table></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Detalle por archivo
+        </div>
+        <span class="card-subtitle">8 archivo(s) con issues</span>
+      </div>
+      <div class="table-wrap"><table id="table-eslint-files">
+      <thead><tr>
+        <th>Archivo</th>
+        <th style="width:80px;text-align:center">Errores</th>
+        <th style="width:80px;text-align:center">Avisos</th>
+        <th>Mensajes</th>
+      </tr></thead>
+      <tbody><tr>
+          <td class="file-cell"><code class="file-tag">__tests__/unit/conductor-services/conductorHandler.test.mjs</code></td>
+          <td style="text-align:center"><span class="count-badge-red">0</span></td>
+          <td style="text-align:center"><span class="count-badge-amber">3</span></td>
+          <td class="msgs-cell"><div class="msg-item"><span class="sev-medium sev-mini">W</span> <code class="loc">L6:5</code> <span class="rule-ref">[no-unused-vars]</span> 'getConductorStatisticsController' is assigned a value but never used. Allowed unused vars must match /^_/u.</div><div class="msg-item"><span class="sev-medium sev-mini">W</span> <code class="loc">L7:5</code> <span class="rule-ref">[no-unused-vars]</span> 'updateLicenciaController' is assigned a value but never used. Allowed unused vars must match /^_/u.</div><div class="msg-item"><span class="sev-medium sev-mini">W</span> <code class="loc">L8:5</code> <span class="rule-ref">[no-unused-vars]</span> 'getConductorDetailController' is assigned a value but never used. Allowed unused vars must match /^_/u.</div></td>
+        </tr>
+<tr>
+          <td class="file-cell"><code class="file-tag">__tests__/unit/dashboard-gerencial-services/dashboardGerencialController.test.mjs</code></td>
+          <td style="text-align:center"><span class="count-badge-red">0</span></td>
+          <td style="text-align:center"><span class="count-badge-amber">1</span></td>
+          <td class="msgs-cell"><div class="msg-item"><span class="sev-medium sev-mini">W</span> <code class="loc">L44:26</code> <span class="rule-ref">[no-unused-vars]</span> 'role' is assigned a value but never used. Allowed unused args must match /^_/u.</div></td>
+        </tr>
+<tr>
+          <td class="file-cell"><code class="file-tag">src/functions/auth-services/authCognitoProvider.mjs</code></td>
+          <td style="text-align:center"><span class="count-badge-red">0</span></td>
+          <td style="text-align:center"><span class="count-badge-amber">1</span></td>
+          <td class="msgs-cell"><div class="msg-item"><span class="sev-medium sev-mini">W</span> <code class="loc">L77:12</code> <span class="rule-ref">[no-unused-vars]</span> 'error' is defined but never used. Allowed unused caught errors must match /^_/u.</div></td>
+        </tr>
+<tr>
+          <td class="file-cell"><code class="file-tag">src/functions/auth-services/authController.mjs</code></td>
+          <td style="text-align:center"><span class="count-badge-red">0</span></td>
+          <td style="text-align:center"><span class="count-badge-amber">1</span></td>
+          <td class="msgs-cell"><div class="msg-item"><span class="sev-medium sev-mini">W</span> <code class="loc">L10:12</code> <span class="rule-ref">[no-unused-vars]</span> 'error' is defined but never used. Allowed unused caught errors must match /^_/u.</div></td>
+        </tr>
+<tr>
+          <td class="file-cell"><code class="file-tag">src/functions/auth-services/authToken.mjs</code></td>
+          <td style="text-align:center"><span class="count-badge-red">0</span></td>
+          <td style="text-align:center"><span class="count-badge-amber">2</span></td>
+          <td class="msgs-cell"><div class="msg-item"><span class="sev-medium sev-mini">W</span> <code class="loc">L85:12</code> <span class="rule-ref">[no-unused-vars]</span> 'error' is defined but never used. Allowed unused caught errors must match /^_/u.</div><div class="msg-item"><span class="sev-medium sev-mini">W</span> <code class="loc">L104:12</code> <span class="rule-ref">[no-unused-vars]</span> 'error' is defined but never used. Allowed unused caught errors must match /^_/u.</div></td>
+        </tr>
+<tr>
+          <td class="file-cell"><code class="file-tag">src/functions/contrato-services/contratoController.mjs</code></td>
+          <td style="text-align:center"><span class="count-badge-red">0</span></td>
+          <td style="text-align:center"><span class="count-badge-amber">1</span></td>
+          <td class="msgs-cell"><div class="msg-item"><span class="sev-medium sev-mini">W</span> <code class="loc">L33:12</code> <span class="rule-ref">[no-unused-vars]</span> 'error' is defined but never used. Allowed unused caught errors must match /^_/u.</div></td>
+        </tr>
+<tr>
+          <td class="file-cell"><code class="file-tag">src/functions/migrator-services/migratorHandler.mjs</code></td>
+          <td style="text-align:center"><span class="count-badge-red">0</span></td>
+          <td style="text-align:center"><span class="count-badge-amber">1</span></td>
+          <td class="msgs-cell"><div class="msg-item"><span class="sev-medium sev-mini">W</span> <code class="loc">L8:7</code> <span class="rule-ref">[no-unused-vars]</span> 'MIGRATION_TIMEOUT_MS' is assigned a value but never used. Allowed unused vars must match /^_/u.</div></td>
+        </tr>
+<tr>
+          <td class="file-cell"><code class="file-tag">src/functions/unidad-services/unidadController.mjs</code></td>
+          <td style="text-align:center"><span class="count-badge-red">0</span></td>
+          <td style="text-align:center"><span class="count-badge-amber">1</span></td>
+          <td class="msgs-cell"><div class="msg-item"><span class="sev-medium sev-mini">W</span> <code class="loc">L5:51</code> <span class="rule-ref">[no-unused-vars]</span> 'event' is defined but never used. Allowed unused args must match /^_/u.</div></td>
+        </tr>
+</tbody>
+    </table></div>
+    </div>
+  </section>
+
+  <!-- ═══ PRETTIER ══════════════════════════════════════════════════ -->
+  <section class="section" id="prettier">
+    <div class="section-header">
+      <h2>Prettier — Formato de código</h2>
+      <span style="font-size:12px;color:var(--text3);font-weight:600;">(0 archivo(s) sin formato)</span>
+    </div>
+    <p class="section-desc">Archivos que no cumplen con el formato definido en la configuración de Prettier. Ejecuta <code style="font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius:4px;border:1px solid var(--border)">npx prettier . --write</code> para corregirlos automáticamente.</p>
+    <div class="section-divider"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          Archivos sin formatear
+        </div>
+      </div>
+      <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Archivo</th><th style="width:90px">Tipo</th><th>Descripción</th>
+      </tr></thead>
+      <tbody><tr><td colspan="3" class="empty-row">Sin issues detectados ✅</td></tr></tbody>
+    </table></div>
+    </div>
+  </section>
+
+  <!-- ═══ TYPESCRIPT ════════════════════════════════════════════════ -->
+  <section class="section" id="typescript">
+    <div class="section-header">
+      <h2>TypeScript — Verificación de tipos</h2>
+      <span style="font-size:12px;color:var(--text3);font-weight:600;">(0 error(es))</span>
+    </div>
+    <p class="section-desc">Errores de tipado detectados por el compilador TypeScript (<code style="font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius:4px;border:1px solid var(--border)">tsc --noEmit</code>) sin generar archivos de salida.</p>
+    <div class="section-divider"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
+          Errores de tipos
+        </div>
+      </div>
+      <div class="table-wrap"><div class="empty-state"><span class="empty-icon">➖</span><p>TypeScript check no ejecutado (sin tsconfig.json)</p></div></div>
+    </div>
+  </section>
+
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">
+    <div class="footer-logo">✨</div>
+    Linting &amp; Formatting Report · TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND
+  </div>
+  <span>
+    <a href="https://eslint.org" target="_blank">ESLint</a> ·
+    <a href="https://prettier.io" target="_blank">Prettier</a> ·
+    <a href="https://www.typescriptlang.org" target="_blank">TypeScript</a> ·
+    <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/27240003848" target="_blank">GitHub Actions</a> ·
+    09 Jun 2026 22:29 UTC
+  </span>
+</footer>
+
+</body>
+</html>
