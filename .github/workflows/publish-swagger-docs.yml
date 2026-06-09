@@ -12,22 +12,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout de tu rama principal para obtener el swagger y el script
+      # 1. Checkout rama principal (swagger + script)
       - name: Checkout rama develop
         uses: actions/checkout@v4
         with:
           ref: develop
           path: source
 
-      # 2. Checkout de gh-pages en carpeta separada (preserva archivos existentes)
+      # 2. Checkout rama gh-pages en carpeta separada (preserva todo lo demás)
       - name: Checkout rama gh-pages
         uses: actions/checkout@v4
         with:
           ref: gh-pages
           path: gh-pages
-        continue-on-error: true  # Si gh-pages no existe aún, continúa igual
+        continue-on-error: true
 
-      # 3. Inicializar gh-pages si no existe
+      # 3. Inicializar gh-pages si no existe aún
       - name: Inicializar gh-pages si no existe
         run: |
           if [ ! -d "gh-pages" ] || [ -z "$(ls -A gh-pages 2>/dev/null)" ]; then
@@ -37,20 +37,18 @@ jobs:
             git checkout -b gh-pages
           fi
 
-      # 4. Preparar carpeta de destino (solo swagger/, no toca nada más)
+      # 4. Preparar carpeta de destino (solo toca swagger/, nada más)
       - name: Preparar carpeta swagger/
         run: mkdir -p gh-pages/swagger
 
-      # 5. Instalar dependencia para conversión YAML→JSON
+      # 5. Instalar PyYAML
       - name: Instalar PyYAML
-        run: pip install pyyaml --quiet
+        run: pip install pyyaml --quiet --break-system-packages 2>/dev/null || pip install pyyaml --quiet
 
-      # 6. Encontrar el swagger YAML en el repo y copiarlo
-      - name: Copiar swagger YAML
+      # 6. Detectar el swagger YAML en el repo
+      - name: Detectar swagger YAML
         run: |
-          # Busca en orden: open_api/, openapi/, raíz del proyecto
           YAML_SRC=""
-
           if ls source/open_api/*.yaml 2>/dev/null | head -1 | grep -q yaml; then
             YAML_SRC=$(ls source/open_api/*.yaml | head -1)
           elif ls source/openapi/*.yaml 2>/dev/null | head -1 | grep -q yaml; then
@@ -60,51 +58,41 @@ jobs:
           fi
 
           if [ -z "$YAML_SRC" ]; then
-            echo "❌ No se encontró ningún archivo .yaml en el proyecto"
+            echo "❌ No se encontró ningún archivo .yaml"
             exit 1
           fi
 
-          echo "📄 Usando swagger: $YAML_SRC"
+          echo "📄 Swagger encontrado: $YAML_SRC"
           echo "YAML_SRC=$YAML_SRC" >> $GITHUB_ENV
-          cp "$YAML_SRC" gh-pages/swagger/
 
-      # 7. Ejecutar el script que genera la página HTML profesional
-      - name: Generar página HTML
+      # 7. Ejecutar el script Python que convierte YAML→JSON y genera el HTML
+      - name: Generar documentación
         run: |
-          chmod +x source/.github/scripts/generate-swagger-page.sh
-          bash source/.github/scripts/generate-swagger-page.sh \
+          python3 source/.github/scripts/generate_swagger_page.py \
             "$YAML_SRC" \
             "gh-pages/swagger"
 
-      # 8. Commit y push SOLO de la carpeta swagger/ (no toca nada más de gh-pages)
+      # 8. Commit y push SOLO de swagger/ (el resto de gh-pages queda intacto)
       - name: Publicar en gh-pages
         run: |
           cd gh-pages
-
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Solo agrega la carpeta swagger/, el resto queda intacto
           git add swagger/
-
-          # Si no hay cambios, no hace commit
           if git diff --cached --quiet; then
-            echo "ℹ️  Sin cambios en la documentación. No se generó commit."
+            echo "ℹ️ Sin cambios, no se generó commit."
             exit 0
           fi
-
           git commit -m "docs: actualizar Swagger UI 📚 [skip ci]"
           git push origin gh-pages
+          echo "✅ Documentación publicada."
 
-          echo "✅ Documentación publicada correctamente"
-
-      # 9. Mostrar la URL donde quedó publicada
-      - name: Mostrar URL de la documentación
+      # 9. Mostrar URL final
+      - name: URL de la documentación
         run: |
           REPO="${{ github.repository }}"
           OWNER=$(echo "$REPO" | cut -d'/' -f1)
           NAME=$(echo "$REPO" | cut -d'/' -f2)
           echo ""
-          echo "🎉 Documentación disponible en:"
-          echo "   https://${OWNER}.github.io/${NAME}/swagger/"
+          echo "🎉 Disponible en: https://${OWNER}.github.io/${NAME}/swagger/"
           echo ""
