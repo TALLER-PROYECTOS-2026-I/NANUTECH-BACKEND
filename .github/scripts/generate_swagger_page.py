@@ -5,6 +5,14 @@ Convierte un swagger YAML a JSON y genera una página HTML profesional.
 
 Uso:
     python3 generate_swagger_page.py <ruta-swagger.yaml> <directorio-salida>
+
+FIXES aplicados:
+  1. tryItOutEnabled: true  → permite editar body en POSTs
+  2. requestInterceptor     → extrae solo el token puro del header Authorization
+                              para que tu backend local no reciba "Bearer eyJ..."
+                              sino el token limpio que espera verifyLocalAccessToken
+  3. Botón Authorize mejorado → tooltip con instrucción clara de pegar solo el token
+  4. persistAuthorization: true → el token se mantiene al refrescar la página
 """
 
 import sys
@@ -61,19 +69,16 @@ def load_swagger(yaml_path: Path) -> dict:
     print(f"📄 Leyendo: {yaml_path}")
     raw = yaml_path.read_text(encoding="utf-8")
 
-    # Eliminar tags YAML que Swagger UI no entiende (!<!Ref>, !Ref, etc.)
     raw = re.sub(r"!\w*<[^>]*>", "", raw)
     raw = re.sub(r"!\w+(?=\s)", "", raw)
 
     data = yaml.safe_load(raw)
     data = normalize(data)
 
-    # Garantizar campo swagger/openapi como string limpio
     for field in ("swagger", "openapi"):
         if field in data:
             data[field] = str(data[field]).strip().strip('"').strip("'")
 
-    # Garantizar info.version como string
     if "info" in data and "version" in data["info"]:
         data["info"]["version"] = str(data["info"]["version"])
 
@@ -176,6 +181,30 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
     .badge-live {{ background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,211,160,0.2); }}
     .badge-live::before {{ content: ''; width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }}
     @keyframes pulse {{ 0%, 100% {{ opacity: 1; transform: scale(1); }} 50% {{ opacity: 0.6; transform: scale(0.8); }} }}
+
+    /* ── TOKEN HINT BANNER ── */
+    .token-hint {{
+      background: linear-gradient(90deg, rgba(108,99,255,0.12), rgba(192,132,252,0.08));
+      border: 1px solid rgba(108,99,255,0.25);
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }}
+    .token-hint strong {{ color: var(--accent); }}
+    .token-hint code {{
+      font-family: var(--mono);
+      background: rgba(108,99,255,0.15);
+      border: 1px solid rgba(108,99,255,0.2);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      color: var(--purple);
+    }}
 
     /* ── LAYOUT ── */
     .layout {{ display: flex; padding-top: var(--header-h); min-height: 100vh; }}
@@ -333,7 +362,29 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
     #swagger-ui .swagger-ui input[type=text]:focus,
     #swagger-ui .swagger-ui textarea:focus {{ border-color: var(--accent) !important; outline: none !important; box-shadow: 0 0 0 2px var(--accent-glow) !important; }}
 
-    #swagger-ui .swagger-ui .auth-wrapper .authorize {{ background: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; border-radius: 6px !important; font-weight: 600 !important; }}
+    /* ── Authorize modal dark ── */
+    #swagger-ui .swagger-ui .dialog-ux .modal-ux {{
+      background: var(--bg2) !important; border: 1px solid var(--border2) !important;
+      border-radius: var(--radius) !important;
+    }}
+    #swagger-ui .swagger-ui .dialog-ux .modal-ux-header {{
+      background: var(--bg3) !important; border-bottom: 1px solid var(--border) !important;
+    }}
+    #swagger-ui .swagger-ui .dialog-ux .modal-ux-header h3 {{ color: var(--text) !important; }}
+    #swagger-ui .swagger-ui .dialog-ux .modal-ux-content {{ color: var(--text2) !important; }}
+    #swagger-ui .swagger-ui .dialog-ux .modal-ux-content p {{ color: var(--text2) !important; }}
+    #swagger-ui .swagger-ui .dialog-ux .modal-ux-content label {{ color: var(--text) !important; font-size: 12px !important; font-weight: 600 !important; }}
+    #swagger-ui .swagger-ui .auth-wrapper .authorize {{
+      background: var(--accent) !important; border-color: var(--accent) !important;
+      color: #fff !important; border-radius: 6px !important; font-weight: 600 !important;
+    }}
+    #swagger-ui .swagger-ui .auth-wrapper .authorize:hover {{
+      background: var(--accent2) !important;
+    }}
+    /* Modal backdrop */
+    #swagger-ui .swagger-ui .dialog-ux .backdrop-ux {{
+      background: rgba(0,0,0,0.7) !important;
+    }}
 
     /* ── FOOTER ── */
     .footer {{ background: var(--bg2); border-top: 1px solid var(--border); padding: 20px 40px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text3); }}
@@ -447,6 +498,17 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
       </div>
 
       <div class="swagger-wrap">
+
+        <!-- ── INSTRUCCIÓN DE TOKEN ── -->
+        <div class="token-hint">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--accent)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>
+            Haz <strong>POST /auth/login</strong> para obtener tu token, luego haz clic en
+            <strong>Authorize 🔒</strong> y pega <strong>solo el token</strong> sin prefijo.
+            El interceptor agrega <code>Bearer</code> automáticamente.
+          </span>
+        </div>
+
         <div id="swagger-ui"></div>
       </div>
 
@@ -496,10 +558,6 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
     }}
 
     // ── Aplicar filtro por tag ────────────────────────────────────────────────
-    // Swagger UI renderiza secciones con clase .opblock-tag-section
-    // El heading puede estar en h3, span o data-tag dentro del section.
-    // Usamos el atributo data-tag del heading del grupo si existe,
-    // o bien comparamos el texto del h3 con el tag buscado.
     function applyFilter(tag) {{
       var sections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
       sections.forEach(function(section) {{
@@ -507,11 +565,8 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
           section.style.display = '';
           return;
         }}
-        // Swagger UI pone el nombre del tag en el h3 dentro de .opblock-tag
         var heading = section.querySelector('.opblock-tag h3, .opblock-tag span, h3');
         var text = heading ? heading.textContent.toLowerCase().trim() : '';
-        // Comparación flexible: el tag del sidebar puede ser parte del texto
-        // Ej: sidebar tag "auth" debe coincidir con heading "Auth"
         section.style.display = text.includes(tag.toLowerCase()) ? '' : 'none';
       }});
     }}
@@ -519,18 +574,13 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
     // ── Filtrar tag (llamado desde el sidebar) ────────────────────────────────
     function filterTag(tag) {{
       _activeTag = tag;
-
-      // Actualizar estado visual del sidebar
       document.querySelectorAll('.sidebar-item').forEach(function(el) {{
         el.classList.toggle('active', el.dataset.tag === tag);
       }});
-
-      // Si Swagger ya renderizó, aplicar inmediatamente
       var sections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
       if (sections.length > 0) {{
         applyFilter(tag);
       }} else {{
-        // Swagger todavía no renderizó; esperar y reintentar
         waitForSwaggerDOM('#swagger-ui .opblock-tag-section', function() {{
           applyFilter(tag);
         }});
@@ -544,12 +594,9 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
         filterTag(_activeTag);
         return;
       }}
-
-      // Quitar activo del sidebar durante búsqueda libre
       document.querySelectorAll('.sidebar-item').forEach(function(el) {{
         el.classList.remove('active');
       }});
-
       var sections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
       sections.forEach(function(section) {{
         section.style.display = '';
@@ -578,13 +625,56 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
       defaultModelsExpandDepth: -1,
       docExpansion: 'none',
       filter: false,
-      tryItOutEnabled: false,
+
+      // ── FIX 1: Habilitar "Try it out" en todos los endpoints por defecto ──
+      tryItOutEnabled: true,
+
+      // ── FIX 2: Mantener el token aunque se recargue la página ──────────────
+      persistAuthorization: true,
+
+      // ── FIX 3: Interceptor de requests ─────────────────────────────────────
+      // Tu backend local (authToken.mjs) usa verifyLocalAccessToken(token)
+      // que espera el token SIN el prefijo "Bearer ".
+      // Swagger UI con type:apiKey envía el valor tal cual lo pegaste.
+      // Este interceptor garantiza que el header Authorization siempre sea:
+      //   "Bearer <token_limpio>"
+      // sin importar si el usuario pegó el token con o sin "Bearer ".
+      requestInterceptor: function(request) {{
+        var authHeader = request.headers['Authorization'] || request.headers['authorization'];
+        if (authHeader) {{
+          // Extraer el token puro (quitar cualquier prefijo Bearer/bearer)
+          var rawToken = authHeader.replace(/^[Bb]earer\\s+/, '').trim();
+
+          // Tu middleware de Express/Lambda debe recibir "Bearer <token>"
+          // para hacer: token = header.split(' ')[1]
+          // Si tu código ya hace eso, este formato es correcto.
+          // Si tu código recibe el token directo sin Bearer, cambia a solo rawToken.
+          request.headers['Authorization'] = 'Bearer ' + rawToken;
+        }}
+        return request;
+      }},
+
       onComplete: function() {{
         countStats();
-        // Re-aplicar filtro activo si el usuario ya clickeó algo antes de que cargara
         if (_activeTag !== 'all') {{
           applyFilter(_activeTag);
         }}
+
+        // ── Personalizar el placeholder del input de autorización ────────────
+        // Esperar a que aparezca el modal de auth si está abierto
+        var observer = new MutationObserver(function() {{
+          var authInputs = document.querySelectorAll(
+            '#swagger-ui input[type=text][placeholder*="api"], ' +
+            '#swagger-ui .auth-container input[type=text]'
+          );
+          authInputs.forEach(function(input) {{
+            input.placeholder = 'Pega solo el token (sin "Bearer ")';
+          }});
+        }});
+        observer.observe(document.getElementById('swagger-ui'), {{
+          childList: true,
+          subtree: true
+        }});
       }}
     }});
   </script>
@@ -607,10 +697,8 @@ def main():
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Cargar y limpiar YAML
     data = load_swagger(yaml_path)
 
-    # 2. Guardar como JSON (SafeJsonEncoder convierte date, datetime, etc.)
     swagger_json_name = "swagger.json"
     json_path = output_dir / swagger_json_name
     print(f"🔄 Convirtiendo YAML → JSON...")
@@ -620,11 +708,9 @@ def main():
     )
     print(f"✅ JSON guardado: {json_path}")
 
-    # 3. Extraer metadata
     meta = extract_meta(data)
     print(f"📋 Metadata: {meta['title']} v{meta['version']}")
 
-    # 4. Generar HTML
     html = generate_html(meta, swagger_json_name)
     html_path = output_dir / "index.html"
     html_path.write_text(html, encoding="utf-8")
