@@ -1,916 +1,1102 @@
-openapi: 3.0.3
+---
+swagger: "2.0"
 info:
-  title: Nanutech Backend API
-  description: |
-    API de gestión de transporte de carga pesada.
-    Roles disponibles: ADMIN, GERENTE, CHOFER.
-    Autenticación: Bearer token obtenido desde POST /auth/login.
-  version: "1.0.0"
-
-servers:
-  - url: "${API_URL_TESTING}"
-    description: Ambiente de testing
-
-components:
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-  schemas:
-    LoginRequest:
-      type: object
-      required: [email, password]
-      properties:
-        email:
-          type: string
-          format: email
-          example: admin@nanutech.com
-        password:
-          type: string
-          example: "Admin123!"
-
-    LoginResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        data:
-          type: object
-          properties:
-            user:
-              type: object
-              properties:
-                email: { type: string }
-                role: { type: string, enum: [admin, chofer, gerente] }
-            session:
-              type: object
-              properties:
-                accessToken: { type: string }
-                tokenType: { type: string, example: Bearer }
-                expiresAt: { type: string, format: date-time }
-            role: { type: string }
-            nextRoute: { type: string }
-
-    ForgotPasswordRequest:
-      type: object
-      required: [email]
-      properties:
-        email:
-          type: string
-          format: email
-          example: admin@nanutech.com
-
-    ConfirmForgotPasswordRequest:
-      type: object
-      required: [email, code, newPassword]
-      properties:
-        email:
-          type: string
-          format: email
-          example: admin@nanutech.com
-        code:
-          type: string
-          example: "123456"
-        newPassword:
-          type: string
-          example: "NuevoPass123!"
-
-    CreateCamionRequest:
-      type: object
-      required: [placa, marca, modelo, anio, capacidad_ton, vin, color, combustible, gps]
-      properties:
-        placa:
-          type: string
-          example: "XYZ-999"
-        marca:
-          type: string
-          example: "Volvo"
-        modelo:
-          type: string
-          example: "FH16"
-        anio:
-          type: integer
-          minimum: 1990
-          maximum: 2027
-          example: 2022
-        capacidad_ton:
-          type: number
-          minimum: 0.1
-          example: 20.5
-        vin:
-          type: string
-          example: "VINTEST00099"
-        color:
-          type: string
-          example: "Blanco"
-        combustible:
-          type: string
-          enum: [DIESEL, GASOLINA, GNV, GLP, ELECTRICO, HIBRIDO]
-          example: "DIESEL"
-        gps:
-          type: boolean
-          example: true
-        estado:
-          type: string
-          enum: [DISPONIBLE, EN_JORNADA, EN_AUXILIO, MANTENIMIENTO, INACTIVA]
-          example: "DISPONIBLE"
-        kilometraje_actual:
-          type: number
-          example: 0
-        notas:
-          type: string
-          example: "Unidad nueva"
-
-    CreateJornadaRequest:
-      type: object
-      required: [conductor_id, unidad_id, contrato_id, fecha_jornada, origen, destino, km_estimados]
-      properties:
-        conductor_id:
-          type: string
-          format: uuid
-          example: "22222222-2222-2222-2222-222222222222"
-        unidad_id:
-          type: string
-          format: uuid
-          example: "aaaa0001-0000-0000-0000-000000000001"
-        contrato_id:
-          type: string
-          format: uuid
-          example: "bbbb0001-0000-0000-0000-000000000001"
-        fecha_jornada:
-          type: string
-          format: date
-          example: "2026-05-21"
-        origen:
-          type: string
-          example: "Lima"
-        destino:
-          type: string
-          example: "Arequipa"
-        km_estimados:
-          type: number
-          example: 520
-        tipo_carga:
-          type: string
-          example: "Mineral concentrado"
-        peso_carga_ton:
-          type: number
-          example: 18.5
-
-    CreateContratoRequest:
-      type: object
-      required: [codigo, cliente, tipo_servicio, fecha_inicio]
-      properties:
-        codigo:
-          type: string
-          example: "CONT-2026-999"
-        cliente:
-          type: string
-          example: "Empresa Test SA"
-        ruc:
-          type: string
-          pattern: '^\d{11}$'
-          example: "20123456799"
-        descripcion:
-          type: string
-          example: "Contrato de prueba"
-        tipo_servicio:
-          type: string
-          enum: [POR_VIAJE, POR_HORA, POR_TONELADA, POR_KM, MENSUAL]
-          example: "POR_VIAJE"
-        fecha_inicio:
-          type: string
-          format: date
-          example: "2026-01-01"
-        fecha_fin:
-          type: string
-          format: date
-          example: "2026-12-31"
-        tarifa:
-          type: number
-          example: 15000
-        moneda:
-          type: string
-          example: "PEN"
-
-    ErrorResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: false
-        message:
-          type: string
-        code:
-          type: string
-
-  responses:
-    Unauthorized:
-      description: Token ausente o inválido
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: "Token de acceso requerido"
-            code: "TOKEN_REQUIRED"
-    Forbidden:
-      description: El rol del usuario no tiene acceso a este recurso
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: "Acceso denegado"
-            code: "FORBIDDEN"
-
-security:
-  - BearerAuth: []
-
+  version: "1.0"
+  title: "nanutech-api-testing"
+host: "q26dwk17da.execute-api.us-east-1.amazonaws.com"
+basePath: "/Stage"
+schemes:
+- "https"
 paths:
-
-  # ============================================================
-  # AUTH - Público (no requiere token)
-  # ============================================================
-  /auth/login:
-    post:
-      summary: Iniciar sesión
-      description: |
-        Endpoint público. Autentica al usuario y retorna un Bearer token.
-        Roles válidos: ADMIN, GERENTE, CHOFER.
-        Bloquea la cuenta tras 5 intentos fallidos (HTTP 423).
-      tags: [Auth]
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
-            examples:
-              admin:
-                summary: Login ADMIN
-                value: { email: "admin@nanutech.com", password: "Admin123!" }
-              gerente:
-                summary: Login GERENTE
-                value: { email: "gerente@nanutech.com", password: "Admin123!" }
-              chofer:
-                summary: Login CHOFER
-                value: { email: "chofer@nanutech.com", password: "Admin123!" }
-              invalid:
-                summary: Credenciales inválidas
-                value: { email: "noexiste@nanutech.com", password: "wrong" }
-              sqli:
-                summary: SQL Injection attempt
-                value: { email: "' OR '1'='1", password: "' OR '1'='1" }
-              xss:
-                summary: XSS attempt
-                value: { email: "<script>alert(1)</script>@x.com", password: "test" }
+  /alertas/activas:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       responses:
-        '200':
-          description: Login exitoso
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LoginResponse'
-        '400':
-          description: Email o contraseña inválidos / body malformado
-        '401':
-          description: Credenciales incorrectas
-        '404':
-          description: Usuario no encontrado
-        '423':
-          description: Cuenta bloqueada por intentos fallidos
-
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /alertas/auxilio:
+    post:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /alertas/indicadores:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /alertas/sos:
+    post:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /alertas/{id}/estado:
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+    patch:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+  /alertas/{id}/resolver:
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+    patch:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+  /auditoria/exportar/csv:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /auditoria/registros:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /auditoria/resumen:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
   /auth/forgot-password:
     post:
-      summary: Solicitar recuperación de contraseña
-      description: Endpoint público. Siempre retorna 200 para no revelar emails registrados.
-      tags: [Auth]
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       responses:
-        '200':
-          description: Correo enviado (simulado en local)
-        '400':
-          description: Email inválido
-
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
   /auth/forgot-password/confirm:
     post:
-      summary: Confirmar nueva contraseña
-      description: Endpoint público. Requiere código de recuperación (local= 123456).
-      tags: [Auth]
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConfirmForgotPasswordRequest'
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       responses:
-        '200':
-          description: Contraseña actualizada
-        '400':
-          description: Validación fallida
-        '401':
-          description: Código inválido
-        '404':
-          description: Usuario no encontrado
-
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /auth/login:
+    post:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
   /auth/me:
     get:
-      summary: Obtener sesión actual
-      description: |
-        Retorna los datos del usuario autenticado.
-        Roles: ADMIN, GERENTE, CHOFER.
-        HTTP 401 si no hay token. HTTP 401 si el token expiró.
-      tags: [Auth]
-      security:
-        - BearerAuth: []
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       responses:
-        '200':
-          description: Sesión válida con datos del usuario
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  # ============================================================
-  # CAMIONES - Solo ADMIN
-  # ============================================================
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
   /camiones:
     get:
-      summary: Listar todos los camiones
-      description: |
-        Solo ADMIN. Retorna lista completa de unidades.
-        HTTP 401 sin token. HTTP 403 si rol es GERENTE o CHOFER.
-      tags: [Camiones]
-      parameters:
-        - name: placa
-          in: query
-          schema: { type: string }
-          example: "ABC"
-        - name: estado
-          in: query
-          schema:
-            type: string
-            enum: [DISPONIBLE, EN_JORNADA, EN_AUXILIO, MANTENIMIENTO, INACTIVA, TODOS]
-          example: "DISPONIBLE"
-      responses:
-        '200':
-          description: Lista de camiones
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
+      responses: {}
     post:
-      summary: Registrar nuevo camión
-      description: |
-        Solo ADMIN. Valida placa única, VIN único, año entre 1990 y año actual+1.
-        HTTP 400 si placa/VIN duplicado o campos inválidos.
-        HTTP 403 si rol es GERENTE o CHOFER.
-      tags: [Camiones]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateCamionRequest'
-            examples:
-              valido:
-                summary: Camión válido
-                value:
-                  placa: "ZAP-001"
-                  marca: "Volvo"
-                  modelo: "FH16"
-                  anio: 2023
-                  capacidad_ton: 20
-                  vin: "VINZAP0000001"
-                  color: "Blanco"
-                  combustible: "DIESEL"
-                  gps: true
-              sqli_placa:
-                summary: SQL Injection en placa
-                value:
-                  placa: "'; DROP TABLE unidades; --"
-                  marca: "Test"
-                  modelo: "Test"
-                  anio: 2023
-                  capacidad_ton: 10
-                  vin: "VIN1234567890"
-                  color: "Rojo"
-                  combustible: "DIESEL"
-                  gps: false
-              xss_marca:
-                summary: XSS en marca
-                value:
-                  placa: "ZAP-XSS"
-                  marca: "<img src=x onerror=alert(1)>"
-                  modelo: "FH16"
-                  anio: 2023
-                  capacidad_ton: 20
-                  vin: "VINXSS00001"
-                  color: "Azul"
-                  combustible: "DIESEL"
-                  gps: true
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       responses:
-        '201':
-          description: Camión registrado exitosamente
-        '400':
-          description: Error de validación (placa/VIN duplicado, campos inválidos)
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /camiones/{id}:
-    get:
-      summary: Obtener camión por ID
-      description: |
-        Solo ADMIN. Acepta UUID o número de posición.
-        HTTP 404 si no existe.
-      tags: [Camiones]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-          example: "aaaa0001-0000-0000-0000-000000000001"
-      responses:
-        '200':
-          description: Detalle del camión
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          description: Camión no encontrado
-
-  /camiones/panel:
-    get:
-      summary: Panel de monitoreo de camiones
-      description: |
-        Solo ADMIN. Retorna resumen operativo + métricas GPS.
-        Soporta filtros: placa, estado.
-      tags: [Camiones]
-      parameters:
-        - name: placa
-          in: query
-          schema: { type: string }
-        - name: estado
-          in: query
-          schema:
-            type: string
-            enum: [DISPONIBLE, EN_JORNADA, MANTENIMIENTO, TODOS]
-      responses:
-        '200':
-          description: Panel con resumen y métricas
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
   /camiones/exportar/csv:
     get:
-      summary: Exportar camiones a CSV
-      description: |
-        Solo ADMIN. Retorna archivo CSV descargable.
-        Content-Type: text/csv.
-      tags: [Camiones]
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /camiones/panel:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /camiones/{id}:
+    get:
       parameters:
-        - name: placa
-          in: query
-          schema: { type: string }
-        - name: estado
-          in: query
-          schema: { type: string }
-      responses:
-        '200':
-          description: Archivo CSV
-          content:
-            text/csv:
-              schema:
-                type: string
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  # ============================================================
-  # DASHBOARD
-  # ============================================================
-  /dashboard:
-    get:
-      summary: Dashboard principal (ADMIN)
-      description: Solo ADMIN. Resumen general del sistema.
-      tags: [Dashboard]
-      responses:
-        '200':
-          description: Datos del dashboard
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /dashboard/gerencial:
-    get:
-      summary: Dashboard gerencial (GERENTE)
-      description: Solo GERENTE. Vista ejecutiva de operaciones.
-      tags: [Dashboard]
-      responses:
-        '200':
-          description: Datos del dashboard gerencial
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  # ============================================================
-  # JORNADAS
-  # ============================================================
-  /jornadas:
-    get:
-      summary: Listar jornadas
-      description: ADMIN y GERENTE. HTTP 403 si rol es CHOFER.
-      tags: [Jornadas]
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       parameters:
-        - name: estado
-          in: query
-          schema:
-            type: string
-            enum: [REGISTRADA, PENDIENTE, EN_PROCESO, COMPLETADA, CANCELADA]
-        - name: fecha_jornada
-          in: query
-          schema: { type: string, format: date }
-      responses:
-        '200':
-          description: Lista de jornadas
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-    post:
-      summary: Crear jornada
-      description: ADMIN y GERENTE. HTTP 403 si rol es CHOFER.
-      tags: [Jornadas]
-      requestBody:
+      - name: "id"
+        in: "path"
         required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateJornadaRequest'
+        type: "string"
       responses:
-        '201':
-          description: Jornada creada
-        '400':
-          description: Error de validación
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /jornadas/actual/{conductorId}:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /combustible:
+    post:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /combustible/jornada/{jornadaId}:
     get:
-      summary: Jornada actual del conductor
-      description: Solo CHOFER. El conductorId debe corresponder al token autenticado.
-      tags: [Jornadas]
       parameters:
-        - name: conductorId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-          example: "22222222-2222-2222-2222-222222222222"
-      responses:
-        '200':
-          description: Jornada actual
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          description: Sin jornada activa
-
-  /jornadas/iniciar:
-    post:
-      summary: Iniciar jornada
-      description: Solo CHOFER.
-      tags: [Jornadas]
-      requestBody:
+      - name: "jornadaId"
+        in: "path"
         required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [jornada_id]
-              properties:
-                jornada_id:
-                  type: string
-                  format: uuid
-                  example: "cccc0002-0000-0000-0000-000000000002"
-      responses:
-        '200':
-          description: Jornada iniciada
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /jornadas/finalizar:
-    post:
-      summary: Finalizar jornada
-      description: Solo CHOFER.
-      tags: [Jornadas]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [jornada_id]
-              properties:
-                jornada_id:
-                  type: string
-                  format: uuid
-                  example: "cccc0002-0000-0000-0000-000000000002"
-                km_recorridos:
-                  type: number
-                  example: 300
-                observaciones:
-                  type: string
-                  example: "Jornada finalizada sin incidencias"
-      responses:
-        '200':
-          description: Jornada finalizada
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /jornadas/exportar:
-    get:
-      summary: Exportar jornadas
-      description: ADMIN y GERENTE.
-      tags: [Jornadas]
-      responses:
-        '200':
-          description: Exportación de jornadas
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  # ============================================================
-  # GPS - Solo ADMIN
-  # ============================================================
-  /gps/proveedores:
-    get:
-      summary: Listar proveedores GPS
-      description: Solo ADMIN.
-      tags: [GPS]
-      responses:
-        '200':
-          description: Proveedores disponibles (GPSCONTROL, GLOBALGPS, OTRO)
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /gps/plantilla:
-    get:
-      summary: Descargar plantilla GPS genérica
-      description: Solo ADMIN.
-      tags: [GPS]
-      responses:
-        '200':
-          description: Plantilla CSV/XLSX
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /gps/plantilla/{proveedor}:
-    get:
-      summary: Descargar plantilla GPS por proveedor
-      description: Solo ADMIN.
-      tags: [GPS]
+        type: "string"
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       parameters:
-        - name: proveedor
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [GPSCONTROL, GLOBALGPS, OTRO]
-          example: "GPSCONTROL"
-      responses:
-        '200':
-          description: Plantilla del proveedor específico
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /gps/validar:
-    post:
-      summary: Validar archivo GPS
-      description: Solo ADMIN.
-      tags: [GPS]
-      requestBody:
+      - name: "jornadaId"
+        in: "path"
         required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                proveedor:
-                  type: string
-                  enum: [GPSCONTROL, GLOBALGPS, OTRO]
+        type: "string"
       responses:
-        '200':
-          description: Resultado de validación
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /gps/importar:
-    post:
-      summary: Importar registros GPS
-      description: Solo ADMIN.
-      tags: [GPS]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                proveedor:
-                  type: string
-                  enum: [GPSCONTROL, GLOBALGPS, OTRO]
-      responses:
-        '200':
-          description: Importación procesada
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /gps/resumen:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /combustible/ultimo-km/{unidadId}:
     get:
-      summary: Resumen GPS
-      description: Solo ADMIN.
-      tags: [GPS]
-      responses:
-        '200':
-          description: Resumen de registros GPS
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /gps/registros:
-    get:
-      summary: Registros GPS
-      description: Solo ADMIN.
-      tags: [GPS]
       parameters:
-        - name: unidad_id
-          in: query
-          schema: { type: string, format: uuid }
-        - name: fecha_inicio
-          in: query
-          schema: { type: string, format: date }
-        - name: fecha_fin
-          in: query
-          schema: { type: string, format: date }
+      - name: "unidadId"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "unidadId"
+        in: "path"
+        required: true
+        type: "string"
       responses:
-        '200':
-          description: Lista de registros GPS
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  # ============================================================
-  # CONDUCTORES
-  # ============================================================
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
   /conductores:
     get:
-      summary: Listar conductores
-      description: ADMIN y GERENTE. HTTP 403 si rol es CHOFER.
-      tags: [Conductores]
+      responses: {}
+    post:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       responses:
-        '200':
-          description: Lista de conductores
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  # ============================================================
-  # CONTRATOS - Solo GERENTE
-  # ============================================================
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /conductores/dashboard/listado:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /conductores/dashboard/resumen:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /conductores/licencia:
+    get:
+      responses: {}
+    put:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /conductores/{id}:
+    get:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /conductores/{id}/estadisticas:
+    get:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
   /contratos:
     get:
-      summary: Listar contratos
-      description: Solo GERENTE. HTTP 403 si rol es ADMIN o CHOFER.
-      tags: [Contratos]
-      responses:
-        '200':
-          description: Lista de contratos
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
+      responses: {}
     post:
-      summary: Crear contrato
-      description: Solo GERENTE.
-      tags: [Contratos]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateContratoRequest'
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       responses:
-        '201':
-          description: Contrato creado
-        '400':
-          description: Error de validación
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /contratos/{id}:
-    get:
-      summary: Obtener contrato por ID
-      description: Solo GERENTE.
-      tags: [Contratos]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-          example: "bbbb0001-0000-0000-0000-000000000001"
-      responses:
-        '200':
-          description: Detalle del contrato
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          description: Contrato no encontrado
-
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
   /contratos/indicadores:
     get:
-      summary: Indicadores de contratos
-      description: Solo GERENTE.
-      tags: [Contratos]
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       responses:
-        '200':
-          description: KPIs de contratos
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
   /contratos/vigentes:
     get:
-      summary: Contratos vigentes
-      description: ADMIN y GERENTE. HTTP 403 si rol es CHOFER.
-      tags: [Contratos]
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       responses:
-        '200':
-          description: Contratos activos
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  # ============================================================
-  # UNIDADES
-  # ============================================================
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /contratos/{id}:
+    get:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+    put:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /contratos/{id}/unidades:
+    put:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /dashboard:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /dashboard/gerencial:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /gps/importar:
+    post:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /gps/plantilla:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /gps/plantilla/{proveedor}:
+    get:
+      parameters:
+      - name: "proveedor"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "proveedor"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /gps/proveedores:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /gps/registros:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /gps/resumen:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /gps/tracking/export:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /gps/tracking/resumen:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /gps/validar:
+    post:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /jornadas:
+    get:
+      responses: {}
+    post:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /jornadas/actual/{conductorId}:
+    get:
+      parameters:
+      - name: "conductorId"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "conductorId"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /jornadas/alerta/{jornadaId}:
+    get:
+      parameters:
+      - name: "jornadaId"
+        in: "path"
+        required: true
+        type: "string"
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "jornadaId"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /jornadas/exportar:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /jornadas/finalizar:
+    post:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /jornadas/historial:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /jornadas/historial-gerencial:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /jornadas/historial-gerencial/metrics:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /jornadas/iniciar:
+    post:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /jornadas/metricas:
+    get:
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
   /unidades/disponibles:
     get:
-      summary: Listar unidades disponibles
-      description: ADMIN y GERENTE.
-      tags: [Unidades]
+      responses: {}
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
       responses:
-        '200':
-          description: Unidades con estado DISPONIBLE
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+x-amazon-apigateway-security-policy: "TLS_1_0"
