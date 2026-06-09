@@ -6,292 +6,580 @@
   <title>Nanutech API — Docs</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:          #0d0f14;
-      --bg2:         #13161e;
-      --bg3:         #1a1d27;
-      --surface:     #1e2130;
-      --surface2:    #252840;
-      --border:      rgba(255,255,255,0.07);
-      --border2:     rgba(255,255,255,0.13);
-      --accent:      #6c63ff;
-      --accent2:     #4f46e5;
-      --accent-glow: rgba(108,99,255,0.25);
-      --green:       #22d3a0;
-      --green-bg:    rgba(34,211,160,0.10);
-      --blue:        #38bdf8;
-      --blue-bg:     rgba(56,189,248,0.10);
-      --amber:       #fbbf24;
-      --amber-bg:    rgba(251,191,36,0.10);
-      --red:         #f87171;
-      --red-bg:      rgba(248,113,113,0.10);
-      --purple:      #c084fc;
-      --purple-bg:   rgba(192,132,252,0.10);
-      --text:        #e8eaf0;
-      --text2:       #9298b0;
-      --text3:       #5d6380;
+      /* ── Paleta Lab2Next-inspired ── */
+      --bg:          #F0F4F9;
+      --bg2:         #FFFFFF;
+      --bg3:         #F8FAFC;
+      --surface:     #FFFFFF;
+      --surface2:    #F1F5F9;
+
+      --border:      #E2E8F0;
+      --border2:     #CBD5E1;
+
+      --accent:      #2563EB;
+      --accent-h:    #1D4ED8;
+      --accent-light:#EFF6FF;
+      --accent-mid:  #BFDBFE;
+
+      --green:       #059669;
+      --green-bg:    #ECFDF5;
+      --green-border:#A7F3D0;
+
+      --blue:        #0284C7;
+      --blue-bg:     #F0F9FF;
+      --blue-border: #BAE6FD;
+
+      --amber:       #D97706;
+      --amber-bg:    #FFFBEB;
+      --amber-border:#FDE68A;
+
+      --red:         #DC2626;
+      --red-bg:      #FEF2F2;
+      --red-border:  #FECACA;
+
+      --purple:      #7C3AED;
+      --purple-bg:   #F5F3FF;
+      --purple-border:#DDD6FE;
+
+      --slate:       #0F172A;
+      --slate2:      #1E293B;
+      --text:        #0F172A;
+      --text2:       #475569;
+      --text3:       #94A3B8;
+      --text4:       #CBD5E1;
+
       --font:        'Inter', system-ui, sans-serif;
       --mono:        'JetBrains Mono', monospace;
-      --radius:      12px;
-      --radius-sm:   8px;
-      --shadow:      0 4px 24px rgba(0,0,0,0.4);
-      --sidebar-w:   280px;
-      --header-h:    64px;
+      --radius:      10px;
+      --radius-sm:   7px;
+      --radius-lg:   14px;
+      --shadow-sm:   0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.06);
+      --shadow:      0 4px 16px rgba(15,23,42,0.10);
+      --shadow-lg:   0 10px 40px rgba(15,23,42,0.12);
+      --sidebar-w:   256px;
+      --header-h:    60px;
     }
 
     html { scroll-behavior: smooth; }
-    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
 
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg2); }
-    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg3); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
-    /* ── HEADER ── */
+    /* ═══════════════════════════════════════════
+       HEADER
+    ═══════════════════════════════════════════ */
     .header {
       position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
-      background: rgba(13,15,20,0.85); backdrop-filter: blur(16px);
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 24px; z-index: 1000;
+      box-shadow: var(--shadow-sm);
     }
-    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
     .logo-mark {
-      width: 36px; height: 36px;
-      background: linear-gradient(135deg, var(--accent), var(--purple));
-      border-radius: 10px; display: flex; align-items: center; justify-content: center;
-      font-size: 16px; font-weight: 700; color: #fff;
-      box-shadow: 0 0 16px var(--accent-glow); flex-shrink: 0;
+      width: 34px; height: 34px;
+      background: var(--accent);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 800; color: #fff;
+      letter-spacing: -0.5px;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.35);
+      flex-shrink: 0;
     }
-    .header-title { font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
-    .header-right { display: flex; align-items: center; gap: 10px; }
-    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; font-family: var(--mono); letter-spacing: 0.02em; }
-    .badge-version { background: var(--purple-bg); color: var(--purple); border: 1px solid rgba(192,132,252,0.2); }
-    .badge-live { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,211,160,0.2); }
-    .badge-live::before { content: ''; width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.8); } }
+    .header-title {
+      font-size: 14px; font-weight: 700;
+      color: var(--slate); letter-spacing: -0.2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px;
+    }
+    .header-divider { width: 1px; height: 18px; background: var(--border); }
+    .header-subtitle { font-size: 12px; color: var(--text3); font-weight: 400; }
+    .header-right { display: flex; align-items: center; gap: 8px; }
 
-    /* ── TOKEN HINT BANNER ── */
-    .token-hint {
-      background: linear-gradient(90deg, rgba(108,99,255,0.12), rgba(192,132,252,0.08));
-      border: 1px solid rgba(108,99,255,0.25);
-      border-radius: var(--radius-sm);
-      padding: 10px 16px;
-      font-size: 12px;
-      color: var(--text2);
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; font-family: var(--mono);
+      letter-spacing: 0.01em;
     }
-    .token-hint strong { color: var(--accent); }
-    .token-hint code {
-      font-family: var(--mono);
-      background: rgba(108,99,255,0.15);
-      border: 1px solid rgba(108,99,255,0.2);
-      border-radius: 4px;
-      padding: 2px 6px;
-      font-size: 11px;
-      color: var(--purple);
+    .badge-version {
+      background: var(--purple-bg); color: var(--purple);
+      border: 1px solid var(--purple-border);
+    }
+    .badge-live {
+      background: var(--green-bg); color: var(--green);
+      border: 1px solid var(--green-border);
+    }
+    .badge-live::before {
+      content: ''; width: 6px; height: 6px; background: var(--green);
+      border-radius: 50%; animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.7); }
     }
 
-    /* ── LAYOUT ── */
+    /* ═══════════════════════════════════════════
+       LAYOUT
+    ═══════════════════════════════════════════ */
     .layout { display: flex; padding-top: var(--header-h); min-height: 100vh; }
 
-    /* ── SIDEBAR ── */
+    /* ═══════════════════════════════════════════
+       SIDEBAR
+    ═══════════════════════════════════════════ */
     .sidebar {
-      width: var(--sidebar-w); flex-shrink: 0; background: var(--bg2);
+      width: var(--sidebar-w); flex-shrink: 0;
+      background: var(--bg2);
       border-right: 1px solid var(--border);
       position: fixed; top: var(--header-h); bottom: 0; left: 0;
-      overflow-y: auto; padding: 20px 0;
+      overflow-y: auto; padding: 16px 0;
       display: flex; flex-direction: column;
     }
-    .sidebar-section { padding: 0 0 16px; }
-    .sidebar-label { padding: 0 20px 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); }
+    .sidebar-section { padding: 0 0 8px; }
+    .sidebar-label {
+      padding: 0 16px 6px;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text3);
+    }
     .sidebar-item {
-      display: flex; align-items: center; gap: 10px; padding: 9px 20px;
-      cursor: pointer; font-size: 13px; color: var(--text2);
-      border-left: 3px solid transparent; transition: all 0.18s;
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 16px; cursor: pointer;
+      font-size: 13px; font-weight: 500; color: var(--text2);
+      border-left: 2px solid transparent;
+      transition: all 0.14s; border-radius: 0;
+      margin: 1px 0;
     }
-    .sidebar-item:hover { color: var(--text); background: var(--bg3); }
-    .sidebar-item.active { color: var(--accent); background: rgba(108,99,255,0.08); border-left-color: var(--accent); font-weight: 500; }
+    .sidebar-item:hover {
+      color: var(--accent);
+      background: var(--accent-light);
+      border-left-color: var(--accent-mid);
+    }
+    .sidebar-item.active {
+      color: var(--accent);
+      background: var(--accent-light);
+      border-left-color: var(--accent);
+      font-weight: 600;
+    }
     .method-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .sidebar-divider { height: 1px; background: var(--border); margin: 8px 20px 16px; }
+    .sidebar-divider { height: 1px; background: var(--border); margin: 8px 16px; }
 
-    /* ── SEARCH ── */
-    .search-wrap { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    /* ─── Search ─── */
+    .search-wrap { padding: 12px 12px 8px; }
     .search-box { position: relative; }
-    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; }
-    .search-input {
-      width: 100%; background: var(--bg3); border: 1px solid var(--border2);
-      border-radius: var(--radius-sm); padding: 8px 12px 8px 32px;
-      font-size: 12px; color: var(--text); font-family: var(--font); outline: none;
-      transition: border-color 0.18s;
+    .search-icon {
+      position: absolute; left: 10px; top: 50%;
+      transform: translateY(-50%); color: var(--text3); pointer-events: none;
     }
-    .search-input:focus { border-color: var(--accent); }
+    .search-input {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px 8px 32px;
+      font-size: 12px; color: var(--text); font-family: var(--font);
+      outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+    }
     .search-input::placeholder { color: var(--text3); }
 
-    /* ── MAIN ── */
+    /* ═══════════════════════════════════════════
+       MAIN
+    ═══════════════════════════════════════════ */
     .main { flex: 1; margin-left: var(--sidebar-w); min-height: calc(100vh - var(--header-h)); }
 
-    /* ── HERO ── */
+    /* ═══════════════════════════════════════════
+       HERO
+    ═══════════════════════════════════════════ */
     .hero {
-      background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 100%);
+      background: var(--bg2);
       border-bottom: 1px solid var(--border);
-      padding: 48px 48px 40px; position: relative; overflow: hidden;
+      padding: 40px 48px 36px;
+      position: relative; overflow: hidden;
     }
-    .hero::before {
-      content: ''; position: absolute; top: -60px; right: -60px;
-      width: 300px; height: 300px;
-      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+    .hero::after {
+      content: '';
+      position: absolute; top: 0; right: 0; bottom: 0;
+      width: 340px;
+      background: linear-gradient(135deg, var(--accent-light) 0%, transparent 70%);
       pointer-events: none;
     }
-    .hero-tag {
-      display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
-      border-radius: 20px; background: var(--accent-glow);
-      border: 1px solid rgba(108,99,255,0.3);
-      font-size: 11px; font-weight: 600; color: var(--accent);
-      letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 16px;
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 20px;
+      background: var(--accent-light);
+      border: 1px solid var(--accent-mid);
+      font-size: 10px; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.07em; text-transform: uppercase;
+      margin-bottom: 14px;
     }
-    .hero h1 { font-size: 32px; font-weight: 700; color: var(--text); line-height: 1.2; margin-bottom: 10px; }
-    .hero h1 span { color: var(--accent); }
-    .hero-sub { font-size: 15px; color: var(--text2); line-height: 1.6; max-width: 560px; margin-bottom: 28px; }
-    .hero-meta { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
-    .meta-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text3); }
-    .meta-item strong { color: var(--text2); font-weight: 500; }
-    .meta-sep { width: 1px; height: 16px; background: var(--border2); }
+    .hero h1 {
+      font-size: 28px; font-weight: 800; color: var(--slate);
+      line-height: 1.15; margin-bottom: 10px; letter-spacing: -0.5px;
+    }
+    .hero h1 em { font-style: normal; color: var(--accent); }
+    .hero-sub {
+      font-size: 14px; color: var(--text2); line-height: 1.65;
+      max-width: 520px; margin-bottom: 24px;
+    }
+    .hero-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .hero-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 12px; border-radius: 6px;
+      font-size: 11px; font-weight: 500; color: var(--text2);
+      background: var(--bg3); border: 1px solid var(--border);
+    }
+    .hero-pill svg { color: var(--text3); }
 
-    /* ── STATS ── */
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); }
-    .stat-item { background: var(--bg2); padding: 20px 24px; display: flex; flex-direction: column; gap: 4px; }
-    .stat-value { font-size: 26px; font-weight: 700; color: var(--text); font-family: var(--mono); line-height: 1; }
-    .stat-value.accent { color: var(--accent); }
-    .stat-value.green  { color: var(--green); }
-    .stat-value.blue   { color: var(--blue); }
-    .stat-value.amber  { color: var(--amber); }
-    .stat-label { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+    /* ═══════════════════════════════════════════
+       STATS BAR
+    ═══════════════════════════════════════════ */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+    }
+    .stat-item {
+      padding: 18px 24px;
+      display: flex; flex-direction: column; gap: 3px;
+      border-right: 1px solid var(--border);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-value {
+      font-size: 24px; font-weight: 800; color: var(--slate);
+      font-family: var(--mono); line-height: 1; letter-spacing: -1px;
+    }
+    .stat-value.c-accent  { color: var(--accent); }
+    .stat-value.c-green   { color: var(--green); }
+    .stat-value.c-blue    { color: var(--blue); }
+    .stat-value.c-amber   { color: var(--amber); }
+    .stat-value.c-purple  { color: var(--purple); }
+    .stat-label {
+      font-size: 10px; color: var(--text3); font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
 
-    /* ── SWAGGER WRAP ── */
-    .swagger-wrap { padding: 32px 40px 64px; }
+    /* ═══════════════════════════════════════════
+       TOKEN HINT
+    ═══════════════════════════════════════════ */
+    .token-hint {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--accent-light);
+      border: 1px solid var(--accent-mid);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 12px; color: var(--text2);
+      margin-bottom: 24px;
+    }
+    .token-hint svg { flex-shrink: 0; color: var(--accent); }
+    .token-hint strong { color: var(--accent); font-weight: 600; }
+    .token-hint code {
+      font-family: var(--mono); font-size: 11px;
+      background: white; border: 1px solid var(--accent-mid);
+      border-radius: 4px; padding: 1px 5px; color: var(--accent);
+    }
 
-    /* ── SWAGGER UI OVERRIDES ── */
-    #swagger-ui .swagger-ui { font-family: var(--font) !important; }
-    #swagger-ui .swagger-ui .topbar { display: none !important; }
-    #swagger-ui .swagger-ui .info   { display: none !important; }
+    /* ═══════════════════════════════════════════
+       SWAGGER WRAP
+    ═══════════════════════════════════════════ */
+    .swagger-wrap { padding: 28px 40px 64px; }
+
+    /* ═══════════════════════════════════════════
+       SWAGGER UI OVERRIDES — Light theme
+    ═══════════════════════════════════════════ */
+    #swagger-ui .swagger-ui { font-family: var(--font) !important; color: var(--text) !important; }
+    #swagger-ui .swagger-ui .topbar      { display: none !important; }
+    #swagger-ui .swagger-ui .info        { display: none !important; }
     #swagger-ui .swagger-ui .filter-container { display: none !important; }
 
+    /* Scheme container */
     #swagger-ui .swagger-ui .scheme-container {
-      background: var(--surface) !important; border: 1px solid var(--border2) !important;
-      border-radius: var(--radius) !important; padding: 12px 20px !important;
-      box-shadow: none !important; margin-bottom: 24px !important;
+      background: var(--bg2) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius) !important;
+      padding: 12px 18px !important;
+      box-shadow: var(--shadow-sm) !important;
+      margin-bottom: 20px !important;
     }
     #swagger-ui .swagger-ui select {
       background: var(--bg3) !important; color: var(--text) !important;
-      border: 1px solid var(--border2) !important; border-radius: var(--radius-sm) !important;
-      font-family: var(--mono) !important; font-size: 12px !important; padding: 6px 10px !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 6px !important;
+      font-family: var(--mono) !important; font-size: 12px !important;
+      padding: 6px 10px !important; box-shadow: none !important;
     }
+
+    /* Authorize button */
+    #swagger-ui .swagger-ui .btn.authorize {
+      background: var(--accent) !important;
+      border-color: var(--accent) !important;
+      color: #fff !important;
+      border-radius: 7px !important;
+      font-weight: 600 !important;
+      font-size: 13px !important;
+      padding: 8px 16px !important;
+      box-shadow: 0 2px 6px rgba(37,99,235,0.3) !important;
+      transition: background 0.15s !important;
+    }
+    #swagger-ui .swagger-ui .btn.authorize:hover {
+      background: var(--accent-h) !important;
+    }
+    #swagger-ui .swagger-ui .btn.authorize svg { fill: #fff !important; }
+
+    /* Operation blocks */
     #swagger-ui .swagger-ui .opblock {
-      border: 1px solid var(--border) !important; border-radius: var(--radius) !important;
-      background: var(--surface) !important; box-shadow: none !important; margin-bottom: 10px !important; overflow: hidden !important;
+      border-radius: var(--radius) !important;
+      border: 1px solid var(--border) !important;
+      background: var(--bg2) !important;
+      box-shadow: var(--shadow-sm) !important;
+      margin-bottom: 8px !important;
+      overflow: hidden !important;
+      transition: box-shadow 0.15s !important;
     }
-    #swagger-ui .swagger-ui .opblock:hover { border-color: var(--border2) !important; }
-    #swagger-ui .swagger-ui .opblock.is-open { border-color: var(--border2) !important; box-shadow: var(--shadow) !important; }
-    #swagger-ui .swagger-ui .opblock .opblock-summary { border-bottom: none !important; padding: 10px 16px !important; }
+    #swagger-ui .swagger-ui .opblock:hover {
+      box-shadow: var(--shadow) !important;
+    }
+    #swagger-ui .swagger-ui .opblock.is-open {
+      box-shadow: var(--shadow) !important;
+      border-color: var(--border2) !important;
+    }
+    #swagger-ui .swagger-ui .opblock .opblock-summary {
+      border-bottom: none !important; padding: 10px 14px !important;
+      cursor: pointer;
+    }
     #swagger-ui .swagger-ui .opblock .opblock-summary-method {
       border-radius: 6px !important; font-family: var(--mono) !important;
-      font-size: 11px !important; font-weight: 700 !important;
-      min-width: 70px !important; text-align: center !important; padding: 5px 0 !important;
+      font-size: 10px !important; font-weight: 700 !important;
+      min-width: 64px !important; text-align: center !important;
+      padding: 4px 0 !important; letter-spacing: 0.04em !important;
     }
-    #swagger-ui .swagger-ui .opblock-summary-path { font-family: var(--mono) !important; font-size: 13px !important; color: var(--text) !important; }
-    #swagger-ui .swagger-ui .opblock-summary-description { color: var(--text2) !important; font-size: 13px !important; }
+    #swagger-ui .swagger-ui .opblock-summary-path {
+      font-family: var(--mono) !important; font-size: 13px !important;
+      color: var(--slate) !important; font-weight: 500 !important;
+    }
+    #swagger-ui .swagger-ui .opblock-summary-description {
+      color: var(--text2) !important; font-size: 12px !important;
+    }
+    #swagger-ui .swagger-ui .opblock-summary-path b { font-weight: 600 !important; }
 
-    #swagger-ui .swagger-ui .opblock-get    { background: var(--blue-bg)  !important; border-color: rgba(56,189,248,0.2)  !important; }
-    #swagger-ui .swagger-ui .opblock-post   { background: var(--green-bg) !important; border-color: rgba(34,211,160,0.2)  !important; }
-    #swagger-ui .swagger-ui .opblock-put    { background: var(--amber-bg) !important; border-color: rgba(251,191,36,0.2)  !important; }
-    #swagger-ui .swagger-ui .opblock-patch  { background: var(--amber-bg) !important; border-color: rgba(251,191,36,0.2)  !important; }
-    #swagger-ui .swagger-ui .opblock-delete { background: var(--red-bg)   !important; border-color: rgba(248,113,113,0.2) !important; }
+    /* Method colors */
+    #swagger-ui .swagger-ui .opblock-get {
+      background: var(--blue-bg) !important;
+      border-color: var(--blue-border) !important;
+    }
+    #swagger-ui .swagger-ui .opblock-post {
+      background: var(--green-bg) !important;
+      border-color: var(--green-border) !important;
+    }
+    #swagger-ui .swagger-ui .opblock-put {
+      background: var(--amber-bg) !important;
+      border-color: var(--amber-border) !important;
+    }
+    #swagger-ui .swagger-ui .opblock-patch {
+      background: var(--amber-bg) !important;
+      border-color: var(--amber-border) !important;
+    }
+    #swagger-ui .swagger-ui .opblock-delete {
+      background: var(--red-bg) !important;
+      border-color: var(--red-border) !important;
+    }
 
-    #swagger-ui .swagger-ui .opblock-get    .opblock-summary-method { background: var(--blue)  !important; }
-    #swagger-ui .swagger-ui .opblock-post   .opblock-summary-method { background: var(--green) !important; color: #0d1117 !important; }
-    #swagger-ui .swagger-ui .opblock-put    .opblock-summary-method { background: var(--amber) !important; color: #0d1117 !important; }
-    #swagger-ui .swagger-ui .opblock-patch  .opblock-summary-method { background: #f59e0b     !important; color: #0d1117 !important; }
-    #swagger-ui .swagger-ui .opblock-delete .opblock-summary-method { background: var(--red)  !important; }
+    #swagger-ui .swagger-ui .opblock-get    .opblock-summary-method { background: var(--blue)  !important; color:#fff !important; }
+    #swagger-ui .swagger-ui .opblock-post   .opblock-summary-method { background: var(--green) !important; color:#fff !important; }
+    #swagger-ui .swagger-ui .opblock-put    .opblock-summary-method { background: var(--amber) !important; color:#fff !important; }
+    #swagger-ui .swagger-ui .opblock-patch  .opblock-summary-method { background: #B45309     !important; color:#fff !important; }
+    #swagger-ui .swagger-ui .opblock-delete .opblock-summary-method { background: var(--red)  !important; color:#fff !important; }
 
-    #swagger-ui .swagger-ui .opblock-body { background: var(--bg2) !important; border-top: 1px solid var(--border) !important; }
-    #swagger-ui .swagger-ui .opblock-section-header { background: var(--bg3) !important; border-bottom: 1px solid var(--border) !important; padding: 10px 16px !important; }
-    #swagger-ui .swagger-ui .opblock-section-header h4 { color: var(--text2) !important; font-size: 12px !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; }
+    /* Body */
+    #swagger-ui .swagger-ui .opblock-body {
+      background: var(--bg3) !important;
+      border-top: 1px solid var(--border) !important;
+    }
+    #swagger-ui .swagger-ui .opblock-section-header {
+      background: var(--bg2) !important;
+      border-bottom: 1px solid var(--border) !important;
+      padding: 10px 16px !important;
+      box-shadow: none !important;
+    }
+    #swagger-ui .swagger-ui .opblock-section-header h4 {
+      color: var(--text2) !important; font-size: 11px !important;
+      font-weight: 700 !important; text-transform: uppercase !important;
+      letter-spacing: 0.06em !important;
+    }
 
-    #swagger-ui .swagger-ui table.parameters th { color: var(--text3) !important; font-size: 11px !important; font-weight: 600 !important; padding: 8px 12px !important; border-bottom: 1px solid var(--border) !important; }
-    #swagger-ui .swagger-ui table.parameters td { color: var(--text) !important; padding: 8px 12px !important; border-bottom: 1px solid var(--border) !important; font-size: 13px !important; }
-    #swagger-ui .swagger-ui .parameter__name { font-family: var(--mono) !important; font-size: 13px !important; color: var(--accent) !important; }
-    #swagger-ui .swagger-ui .parameter__type { font-family: var(--mono) !important; font-size: 11px !important; color: var(--text3) !important; }
+    /* Parameters table */
+    #swagger-ui .swagger-ui table.parameters { border-collapse: collapse !important; }
+    #swagger-ui .swagger-ui table.parameters th {
+      color: var(--text3) !important; font-size: 10px !important;
+      font-weight: 700 !important; padding: 8px 14px !important;
+      border-bottom: 1px solid var(--border) !important;
+      background: var(--bg3) !important; text-transform: uppercase !important;
+      letter-spacing: 0.04em !important;
+    }
+    #swagger-ui .swagger-ui table.parameters td {
+      color: var(--text) !important; padding: 10px 14px !important;
+      border-bottom: 1px solid var(--border) !important; font-size: 13px !important;
+      background: var(--bg2) !important;
+    }
+    #swagger-ui .swagger-ui .parameter__name {
+      font-family: var(--mono) !important; font-size: 13px !important;
+      color: var(--accent) !important; font-weight: 500 !important;
+    }
+    #swagger-ui .swagger-ui .parameter__type {
+      font-family: var(--mono) !important; font-size: 11px !important;
+      color: var(--text3) !important;
+    }
+    #swagger-ui .swagger-ui .parameter__in {
+      font-size: 10px !important; color: var(--text3) !important;
+      font-style: italic !important;
+    }
+    #swagger-ui .swagger-ui .parameter__deprecated {
+      color: var(--red) !important;
+    }
 
-    #swagger-ui .swagger-ui .opblock-tag { border-bottom: 1px solid var(--border) !important; padding: 14px 0 !important; margin-bottom: 16px !important; }
-    #swagger-ui .swagger-ui .opblock-tag-section { margin-bottom: 24px !important; }
-    #swagger-ui .swagger-ui .opblock-tag h3 { color: var(--text) !important; font-size: 18px !important; font-weight: 600 !important; }
-    #swagger-ui .swagger-ui .opblock-tag small { color: var(--text3) !important; font-size: 12px !important; }
+    /* Tags / sections */
+    #swagger-ui .swagger-ui .opblock-tag {
+      border-bottom: 1px solid var(--border) !important;
+      padding: 12px 2px !important; margin-bottom: 12px !important;
+    }
+    #swagger-ui .swagger-ui .opblock-tag:hover {
+      background: transparent !important;
+    }
+    #swagger-ui .swagger-ui .opblock-tag-section { margin-bottom: 20px !important; }
+    #swagger-ui .swagger-ui .opblock-tag h3 {
+      color: var(--slate) !important; font-size: 17px !important;
+      font-weight: 700 !important; letter-spacing: -0.3px !important;
+    }
+    #swagger-ui .swagger-ui .opblock-tag small {
+      color: var(--text3) !important; font-size: 12px !important;
+      font-weight: 400 !important;
+    }
+    #swagger-ui .swagger-ui .expand-operation svg { fill: var(--text3) !important; }
 
-    #swagger-ui .swagger-ui .btn { font-family: var(--font) !important; font-size: 12px !important; font-weight: 600 !important; border-radius: 6px !important; transition: all 0.18s !important; }
-    #swagger-ui .swagger-ui .btn.try-out__btn { background: transparent !important; color: var(--accent) !important; border: 1px solid var(--accent) !important; padding: 6px 14px !important; }
-    #swagger-ui .swagger-ui .btn.try-out__btn:hover { background: var(--accent-glow) !important; }
-    #swagger-ui .swagger-ui .btn.execute { background: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; }
-    #swagger-ui .swagger-ui .btn.execute:hover { background: var(--accent2) !important; }
-    #swagger-ui .swagger-ui .btn.cancel { background: transparent !important; border: 1px solid var(--border2) !important; color: var(--text2) !important; }
+    /* Buttons */
+    #swagger-ui .swagger-ui .btn {
+      font-family: var(--font) !important; font-size: 12px !important;
+      font-weight: 600 !important; border-radius: 7px !important;
+      transition: all 0.15s !important; cursor: pointer !important;
+    }
+    #swagger-ui .swagger-ui .btn.try-out__btn {
+      background: transparent !important; color: var(--accent) !important;
+      border: 1px solid var(--accent) !important; padding: 6px 14px !important;
+    }
+    #swagger-ui .swagger-ui .btn.try-out__btn:hover {
+      background: var(--accent-light) !important;
+    }
+    #swagger-ui .swagger-ui .btn.execute {
+      background: var(--accent) !important;
+      border-color: var(--accent) !important; color: #fff !important;
+      box-shadow: 0 2px 6px rgba(37,99,235,0.25) !important;
+    }
+    #swagger-ui .swagger-ui .btn.execute:hover {
+      background: var(--accent-h) !important;
+    }
+    #swagger-ui .swagger-ui .btn.cancel {
+      background: transparent !important;
+      border: 1px solid var(--border2) !important; color: var(--text2) !important;
+    }
 
-    #swagger-ui .swagger-ui .responses-inner { background: var(--bg3) !important; }
-    #swagger-ui .swagger-ui .response-col_status { font-family: var(--mono) !important; font-size: 13px !important; font-weight: 600 !important; color: var(--green) !important; }
-    #swagger-ui .swagger-ui .highlight-code pre { background: var(--bg) !important; border: 1px solid var(--border) !important; border-radius: var(--radius-sm) !important; font-family: var(--mono) !important; font-size: 12px !important; }
+    /* Response codes */
+    #swagger-ui .swagger-ui .responses-inner {
+      background: var(--bg3) !important;
+    }
+    #swagger-ui .swagger-ui .response-col_status {
+      font-family: var(--mono) !important; font-size: 13px !important;
+      font-weight: 700 !important; color: var(--green) !important;
+    }
+    #swagger-ui .swagger-ui .response-col_description {
+      color: var(--text2) !important;
+    }
+    #swagger-ui .swagger-ui .highlight-code pre {
+      background: var(--slate2) !important; color: #e2e8f0 !important;
+      border: none !important; border-radius: var(--radius-sm) !important;
+      font-family: var(--mono) !important; font-size: 12px !important;
+    }
+    #swagger-ui .swagger-ui .microlight { background: var(--slate2) !important; }
 
+    /* Inputs */
     #swagger-ui .swagger-ui input[type=text],
+    #swagger-ui .swagger-ui input[type=password],
     #swagger-ui .swagger-ui textarea {
-      background: var(--bg) !important; border: 1px solid var(--border2) !important;
-      border-radius: 6px !important; color: var(--text) !important;
+      background: var(--bg2) !important;
+      border: 1px solid var(--border2) !important;
+      border-radius: 7px !important; color: var(--text) !important;
       font-family: var(--mono) !important; font-size: 13px !important;
     }
     #swagger-ui .swagger-ui input[type=text]:focus,
-    #swagger-ui .swagger-ui textarea:focus { border-color: var(--accent) !important; outline: none !important; box-shadow: 0 0 0 2px var(--accent-glow) !important; }
+    #swagger-ui .swagger-ui input[type=password]:focus,
+    #swagger-ui .swagger-ui textarea:focus {
+      border-color: var(--accent) !important; outline: none !important;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
+    }
 
-    /* ── Authorize modal dark ── */
-    #swagger-ui .swagger-ui .dialog-ux .modal-ux {
-      background: var(--bg2) !important; border: 1px solid var(--border2) !important;
+    /* Models */
+    #swagger-ui .swagger-ui .models {
+      background: var(--bg2) !important;
+      border: 1px solid var(--border) !important;
       border-radius: var(--radius) !important;
     }
-    #swagger-ui .swagger-ui .dialog-ux .modal-ux-header {
-      background: var(--bg3) !important; border-bottom: 1px solid var(--border) !important;
+    #swagger-ui .swagger-ui .models h4 {
+      color: var(--slate) !important; font-size: 14px !important;
     }
-    #swagger-ui .swagger-ui .dialog-ux .modal-ux-header h3 { color: var(--text) !important; }
-    #swagger-ui .swagger-ui .dialog-ux .modal-ux-content { color: var(--text2) !important; }
-    #swagger-ui .swagger-ui .dialog-ux .modal-ux-content p { color: var(--text2) !important; }
-    #swagger-ui .swagger-ui .dialog-ux .modal-ux-content label { color: var(--text) !important; font-size: 12px !important; font-weight: 600 !important; }
-    #swagger-ui .swagger-ui .auth-wrapper .authorize {
-      background: var(--accent) !important; border-color: var(--accent) !important;
-      color: #fff !important; border-radius: 6px !important; font-weight: 600 !important;
-    }
-    #swagger-ui .swagger-ui .auth-wrapper .authorize:hover {
-      background: var(--accent2) !important;
-    }
-    /* Modal backdrop */
-    #swagger-ui .swagger-ui .dialog-ux .backdrop-ux {
-      background: rgba(0,0,0,0.7) !important;
+    #swagger-ui .swagger-ui section.models .model-container {
+      background: var(--bg3) !important;
+      border-radius: var(--radius-sm) !important;
     }
 
-    /* ── FOOTER ── */
-    .footer { background: var(--bg2); border-top: 1px solid var(--border); padding: 20px 40px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text3); }
+    /* Required asterisk */
+    #swagger-ui .swagger-ui .parameter__name.required::after {
+      color: var(--red) !important;
+    }
+
+    /* ═══════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════ */
+    .footer {
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      padding: 18px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; color: var(--text3);
+    }
     .footer a { color: var(--text3); text-decoration: none; }
     .footer a:hover { color: var(--accent); }
 
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════ */
     @media (max-width: 768px) {
       :root { --sidebar-w: 0px; }
       .sidebar { display: none; }
-      .hero { padding: 32px 24px 28px; }
-      .hero h1 { font-size: 24px; }
-      .swagger-wrap { padding: 24px 16px 48px; }
-      .footer { flex-direction: column; gap: 8px; text-align: center; }
+      .hero { padding: 28px 20px 24px; }
+      .hero h1 { font-size: 22px; }
+      .swagger-wrap { padding: 20px 16px 48px; }
+      .stats { grid-template-columns: repeat(3,1fr); }
+      .footer { flex-direction: column; gap: 6px; text-align: center; }
     }
   </style>
 </head>
@@ -301,6 +589,8 @@
     <div class="header-left">
       <div class="logo-mark">N</div>
       <span class="header-title">Nanutech API</span>
+      <div class="header-divider"></div>
+      <span class="header-subtitle">REST API</span>
     </div>
     <div class="header-right">
       <span class="badge badge-version">v1.0</span>
@@ -310,95 +600,118 @@
 
   <div class="layout">
 
+    <!-- ═══════ SIDEBAR ═══════ -->
     <aside class="sidebar" id="sidebar">
       <div class="search-wrap">
         <div class="search-box">
-          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input class="search-input" type="text" placeholder="Buscar endpoints..." id="searchInput"/>
         </div>
       </div>
 
-      <div class="sidebar-section">
-        <div class="sidebar-label">Módulos</div>
+      <div style="padding:4px 0 0;">
+        <div class="sidebar-label" style="margin-top:8px;">Módulos</div>
+
         <div class="sidebar-item active" data-tag="all" onclick="filterTag('all')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           Todos los endpoints
         </div>
-        <div class="sidebar-item" data-tag="alertas"    onclick="filterTag('alertas')"><span class="method-dot" style="background:#f87171"></span>Alertas</div>
-        <div class="sidebar-item" data-tag="auditoria"  onclick="filterTag('auditoria')"><span class="method-dot" style="background:#fbbf24"></span>Auditoría</div>
-        <div class="sidebar-item" data-tag="auth"       onclick="filterTag('auth')"><span class="method-dot" style="background:#6c63ff"></span>Autenticación</div>
-        <div class="sidebar-item" data-tag="camiones"   onclick="filterTag('camiones')"><span class="method-dot" style="background:#38bdf8"></span>Camiones</div>
-        <div class="sidebar-item" data-tag="combustible" onclick="filterTag('combustible')"><span class="method-dot" style="background:#fb923c"></span>Combustible</div>
-        <div class="sidebar-item" data-tag="conductores" onclick="filterTag('conductores')"><span class="method-dot" style="background:#22d3a0"></span>Conductores</div>
-        <div class="sidebar-item" data-tag="contratos"  onclick="filterTag('contratos')"><span class="method-dot" style="background:#c084fc"></span>Contratos</div>
-        <div class="sidebar-item" data-tag="dashboard"  onclick="filterTag('dashboard')"><span class="method-dot" style="background:#4ade80"></span>Dashboard</div>
-        <div class="sidebar-item" data-tag="gps"        onclick="filterTag('gps')"><span class="method-dot" style="background:#f472b6"></span>GPS</div>
-        <div class="sidebar-item" data-tag="jornadas"   onclick="filterTag('jornadas')"><span class="method-dot" style="background:#a78bfa"></span>Jornadas</div>
-        <div class="sidebar-item" data-tag="unidades"   onclick="filterTag('unidades')"><span class="method-dot" style="background:#34d399"></span>Unidades</div>
+
+        <div class="sidebar-item" data-tag="alertas"     onclick="filterTag('alertas')"><span class="method-dot" style="background:#EF4444"></span>Alertas</div>
+        <div class="sidebar-item" data-tag="auditoria"   onclick="filterTag('auditoria')"><span class="method-dot" style="background:#F59E0B"></span>Auditoría</div>
+        <div class="sidebar-item" data-tag="auth"        onclick="filterTag('auth')"><span class="method-dot" style="background:#2563EB"></span>Autenticación</div>
+        <div class="sidebar-item" data-tag="camiones"    onclick="filterTag('camiones')"><span class="method-dot" style="background:#0284C7"></span>Camiones</div>
+        <div class="sidebar-item" data-tag="combustible" onclick="filterTag('combustible')"><span class="method-dot" style="background:#EA580C"></span>Combustible</div>
+        <div class="sidebar-item" data-tag="conductores" onclick="filterTag('conductores')"><span class="method-dot" style="background:#059669"></span>Conductores</div>
+        <div class="sidebar-item" data-tag="contratos"   onclick="filterTag('contratos')"><span class="method-dot" style="background:#7C3AED"></span>Contratos</div>
+        <div class="sidebar-item" data-tag="dashboard"   onclick="filterTag('dashboard')"><span class="method-dot" style="background:#16A34A"></span>Dashboard</div>
+        <div class="sidebar-item" data-tag="gps"         onclick="filterTag('gps')"><span class="method-dot" style="background:#DB2777"></span>GPS</div>
+        <div class="sidebar-item" data-tag="jornadas"    onclick="filterTag('jornadas')"><span class="method-dot" style="background:#6D28D9"></span>Jornadas</div>
+        <div class="sidebar-item" data-tag="unidades"    onclick="filterTag('unidades')"><span class="method-dot" style="background:#10B981"></span>Unidades</div>
       </div>
 
       <div class="sidebar-divider"></div>
 
-      <div class="sidebar-section">
-        <div class="sidebar-label">Info</div>
-        <div class="sidebar-item" style="cursor:default;font-size:11px;color:var(--text3);padding-top:4px;padding-bottom:4px;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          Host: q26dwk17da.execute-api.us-east-1.amazonaws.com
+      <div style="padding:0 0 8px;">
+        <div class="sidebar-label">Servidor</div>
+        <div class="sidebar-item" style="cursor:default;font-size:11px;color:var(--text3);gap:7px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          q26dwk17da.execute-api.us-east-1.amazonaws.com
         </div>
-        <div class="sidebar-item" style="cursor:default;font-size:11px;color:var(--text3);padding-top:4px;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <div class="sidebar-item" style="cursor:default;font-size:11px;color:var(--text3);gap:7px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           Base: /Stage
         </div>
-        <div class="sidebar-item" style="cursor:default;font-size:11px;color:var(--text3);padding-top:4px;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          Build: 09 Jun 2026 21:06 UTC
+        <div class="sidebar-item" style="cursor:default;font-size:11px;color:var(--text3);gap:7px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          09 Jun 2026 21:16 UTC
         </div>
       </div>
     </aside>
 
+    <!-- ═══════ MAIN ═══════ -->
     <main class="main">
 
+      <!-- HERO -->
       <section class="hero">
-        <div class="hero-tag">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <div class="hero-eyebrow">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
           REST API
         </div>
-        <h1>Nanutech API <span>API</span></h1>
+        <h1>Nanutech API <em>API</em></h1>
         <p class="hero-sub">Documentación interactiva. Explora endpoints, prueba peticiones en tiempo real y revisa esquemas de respuesta directamente desde el navegador.</p>
-        <div class="hero-meta">
-          <div class="meta-item">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            <span>HTTPS · TLS 1.0+</span>
-          </div>
-          <div class="meta-sep"></div>
-          <div class="meta-item">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span>AWS API Gateway · Stage</span>
-          </div>
-          <div class="meta-sep"></div>
-          <div class="meta-item">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <strong>Actualizado:</strong>&nbsp;09 Jun 2026 21:06 UTC
-          </div>
+        <div class="hero-pills">
+          <span class="hero-pill">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            HTTPS · TLS 1.0+
+          </span>
+          <span class="hero-pill">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            AWS API Gateway
+          </span>
+          <span class="hero-pill">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Bearer JWT
+          </span>
+          <span class="hero-pill">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            09 Jun 2026 21:16 UTC
+          </span>
         </div>
       </section>
 
+      <!-- STATS -->
       <div class="stats">
-        <div class="stat-item"><span class="stat-value accent" id="totalEndpoints">—</span><span class="stat-label">Endpoints</span></div>
-        <div class="stat-item"><span class="stat-value green"  id="totalGet">—</span><span class="stat-label">GET</span></div>
-        <div class="stat-item"><span class="stat-value blue"   id="totalPost">—</span><span class="stat-label">POST</span></div>
-        <div class="stat-item"><span class="stat-value amber"  id="totalPatch">—</span><span class="stat-label">PATCH / PUT</span></div>
-        <div class="stat-item"><span class="stat-value" id="totalModules" style="color:var(--purple)">11</span><span class="stat-label">Módulos</span></div>
+        <div class="stat-item">
+          <span class="stat-value c-accent" id="totalEndpoints">—</span>
+          <span class="stat-label">Endpoints</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value c-blue" id="totalGet">—</span>
+          <span class="stat-label">GET</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value c-green" id="totalPost">—</span>
+          <span class="stat-label">POST</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value c-amber" id="totalPatch">—</span>
+          <span class="stat-label">PATCH / PUT</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value c-purple">11</span>
+          <span class="stat-label">Módulos</span>
+        </div>
       </div>
 
+      <!-- SWAGGER -->
       <div class="swagger-wrap">
 
-        <!-- ── INSTRUCCIÓN DE TOKEN ── -->
         <div class="token-hint">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--accent)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>
-            Haz <strong>POST /auth/login</strong> para obtener tu token, luego haz clic en
-            <strong>Authorize 🔒</strong> y pega <strong>solo el token</strong> sin prefijo.
+            Ejecuta <strong>POST /auth/login</strong>, copia el token y haz clic en
+            <strong>Authorize 🔒</strong> — pega <strong>solo el token</strong> sin prefijo.
             El interceptor agrega <code>Bearer</code> automáticamente.
           </span>
         </div>
@@ -407,107 +720,80 @@
       </div>
 
       <footer class="footer">
-        <span>© 09 Jun 2026 21:06 UTC · Nanutech API</span>
-        <span>Generado automáticamente · <a href="https://swagger.io" target="_blank">Swagger UI v5</a></span>
+        <span>Nanutech API · 09 Jun 2026 21:16 UTC</span>
+        <span>Powered by <a href="https://swagger.io" target="_blank">Swagger UI v5</a></span>
       </footer>
 
     </main>
-  </div>
+  </div><!-- /.layout -->
 
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
   <script>
-    // ── Estado del filtro activo ─────────────────────────────────────────────
     let _activeTag = 'all';
 
-    // ── Esperar a que el DOM de Swagger tenga elementos antes de actuar ──────
     function waitForSwaggerDOM(selector, callback, maxWait) {
       maxWait = maxWait || 10000;
       const start = Date.now();
-      const interval = setInterval(function() {
+      const iv = setInterval(function() {
         const els = document.querySelectorAll(selector);
-        if (els.length > 0) {
-          clearInterval(interval);
-          callback(els);
-        } else if (Date.now() - start > maxWait) {
-          clearInterval(interval);
-        }
-      }, 200);
+        if (els.length > 0) { clearInterval(iv); callback(els); }
+        else if (Date.now() - start > maxWait) { clearInterval(iv); }
+      }, 150);
     }
 
-    // ── Contar endpoints cuando el DOM esté listo ────────────────────────────
     function countStats() {
       waitForSwaggerDOM('#swagger-ui .opblock', function(ops) {
-        var get = 0, post = 0, pp = 0;
+        let get = 0, post = 0, pp = 0;
         ops.forEach(function(op) {
           if (op.classList.contains('opblock-get'))   get++;
           if (op.classList.contains('opblock-post'))  post++;
           if (op.classList.contains('opblock-patch') || op.classList.contains('opblock-put')) pp++;
         });
-        document.getElementById('totalEndpoints').textContent = get + post + pp || ops.length;
+        document.getElementById('totalEndpoints').textContent = ops.length;
         document.getElementById('totalGet').textContent   = get;
         document.getElementById('totalPost').textContent  = post;
         document.getElementById('totalPatch').textContent = pp;
       });
     }
 
-    // ── Aplicar filtro por tag ────────────────────────────────────────────────
     function applyFilter(tag) {
-      var sections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
-      sections.forEach(function(section) {
-        if (tag === 'all') {
-          section.style.display = '';
-          return;
-        }
-        var heading = section.querySelector('.opblock-tag h3, .opblock-tag span, h3');
-        var text = heading ? heading.textContent.toLowerCase().trim() : '';
+      document.querySelectorAll('#swagger-ui .opblock-tag-section').forEach(function(section) {
+        if (tag === 'all') { section.style.display = ''; return; }
+        const h = section.querySelector('.opblock-tag h3, .opblock-tag span, h3');
+        const text = h ? h.textContent.toLowerCase().trim() : '';
         section.style.display = text.includes(tag.toLowerCase()) ? '' : 'none';
       });
     }
 
-    // ── Filtrar tag (llamado desde el sidebar) ────────────────────────────────
     function filterTag(tag) {
       _activeTag = tag;
       document.querySelectorAll('.sidebar-item').forEach(function(el) {
         el.classList.toggle('active', el.dataset.tag === tag);
       });
-      var sections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
-      if (sections.length > 0) {
-        applyFilter(tag);
-      } else {
-        waitForSwaggerDOM('#swagger-ui .opblock-tag-section', function() {
-          applyFilter(tag);
-        });
-      }
+      const sections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
+      if (sections.length > 0) { applyFilter(tag); }
+      else { waitForSwaggerDOM('#swagger-ui .opblock-tag-section', function() { applyFilter(tag); }); }
     }
 
-    // ── Búsqueda por texto ────────────────────────────────────────────────────
     document.getElementById('searchInput').addEventListener('input', function() {
-      var q = this.value.toLowerCase().trim();
-      if (!q) {
-        filterTag(_activeTag);
-        return;
-      }
-      document.querySelectorAll('.sidebar-item').forEach(function(el) {
-        el.classList.remove('active');
-      });
-      var sections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
-      sections.forEach(function(section) {
-        section.style.display = '';
-        var anyVisible = false;
+      const q = this.value.toLowerCase().trim();
+      if (!q) { filterTag(_activeTag); return; }
+      document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('#swagger-ui .opblock-tag-section').forEach(function(section) {
+        let any = false;
         section.querySelectorAll('.opblock').forEach(function(op) {
-          var path = op.querySelector('.opblock-summary-path, .opblock-summary-path__deprecated');
-          var desc = op.querySelector('.opblock-summary-description');
-          var text = ((path ? path.textContent : '') + ' ' + (desc ? desc.textContent : '')).toLowerCase();
-          var visible = text.includes(q);
-          op.style.display = visible ? '' : 'none';
-          if (visible) anyVisible = true;
+          const path = op.querySelector('.opblock-summary-path, .opblock-summary-path__deprecated');
+          const desc = op.querySelector('.opblock-summary-description');
+          const text = ((path ? path.textContent : '') + ' ' + (desc ? desc.textContent : '')).toLowerCase();
+          const vis = text.includes(q);
+          op.style.display = vis ? '' : 'none';
+          if (vis) any = true;
         });
-        section.style.display = anyVisible ? '' : 'none';
+        section.style.display = any ? '' : 'none';
       });
     });
 
-    // ── Inicializar Swagger UI ────────────────────────────────────────────────
     const ui = SwaggerUIBundle({
       url: "./swagger.json",
       dom_id: '#swagger-ui',
@@ -519,56 +805,34 @@
       defaultModelsExpandDepth: -1,
       docExpansion: 'none',
       filter: false,
-
-      // ── FIX 1: Habilitar "Try it out" en todos los endpoints por defecto ──
       tryItOutEnabled: true,
-
-      // ── FIX 2: Mantener el token aunque se recargue la página ──────────────
       persistAuthorization: true,
 
-      // ── FIX 3: Interceptor de requests ─────────────────────────────────────
-      // Tu backend local (authToken.mjs) usa verifyLocalAccessToken(token)
-      // que espera el token SIN el prefijo "Bearer ".
-      // Swagger UI con type:apiKey envía el valor tal cual lo pegaste.
-      // Este interceptor garantiza que el header Authorization siempre sea:
-      //   "Bearer <token_limpio>"
-      // sin importar si el usuario pegó el token con o sin "Bearer ".
       requestInterceptor: function(request) {
-        var authHeader = request.headers['Authorization'] || request.headers['authorization'];
-        if (authHeader) {
-          // Extraer el token puro (quitar cualquier prefijo Bearer/bearer)
-          var rawToken = authHeader.replace(/^[Bb]earer\s+/, '').trim();
-
-          // Tu middleware de Express/Lambda debe recibir "Bearer <token>"
-          // para hacer: token = header.split(' ')[1]
-          // Si tu código ya hace eso, este formato es correcto.
-          // Si tu código recibe el token directo sin Bearer, cambia a solo rawToken.
-          request.headers['Authorization'] = 'Bearer ' + rawToken;
+        const auth = request.headers['Authorization'] || request.headers['authorization'];
+        if (auth) {
+          const raw = auth.replace(/^[Bb]earer\s+/, '').trim();
+          request.headers['Authorization'] = 'Bearer ' + raw;
         }
         return request;
       },
 
       onComplete: function() {
         countStats();
-        if (_activeTag !== 'all') {
-          applyFilter(_activeTag);
-        }
+        if (_activeTag !== 'all') applyFilter(_activeTag);
 
-        // ── Personalizar el placeholder del input de autorización ────────────
-        // Esperar a que aparezca el modal de auth si está abierto
-        var observer = new MutationObserver(function() {
-          var authInputs = document.querySelectorAll(
-            '#swagger-ui input[type=text][placeholder*="api"], ' +
-            '#swagger-ui .auth-container input[type=text]'
-          );
-          authInputs.forEach(function(input) {
-            input.placeholder = 'Pega solo el token (sin "Bearer ")';
+        // Personalizar placeholder del input de token en el modal Authorize
+        new MutationObserver(function() {
+          document.querySelectorAll(
+            '#swagger-ui .auth-container input[type=text], ' +
+            '#swagger-ui .auth-container input[type=password]'
+          ).forEach(function(input) {
+            if (!input.dataset.hinted) {
+              input.placeholder = 'Solo el token, sin "Bearer "';
+              input.dataset.hinted = '1';
+            }
           });
-        });
-        observer.observe(document.getElementById('swagger-ui'), {
-          childList: true,
-          subtree: true
-        });
+        }).observe(document.getElementById('swagger-ui'), { childList: true, subtree: true });
       }
     });
   </script>
