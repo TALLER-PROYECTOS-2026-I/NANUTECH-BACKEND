@@ -404,8 +404,8 @@
     <div class="header-meta">
       <span>📦 <strong>TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND</strong></span>
       <span>🌿 <strong>develop</strong></span>
-      <span>🔖 <strong>4abfefd</strong></span>
-      <span>🕒 2026-06-09 15:02 UTC</span>
+      <span>🔖 <strong>39ec541</strong></span>
+      <span>🕒 2026-06-09 15:08 UTC</span>
     </div>
   </div>
   <span class="header-badge">FAILED</span>
@@ -423,13 +423,13 @@
 
   <!-- Commit strip -->
   <div class="commit-strip">
-    <span>Scan: <strong>2026-06-09 15:02 UTC</strong></span>
+    <span>Scan: <strong>2026-06-09 15:08 UTC</strong></span>
     <span>·</span>
     <span>Framework: <strong>CloudFormation / SAM</strong></span>
     <span>·</span>
     <span>Herramienta: <strong>Checkov 3.x</strong></span>
     <span>·</span>
-    <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/27215350364" target="_blank">Ver ejecución en GitHub Actions →</a>
+    <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/27215697489" target="_blank">Ver ejecución en GitHub Actions →</a>
   </div>
 
   <!-- ═══ RESUMEN ═══════════════════════════════════════════════════════ -->
@@ -504,15 +504,15 @@
         <tbody>
           <tr>
           <td><span class="sev-high">🔴 HIGH</span></td>
-          <td><code class="rule-id">CKV_AWS_76</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-logging-policies/logging-17" target="_blank" class="ref-link">📖</a></td>
-          <td class="rule-name-cell">Ensure API Gateway has Access Logging enabled</td>
+          <td><code class="rule-id">CKV_AWS_120</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-api-gateway-caching-is-enabled" target="_blank" class="ref-link">📖</a></td>
+          <td class="rule-name-cell">Ensure API Gateway caching is enabled</td>
           <td style="text-align:center"><span class="count-badge">1</span></td>
           <td style="font-size:11px;color:#8b949e">—</td>
         </tr>
 <tr>
           <td><span class="sev-high">🔴 HIGH</span></td>
-          <td><code class="rule-id">CKV_AWS_120</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-api-gateway-caching-is-enabled" target="_blank" class="ref-link">📖</a></td>
-          <td class="rule-name-cell">Ensure API Gateway caching is enabled</td>
+          <td><code class="rule-id">CKV_AWS_76</code>&nbsp;<a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-logging-policies/logging-17" target="_blank" class="ref-link">📖</a></td>
+          <td class="rule-name-cell">Ensure API Gateway has Access Logging enabled</td>
           <td style="text-align:center"><span class="count-badge">1</span></td>
           <td style="font-size:11px;color:#8b949e">—</td>
         </tr>
@@ -574,16 +574,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr data-level="error" data-rule="CKV_AWS_76">
-          <td><span class="sev-high">🔴 HIGH</span></td>
-          <td><code class="rule-id">CKV_AWS_76</code></td>
-          <td class="rule-name-cell">Ensure API Gateway has Access Logging enabled</td>
-          <td>—</td>
-          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L93–105</span></td>
-          <td class="desc-cell">La API Gateway no tiene Access Logging habilitado. Sin logging es imposible auditar quién accedió y cuándo.</td>
-          <td class="fix-cell">Agregar AccessLogSetting con DestinationArn apuntando a un Log Group de CloudWatch en el recurso AWS::Serverless::Api.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-logging-policies/logging-17" target="_blank" class="ref-link">📖 Docs</a></td>
-        </tr>
-<tr data-level="error" data-rule="CKV_AWS_120">
+          <tr data-level="error" data-rule="CKV_AWS_120">
           <td><span class="sev-high">🔴 HIGH</span></td>
           <td><code class="rule-id">CKV_AWS_120</code></td>
           <td class="rule-name-cell">Ensure API Gateway caching is enabled</td>
@@ -591,6 +582,15 @@
           <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L93–105</span></td>
           <td class="desc-cell">API Gateway no tiene caching habilitado. El caching reduce latencia y protege backends de sobrecarga.</td>
           <td class="fix-cell">Agregar MethodSettings con CachingEnabled: true y CacheDataEncrypted: true en la definición del stage.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/ensure-api-gateway-caching-is-enabled" target="_blank" class="ref-link">📖 Docs</a></td>
+        </tr>
+<tr data-level="error" data-rule="CKV_AWS_76">
+          <td><span class="sev-high">🔴 HIGH</span></td>
+          <td><code class="rule-id">CKV_AWS_76</code></td>
+          <td class="rule-name-cell">Ensure API Gateway has Access Logging enabled</td>
+          <td>—</td>
+          <td><code class="file-tag">template.yaml</code><br><span class="line-tag">L93–105</span></td>
+          <td class="desc-cell">La API Gateway no tiene Access Logging habilitado. Sin logging es imposible auditar quién accedió y cuándo.</td>
+          <td class="fix-cell">Agregar AccessLogSetting con DestinationArn apuntando a un Log Group de CloudWatch en el recurso AWS::Serverless::Api.<br><a href="https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-logging-policies/logging-17" target="_blank" class="ref-link">📖 Docs</a></td>
         </tr>
 <tr data-level="error" data-rule="CKV_AWS_116">
           <td><span class="sev-high">🔴 HIGH</span></td>
@@ -992,8 +992,8 @@
 <footer>
   🏗️ Checkov IaC Security Report &nbsp;·&nbsp;
   <a href="https://www.checkov.io/" target="_blank">Checkov</a> &nbsp;·&nbsp;
-  <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/27215350364" target="_blank">GitHub Actions Run</a> &nbsp;·&nbsp;
-  Generado automáticamente · 2026-06-09 15:02 UTC
+  <a href="https://github.com/TALLER-PROYECTOS-2026-I/NANUTECH-BACKEND/actions/runs/27215697489" target="_blank">GitHub Actions Run</a> &nbsp;·&nbsp;
+  Generado automáticamente · 2026-06-09 15:08 UTC
 </footer>
 
 <script>
