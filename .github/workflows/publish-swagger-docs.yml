@@ -1,0 +1,78 @@
+name: 📚 Publish Swagger Docs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-docs:
+    name: Generar y publicar documentación
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout rama principal (contiene el swagger y el script)
+      - name: Checkout rama develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          path: source
+
+      # 2. Checkout rama gh-pages en carpeta separada (preserva todo lo demás)
+      - name: Checkout rama gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+        continue-on-error: true
+
+      # 3. Inicializar gh-pages si no existe aún
+      - name: Inicializar gh-pages si no existe
+        run: |
+          if [ ! -d "gh-pages" ] || [ -z "$(ls -A gh-pages 2>/dev/null)" ]; then
+            mkdir -p gh-pages
+            cd gh-pages
+            git init
+            git checkout -b gh-pages
+          fi
+
+      # 4. Preparar carpeta de destino (solo toca swagger/, nada más)
+      - name: Preparar carpeta swagger/
+        run: mkdir -p gh-pages/swagger
+
+      # 5. Instalar PyYAML
+      - name: Instalar PyYAML
+        run: pip install pyyaml --quiet --break-system-packages 2>/dev/null || pip install pyyaml --quiet
+
+      # 6. Ejecutar el script Python con la ruta fija del swagger
+      - name: Generar documentación
+        run: |
+          python3 source/.github/scripts/generate_swagger_page.py \
+            source/openapi/openapi.yml \
+            gh-pages/swagger
+
+      # 7. Commit y push SOLO de swagger/ (el resto de gh-pages queda intacto)
+      - name: Publicar en gh-pages
+        run: |
+          cd gh-pages
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add swagger/
+          if git diff --cached --quiet; then
+            echo "ℹ️ Sin cambios, no se generó commit."
+            exit 0
+          fi
+          git commit -m "docs: actualizar Swagger UI 📚 [skip ci]"
+          git push origin gh-pages
+          echo "✅ Documentación publicada."
+
+      # 8. Mostrar URL final
+      - name: URL de la documentación
+        run: |
+          REPO="${{ github.repository }}"
+          OWNER=$(echo "$REPO" | cut -d'/' -f1)
+          NAME=$(echo "$REPO" | cut -d'/' -f2)
+          echo ""
+          echo "🎉 Disponible en: https://${OWNER}.github.io/${NAME}/swagger/"
+          echo ""
