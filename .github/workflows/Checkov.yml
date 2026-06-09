@@ -1,11 +1,6 @@
 name: 🏗️ Security - Checkov (IaC)
 
 on:
-  pull_request:
-    branches: [ develop ]
-    types: [ opened, synchronize, reopened ]
-  push:
-    branches: [ develop, main ]
   workflow_dispatch:
 
 jobs:
