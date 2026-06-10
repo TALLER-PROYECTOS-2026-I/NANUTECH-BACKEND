@@ -1,0 +1,282 @@
+name: 🔐 CodeQL Security Analysis & Report
+
+# ─────────────────────────────────────────────────────────────
+# Solo manual — workflow_dispatch con parámetros configurables
+# ─────────────────────────────────────────────────────────────
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Rama a analizar"
+        required: true
+        default: "develop"
+        type: string
+      languages:
+        description: "Lenguajes a analizar (separados por coma)"
+        required: true
+        default: "javascript"
+        type: string
+      query_suite:
+        description: "Suite de queries CodeQL"
+        required: true
+        default: "security-and-quality"
+        type: choice
+        options:
+          - security-and-quality
+          - security-extended
+          - security-experimental
+      publish_report:
+        description: "¿Publicar reporte HTML en gh-pages?"
+        required: true
+        default: "true"
+        type: boolean
+
+permissions:
+  contents: write
+  security-events: write
+  actions: read
+  pages: write
+  id-token: write
+
+env:
+  REPO_NAME: ${{ github.repository }}
+  RUN_ID:    ${{ github.run_id }}
+  BRANCH:    ${{ inputs.branch || 'develop' }}
+
+# ─────────────────────────────────────────────────────────────
+jobs:
+# ─────────────────────────────────────────────────────────────
+
+  # ──────────────────────────────────────────────
+  # JOB 1 — Análisis CodeQL detallado
+  # ──────────────────────────────────────────────
+  codeql-analysis:
+    name: 🔍 CodeQL Analysis
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(format('["{0}"]', join(split(inputs.languages || 'javascript', ','), '","'))) }}
+
+    steps:
+      # ── Checkout ──
+      - name: 📥 Checkout código fuente
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || 'develop' }}
+          fetch-depth: 0           # Historial completo para mejor análisis
+
+      # ── Node.js ──
+      - name: ⚙️ Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: 📦 Instalar dependencias
+        run: |
+          npm ci --prefer-offline
+          echo "✅ Dependencias instaladas: $(npm list --depth=0 2>/dev/null | wc -l) paquetes"
+
+      # ── CodeQL Init ──
+      - name: 🛡️ Inicializar CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: ${{ inputs.query_suite || 'security-and-quality' }}
+          # Queries adicionales para mayor cobertura
+          config: |
+            query-filters:
+              - exclude:
+                  tags contain: experimental
+            paths-ignore:
+              - "node_modules/**"
+              - "dist/**"
+              - "build/**"
+              - "coverage/**"
+              - "**/*.test.js"
+              - "**/*.spec.js"
+              - "**/*.min.js"
+              - ".github/**"
+
+      # ── Auto-build ──
+      - name: 🔨 Auto-build (CodeQL)
+        uses: github/codeql-action/autobuild@v3
+
+      # ── Análisis ──
+      - name: 🔬 Ejecutar análisis CodeQL
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          output: "${{ runner.temp }}/codeql-results"
+          upload: true                         # Sube al Security tab de GitHub
+          add-snippet: true                    # Incluye fragmentos de código en SARIF
+          wait-for-processing: true            # Espera confirmación del servidor
+
+      # ── Guardar SARIF como artifact ──
+      - name: 💾 Subir SARIF como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: "${{ runner.temp }}/codeql-results/*.sarif"
+          retention-days: 30
+          if-no-files-found: warn
+
+
+  # ──────────────────────────────────────────────
+  # JOB 2 — Generar y publicar reporte HTML
+  # ──────────────────────────────────────────────
+  publish-report:
+    name: 📊 Generar & Publicar Reporte
+    runs-on: ubuntu-latest
+    needs: codeql-analysis
+    if: ${{ always() && inputs.publish_report != 'false' }}
+
+    steps:
+      # ── Checkout rama de código (para el script) ──
+      - name: 📥 Checkout código fuente
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || 'develop' }}
+          path: source
+
+      # ── Checkout gh-pages ──
+      - name: 📥 Checkout rama gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+        continue-on-error: true
+
+      - name: 🏗️ Inicializar gh-pages si no existe
+        run: |
+          if [ ! -d "gh-pages" ] || [ -z "$(ls -A gh-pages 2>/dev/null)" ]; then
+            mkdir -p gh-pages
+            cd gh-pages
+            git init
+            git checkout -b gh-pages
+          fi
+
+      # ── Descargar todos los artefactos SARIF ──
+      - name: 📥 Descargar artefactos SARIF
+        uses: actions/download-artifact@v4
+        with:
+          pattern: codeql-sarif-*
+          path: sarif-results
+          merge-multiple: true
+
+      - name: 🔎 Listar archivos SARIF descargados
+        run: |
+          echo "── Archivos SARIF encontrados ──"
+          find sarif-results -name "*.sarif" -exec ls -lh {} \; || echo "⚠️  No se encontraron archivos SARIF"
+          SARIF_COUNT=$(find sarif-results -name "*.sarif" | wc -l)
+          echo "Total: $SARIF_COUNT archivo(s)"
+
+      # ── Python + dependencias ──
+      - name: 🐍 Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 📦 Instalar dependencias Python
+        run: pip install --quiet --break-system-packages 2>/dev/null || true
+
+      - name: 📄 Preparar carpeta de destino
+        run: mkdir -p gh-pages/codeql
+
+      # ── Generar reporte HTML ──
+      - name: 🖥️ Generar página de reporte CodeQL
+        run: |
+          SARIF_DIR="sarif-results"
+          SARIF_COUNT=$(find "$SARIF_DIR" -name "*.sarif" 2>/dev/null | wc -l)
+
+          if [ "$SARIF_COUNT" -eq 0 ]; then
+            echo "⚠️  Sin archivos SARIF — generando reporte vacío"
+            SARIF_DIR="/dev/null"
+          fi
+
+          python3 source/.github/scripts/generate_codeql_page.py \
+            "$SARIF_DIR" \
+            gh-pages/codeql \
+            --repo  "${{ github.repository }}" \
+            --branch "${{ inputs.branch || 'develop' }}" \
+            --run-id "${{ github.run_id }}"
+
+          echo "✅ Reporte generado en gh-pages/codeql/"
+          ls -lh gh-pages/codeql/
+
+      # ── Resumen en el paso ──
+      - name: 📋 Resumen de hallazgos
+        run: |
+          SARIF_FILES=$(find sarif-results -name "*.sarif" 2>/dev/null)
+          if [ -z "$SARIF_FILES" ]; then
+            echo "## ✅ Sin hallazgos de seguridad" >> $GITHUB_STEP_SUMMARY
+            echo "No se encontraron archivos SARIF — análisis limpio." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## 🔐 Resumen CodeQL" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
+            echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Repositorio | \`${{ github.repository }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Rama | \`${{ inputs.branch || 'develop' }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Suite | \`${{ inputs.query_suite || 'security-and-quality' }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Run ID | [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            for f in $SARIF_FILES; do
+              echo "### 📄 $(basename $f)" >> $GITHUB_STEP_SUMMARY
+              # Contar resultados en el SARIF
+              python3 -c "
+          import json, sys
+          try:
+              d = json.load(open('$f'))
+              total = sum(len(r.get('results',[])) for r in d.get('runs',[]))
+              counts = {}
+              for run in d.get('runs',[]):
+                  for result in run.get('results',[]):
+                      lvl = result.get('level','warning')
+                      counts[lvl] = counts.get(lvl,0) + 1
+              print(f'- **Total hallazgos:** {total}')
+              print(f'- error (crítico): {counts.get(\"error\",0)}')
+              print(f'- warning (alto): {counts.get(\"warning\",0)}')
+              print(f'- note (medio): {counts.get(\"note\",0)}')
+              print(f'- none (bajo): {counts.get(\"none\",0)}')
+          except Exception as e:
+              print(f'Error parseando SARIF: {e}')
+          " >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+      # ── Publicar en gh-pages ──
+      - name: 🚀 Publicar reporte en gh-pages
+        run: |
+          cd gh-pages
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add codeql/
+          if git diff --cached --quiet; then
+            echo "ℹ️  Sin cambios, no se generó commit."
+            exit 0
+          fi
+          git commit -m "security: actualizar reporte CodeQL 🔐 [skip ci]
+
+          Rama: ${{ inputs.branch || 'develop' }}
+          Run:  ${{ github.run_id }}
+          Suite: ${{ inputs.query_suite || 'security-and-quality' }}"
+          git push origin gh-pages
+          echo "✅ Reporte publicado en gh-pages."
+
+      # ── URL final ──
+      - name: 🌐 URL del reporte
+        run: |
+          REPO="${{ github.repository }}"
+          OWNER=$(echo "$REPO" | cut -d'/' -f1)
+          NAME=$(echo "$REPO" | cut -d'/' -f2)
+          URL="https://${OWNER}.github.io/${NAME}/codeql/"
+          echo ""
+          echo "🎉 Reporte disponible en: $URL"
+          echo ""
+          echo "🔗 URL_REPORTE=$URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[🌐 Ver reporte de seguridad]($URL)" >> $GITHUB_STEP_SUMMARY
