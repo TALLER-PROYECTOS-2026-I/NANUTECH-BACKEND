@@ -542,13 +542,15 @@ jobs:
                 background: var(--card-icon-bg, var(--accent-light));
               }
 
-              /* Card color variants */
-              .card-coverage  { --card-accent: #2563EB; --card-icon-bg: #EFF6FF; --card-icon-border: #BFDBFE; --card-cta-bg: #2563EB; }
-              .card-owasp     { --card-accent: #059669; --card-icon-bg: #ECFDF5; --card-icon-border: #A7F3D0; --card-cta-bg: #059669; }
-              .card-checkov   { --card-accent: #D97706; --card-icon-bg: #FFFBEB; --card-icon-border: #FDE68A; --card-cta-bg: #D97706; }
-              .card-trivy     { --card-accent: #7C3AED; --card-icon-bg: #F5F3FF; --card-icon-border: #DDD6FE; --card-cta-bg: #7C3AED; }
-              .card-swagger   { --card-accent: #0284C7; --card-icon-bg: #F0F9FF; --card-icon-border: #BAE6FD; --card-cta-bg: #0284C7; }
-              .card-lint      { --card-accent: #059669; --card-icon-bg: #ECFDF5; --card-icon-border: #A7F3D0; --card-cta-bg: #059669; }
+              /* ── Card color variants ── */
+              .card-coverage { --card-accent: #2563EB; --card-icon-bg: #EFF6FF; --card-icon-border: #BFDBFE; --card-cta-bg: #2563EB; }
+              .card-owasp    { --card-accent: #059669; --card-icon-bg: #ECFDF5; --card-icon-border: #A7F3D0; --card-cta-bg: #059669; }
+              .card-checkov  { --card-accent: #D97706; --card-icon-bg: #FFFBEB; --card-icon-border: #FDE68A; --card-cta-bg: #D97706; }
+              .card-trivy    { --card-accent: #7C3AED; --card-icon-bg: #F5F3FF; --card-icon-border: #DDD6FE; --card-cta-bg: #7C3AED; }
+              .card-swagger  { --card-accent: #0284C7; --card-icon-bg: #F0F9FF; --card-icon-border: #BAE6FD; --card-cta-bg: #0284C7; }
+              .card-lint     { --card-accent: #059669; --card-icon-bg: #ECFDF5; --card-icon-border: #A7F3D0; --card-cta-bg: #059669; }
+              /* ── NUEVO: CodeQL ── */
+              .card-codeql   { --card-accent: #DC2626; --card-icon-bg: #FEF2F2; --card-icon-border: #FECACA; --card-cta-bg: #DC2626; }
 
               /* ── STATUS BAR ── */
               .status-bar {
@@ -678,6 +680,24 @@ jobs:
                   <span class="card-cta outline">Ver reporte →</span>
                 </a>
 
+                <!-- CodeQL — NUEVO -->
+                <a href="https://$OWNER.github.io/$REPO_NAME/codeql/" class="card card-codeql">
+                  <div class="card-icon-wrap">🔐</div>
+                  <div class="card-title">CodeQL — SAST</div>
+                  <p class="card-desc">
+                    Análisis estático de seguridad sobre el código fuente.
+                    Detecta vulnerabilidades, inyecciones y patrones inseguros
+                    antes de que lleguen a producción.
+                  </p>
+                  <div class="card-tags">
+                    <span class="card-tag">CodeQL</span>
+                    <span class="card-tag">SAST</span>
+                    <span class="card-tag">GitHub</span>
+                    <span class="card-tag">SARIF</span>
+                  </div>
+                  <span class="card-cta outline">Ver reporte →</span>
+                </a>
+
                 <!-- Swagger API Docs -->
                 <a href="https://$OWNER.github.io/$REPO_NAME/swagger/" class="card card-swagger">
                   <div class="card-icon-wrap">📚</div>
@@ -757,6 +777,7 @@ jobs:
           echo "║  🛡️  OWASP ZAP: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/security/"
           echo "║  🏗️  Checkov  : https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/checkov/"
           echo "║  🔍 Trivy    : https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/trivy/"
+          echo "║  🔐 CodeQL   : https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/codeql/"
           echo "║  📚 Swagger  : https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/swagger/"
           echo "║  ✨ Lint     : https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/lint/"
           echo "╚══════════════════════════════════════════════════════════════╝"
