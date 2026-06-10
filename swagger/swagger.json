@@ -77,6 +77,11 @@
           "Auth"
         ],
         "summary": "Iniciar sesión",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE",
+          "CHOFER"
+        ],
         "description": "Retorna un token JWT para usar en el resto de endpoints",
         "consumes": [
           "application/json"
@@ -174,6 +179,11 @@
           "Auth"
         ],
         "summary": "Solicitar recuperación de contraseña",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE",
+          "CHOFER"
+        ],
         "consumes": [
           "application/json"
         ],
@@ -237,6 +247,11 @@
           "Auth"
         ],
         "summary": "Confirmar nueva contraseña",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE",
+          "CHOFER"
+        ],
         "consumes": [
           "application/json"
         ],
@@ -310,6 +325,11 @@
           "Auth"
         ],
         "summary": "Obtener sesión actual",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE",
+          "CHOFER"
+        ],
         "description": "Retorna los datos del usuario autenticado",
         "security": [
           {
@@ -374,6 +394,10 @@
           "Alertas"
         ],
         "summary": "Listar alertas activas",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -448,6 +472,10 @@
           "Alertas"
         ],
         "summary": "Obtener indicadores de alertas",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -514,6 +542,10 @@
           "Alertas"
         ],
         "summary": "Crear alerta SOS",
+        "x-roles": [
+          "ADMIN",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -598,6 +630,10 @@
           "Alertas"
         ],
         "summary": "Crear alerta de auxilio mecánico",
+        "x-roles": [
+          "ADMIN",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -682,6 +718,10 @@
           "Alertas"
         ],
         "summary": "Actualizar estado de una alerta",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -773,6 +813,10 @@
           "Alertas"
         ],
         "summary": "Resolver una alerta",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -856,6 +900,9 @@
           "Auditoria"
         ],
         "summary": "Resumen de auditoría",
+        "x-roles": [
+          "ADMIN"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -918,6 +965,9 @@
           "Auditoria"
         ],
         "summary": "Listar registros de auditoría",
+        "x-roles": [
+          "ADMIN"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -984,6 +1034,9 @@
           "Auditoria"
         ],
         "summary": "Exportar auditoría a CSV",
+        "x-roles": [
+          "ADMIN"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1046,6 +1099,10 @@
           "Camiones"
         ],
         "summary": "Listar todos los camiones",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1092,6 +1149,9 @@
           "Camiones"
         ],
         "summary": "Crear un nuevo camión",
+        "x-roles": [
+          "ADMIN"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1191,6 +1251,10 @@
           "Camiones"
         ],
         "summary": "Panel de estado de camiones",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1237,6 +1301,10 @@
           "Camiones"
         ],
         "summary": "Exportar camiones a CSV",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1283,6 +1351,10 @@
           "Camiones"
         ],
         "summary": "Obtener camión por ID",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1350,6 +1422,10 @@
           "Combustible"
         ],
         "summary": "Registrar carga de combustible",
+        "x-roles": [
+          "ADMIN",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1440,6 +1516,10 @@
           "Combustible"
         ],
         "summary": "Obtener último kilometraje registrado de una unidad",
+        "x-roles": [
+          "ADMIN",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1522,6 +1602,11 @@
           "Combustible"
         ],
         "summary": "Obtener combustible registrado en una jornada",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1589,6 +1674,10 @@
           "Conductores"
         ],
         "summary": "Listar todos los conductores",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1634,6 +1723,9 @@
           "Conductores"
         ],
         "summary": "Crear nuevo conductor",
+        "x-roles": [
+          "ADMIN"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1743,6 +1835,10 @@
           "Conductores"
         ],
         "summary": "Obtener licencia del conductor autenticado",
+        "x-roles": [
+          "ADMIN",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1765,6 +1861,10 @@
           "Conductores"
         ],
         "summary": "Actualizar licencia del conductor",
+        "x-roles": [
+          "ADMIN",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1839,6 +1939,10 @@
           "Conductores"
         ],
         "summary": "Resumen del dashboard de conductores",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1885,6 +1989,10 @@
           "Conductores"
         ],
         "summary": "Listado de conductores para dashboard",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1931,6 +2039,10 @@
           "Conductores"
         ],
         "summary": "Obtener conductor por ID",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -1998,6 +2110,10 @@
           "Conductores"
         ],
         "summary": "Estadísticas de un conductor",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2079,6 +2195,10 @@
           "Contratos"
         ],
         "summary": "Listar todos los contratos",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2125,6 +2245,10 @@
           "Contratos"
         ],
         "summary": "Crear nuevo contrato",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2216,6 +2340,10 @@
           "Contratos"
         ],
         "summary": "Indicadores de contratos",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2262,6 +2390,10 @@
           "Contratos"
         ],
         "summary": "Listar contratos vigentes",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2308,6 +2440,10 @@
           "Contratos"
         ],
         "summary": "Obtener contrato por ID",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2342,6 +2478,10 @@
           "Contratos"
         ],
         "summary": "Actualizar contrato",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2441,6 +2581,10 @@
           "Contratos"
         ],
         "summary": "Asignar unidades a un contrato",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2533,6 +2677,9 @@
           "Dashboard"
         ],
         "summary": "Dashboard principal (ADMIN)",
+        "x-roles": [
+          "ADMIN"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2579,6 +2726,10 @@
           "Dashboard"
         ],
         "summary": "Dashboard gerencial (GERENTE/ADMIN)",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2625,6 +2776,10 @@
           "GPS"
         ],
         "summary": "Listar proveedores GPS disponibles",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2671,6 +2826,10 @@
           "GPS"
         ],
         "summary": "Descargar plantilla CSV genérica de GPS",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2717,6 +2876,10 @@
           "GPS"
         ],
         "summary": "Descargar plantilla CSV de un proveedor específico",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2784,6 +2947,10 @@
           "GPS"
         ],
         "summary": "Validar archivo CSV de GPS antes de importar",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2869,6 +3036,10 @@
           "GPS"
         ],
         "summary": "Importar datos GPS desde CSV",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -2954,6 +3125,10 @@
           "GPS"
         ],
         "summary": "Resumen de registros GPS",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3000,6 +3175,10 @@
           "GPS"
         ],
         "summary": "Listar registros GPS",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3068,6 +3247,10 @@
           "GPS"
         ],
         "summary": "Resumen de tracking GPS",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3114,6 +3297,10 @@
           "GPS"
         ],
         "summary": "Exportar tracking GPS a CSV",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3182,6 +3369,10 @@
           "Jornadas"
         ],
         "summary": "Listar todas las jornadas",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3233,6 +3424,10 @@
           "Jornadas"
         ],
         "summary": "Crear jornada manualmente",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3314,6 +3509,10 @@
           "Jornadas"
         ],
         "summary": "Iniciar jornada (CHOFER)",
+        "x-roles": [
+          "ADMIN",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3390,6 +3589,10 @@
           "Jornadas"
         ],
         "summary": "Finalizar jornada activa (CHOFER)",
+        "x-roles": [
+          "ADMIN",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3470,6 +3673,11 @@
           "Jornadas"
         ],
         "summary": "Obtener jornada activa de un conductor",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3536,6 +3744,10 @@
           "Jornadas"
         ],
         "summary": "Historial de jornadas del chofer autenticado",
+        "x-roles": [
+          "ADMIN",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3598,6 +3810,10 @@
           "Jornadas"
         ],
         "summary": "Historial gerencial de jornadas",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3666,6 +3882,10 @@
           "Jornadas"
         ],
         "summary": "Métricas del historial gerencial",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3712,6 +3932,10 @@
           "Jornadas"
         ],
         "summary": "Métricas de jornadas del chofer",
+        "x-roles": [
+          "ADMIN",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3758,6 +3982,10 @@
           "Jornadas"
         ],
         "summary": "Exportar jornadas a CSV",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3820,6 +4048,11 @@
           "Jornadas"
         ],
         "summary": "Obtener alerta de una jornada",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3886,6 +4119,11 @@
           "Unidades"
         ],
         "summary": "Listar unidades disponibles para asignar",
+        "x-roles": [
+          "ADMIN",
+          "GERENTE",
+          "CHOFER"
+        ],
         "security": [
           {
             "BearerAuth": []
