@@ -67,6 +67,7 @@ paths:
     post:
       tags: [Auth]
       summary: Iniciar sesión
+      x-roles: [ADMIN, GERENTE, CHOFER]
       description: Retorna un token JWT para usar en el resto de endpoints
       consumes: ["application/json"]
       produces: ["application/json"]
@@ -123,6 +124,7 @@ paths:
     post:
       tags: [Auth]
       summary: Solicitar recuperación de contraseña
+      x-roles: [ADMIN, GERENTE, CHOFER]
       consumes: ["application/json"]
       produces: ["application/json"]
       parameters:
@@ -159,6 +161,7 @@ paths:
     post:
       tags: [Auth]
       summary: Confirmar nueva contraseña
+      x-roles: [ADMIN, GERENTE, CHOFER]
       consumes: ["application/json"]
       produces: ["application/json"]
       parameters:
@@ -201,6 +204,7 @@ paths:
     get:
       tags: [Auth]
       summary: Obtener sesión actual
+      x-roles: [ADMIN, GERENTE, CHOFER]
       description: Retorna los datos del usuario autenticado
       security:
         - BearerAuth: []
@@ -242,6 +246,7 @@ paths:
     get:
       tags: [Alertas]
       summary: Listar alertas activas
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -285,6 +290,7 @@ paths:
     get:
       tags: [Alertas]
       summary: Obtener indicadores de alertas
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -324,6 +330,7 @@ paths:
     post:
       tags: [Alertas]
       summary: Crear alerta SOS
+      x-roles: [ADMIN, CHOFER]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -373,6 +380,7 @@ paths:
     post:
       tags: [Alertas]
       summary: Crear alerta de auxilio mecánico
+      x-roles: [ADMIN, CHOFER]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -422,6 +430,7 @@ paths:
     patch:
       tags: [Alertas]
       summary: Actualizar estado de una alerta
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -473,6 +482,7 @@ paths:
     patch:
       tags: [Alertas]
       summary: Resolver una alerta
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -525,6 +535,7 @@ paths:
     get:
       tags: [Auditoria]
       summary: Resumen de auditoría
+      x-roles: [ADMIN]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -562,6 +573,7 @@ paths:
     get:
       tags: [Auditoria]
       summary: Listar registros de auditoría
+      x-roles: [ADMIN]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -601,6 +613,7 @@ paths:
     get:
       tags: [Auditoria]
       summary: Exportar auditoría a CSV
+      x-roles: [ADMIN]
       security:
         - BearerAuth: []
       produces: ["text/csv"]
@@ -641,6 +654,7 @@ paths:
     get:
       tags: [Camiones]
       summary: Listar todos los camiones
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -665,6 +679,7 @@ paths:
     post:
       tags: [Camiones]
       summary: Crear un nuevo camión
+      x-roles: [ADMIN]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -721,6 +736,7 @@ paths:
     get:
       tags: [Camiones]
       summary: Panel de estado de camiones
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -747,6 +763,7 @@ paths:
     get:
       tags: [Camiones]
       summary: Exportar camiones a CSV
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["text/csv"]
@@ -773,6 +790,7 @@ paths:
     get:
       tags: [Camiones]
       summary: Obtener camión por ID
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -816,6 +834,7 @@ paths:
     post:
       tags: [Combustible]
       summary: Registrar carga de combustible
+      x-roles: [ADMIN, CHOFER]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -868,6 +887,7 @@ paths:
     get:
       tags: [Combustible]
       summary: Obtener último kilometraje registrado de una unidad
+      x-roles: [ADMIN, CHOFER]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -918,6 +938,7 @@ paths:
     get:
       tags: [Combustible]
       summary: Obtener combustible registrado en una jornada
+      x-roles: [ADMIN, GERENTE, CHOFER]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -961,6 +982,7 @@ paths:
     get:
       tags: [Conductores]
       summary: Listar todos los conductores
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -985,6 +1007,7 @@ paths:
     post:
       tags: [Conductores]
       summary: Crear nuevo conductor
+      x-roles: [ADMIN]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -1050,6 +1073,7 @@ paths:
     get:
       tags: [Conductores]
       summary: Obtener licencia del conductor autenticado
+      x-roles: [ADMIN, CHOFER]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1061,6 +1085,7 @@ paths:
     put:
       tags: [Conductores]
       summary: Actualizar licencia del conductor
+      x-roles: [ADMIN, CHOFER]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -1105,6 +1130,7 @@ paths:
     get:
       tags: [Conductores]
       summary: Resumen del dashboard de conductores
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1131,6 +1157,7 @@ paths:
     get:
       tags: [Conductores]
       summary: Listado de conductores para dashboard
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1157,6 +1184,7 @@ paths:
     get:
       tags: [Conductores]
       summary: Obtener conductor por ID
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1197,6 +1225,7 @@ paths:
     get:
       tags: [Conductores]
       summary: Estadísticas de un conductor
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1250,6 +1279,7 @@ paths:
     get:
       tags: [Contratos]
       summary: Listar todos los contratos
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1274,6 +1304,7 @@ paths:
     post:
       tags: [Contratos]
       summary: Crear nuevo contrato
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -1328,6 +1359,7 @@ paths:
     get:
       tags: [Contratos]
       summary: Indicadores de contratos
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1354,6 +1386,7 @@ paths:
     get:
       tags: [Contratos]
       summary: Listar contratos vigentes
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1380,6 +1413,7 @@ paths:
     get:
       tags: [Contratos]
       summary: Obtener contrato por ID
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1399,6 +1433,7 @@ paths:
     put:
       tags: [Contratos]
       summary: Actualizar contrato
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -1458,6 +1493,7 @@ paths:
     put:
       tags: [Contratos]
       summary: Asignar unidades a un contrato
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -1513,6 +1549,7 @@ paths:
     get:
       tags: [Dashboard]
       summary: Dashboard principal (ADMIN)
+      x-roles: [ADMIN]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1539,6 +1576,7 @@ paths:
     get:
       tags: [Dashboard]
       summary: Dashboard gerencial (GERENTE/ADMIN)
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1568,6 +1606,7 @@ paths:
     get:
       tags: [GPS]
       summary: Listar proveedores GPS disponibles
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1594,6 +1633,7 @@ paths:
     get:
       tags: [GPS]
       summary: Descargar plantilla CSV genérica de GPS
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["text/csv"]
@@ -1620,6 +1660,7 @@ paths:
     get:
       tags: [GPS]
       summary: Descargar plantilla CSV de un proveedor específico
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["text/csv"]
@@ -1660,6 +1701,7 @@ paths:
     post:
       tags: [GPS]
       summary: Validar archivo CSV de GPS antes de importar
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -1705,6 +1747,7 @@ paths:
     post:
       tags: [GPS]
       summary: Importar datos GPS desde CSV
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -1750,6 +1793,7 @@ paths:
     get:
       tags: [GPS]
       summary: Resumen de registros GPS
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1776,6 +1820,7 @@ paths:
     get:
       tags: [GPS]
       summary: Listar registros GPS
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1817,6 +1862,7 @@ paths:
     get:
       tags: [GPS]
       summary: Resumen de tracking GPS
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1843,6 +1889,7 @@ paths:
     get:
       tags: [GPS]
       summary: Exportar tracking GPS a CSV
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["text/csv"]
@@ -1887,6 +1934,7 @@ paths:
     get:
       tags: [Jornadas]
       summary: Listar todas las jornadas
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -1915,6 +1963,7 @@ paths:
     post:
       tags: [Jornadas]
       summary: Crear jornada manualmente
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -1962,6 +2011,7 @@ paths:
     post:
       tags: [Jornadas]
       summary: Iniciar jornada (CHOFER)
+      x-roles: [ADMIN, CHOFER]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -2005,6 +2055,7 @@ paths:
     post:
       tags: [Jornadas]
       summary: Finalizar jornada activa (CHOFER)
+      x-roles: [ADMIN, CHOFER]
       security:
         - BearerAuth: []
       consumes: ["application/json"]
@@ -2051,6 +2102,7 @@ paths:
     get:
       tags: [Jornadas]
       summary: Obtener jornada activa de un conductor
+      x-roles: [ADMIN, GERENTE, CHOFER]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -2090,6 +2142,7 @@ paths:
     get:
       tags: [Jornadas]
       summary: Historial de jornadas del chofer autenticado
+      x-roles: [ADMIN, CHOFER]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -2127,6 +2180,7 @@ paths:
     get:
       tags: [Jornadas]
       summary: Historial gerencial de jornadas
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -2168,6 +2222,7 @@ paths:
     get:
       tags: [Jornadas]
       summary: Métricas del historial gerencial
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -2194,6 +2249,7 @@ paths:
     get:
       tags: [Jornadas]
       summary: Métricas de jornadas del chofer
+      x-roles: [ADMIN, CHOFER]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -2220,6 +2276,7 @@ paths:
     get:
       tags: [Jornadas]
       summary: Exportar jornadas a CSV
+      x-roles: [ADMIN, GERENTE]
       security:
         - BearerAuth: []
       produces: ["text/csv"]
@@ -2257,6 +2314,7 @@ paths:
     get:
       tags: [Jornadas]
       summary: Obtener alerta de una jornada
+      x-roles: [ADMIN, GERENTE, CHOFER]
       security:
         - BearerAuth: []
       produces: ["application/json"]
@@ -2299,6 +2357,7 @@ paths:
     get:
       tags: [Unidades]
       summary: Listar unidades disponibles para asignar
+      x-roles: [ADMIN, GERENTE, CHOFER]
       security:
         - BearerAuth: []
       produces: ["application/json"]
