@@ -552,7 +552,44 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
       color: var(--red) !important;
     }}
 
-    /* ── Fondo raíz de Swagger — esto es lo que causa el negro ── */
+    /* ── CAUSA REAL del negro: Swagger UI inyecta html.dark-mode ── */
+    /* Neutralizar TODOS los efectos de dark-mode de Swagger UI */
+    html.dark-mode body                           {{ background: var(--bg)  !important; color: var(--text) !important; }}
+    html.dark-mode #swagger-ui .swagger-ui        {{ background: transparent !important; color: var(--text) !important; }}
+    html.dark-mode .swagger-ui .opblock-tag-section {{ background: var(--bg2) !important; }}
+    html.dark-mode .swagger-ui .opblock-tag       {{ background: var(--bg2) !important; }}
+    html.dark-mode .swagger-ui .opblock-tag h3    {{ color: var(--slate) !important; }}
+    html.dark-mode .swagger-ui .opblock-tag small {{ color: var(--text3) !important; }}
+    html.dark-mode .swagger-ui .opblock           {{ background: var(--bg2) !important; color: var(--text) !important; }}
+    html.dark-mode .swagger-ui .opblock-get       {{ background: var(--blue-bg)  !important; border-color: var(--blue-border)  !important; }}
+    html.dark-mode .swagger-ui .opblock-post      {{ background: var(--green-bg) !important; border-color: var(--green-border) !important; }}
+    html.dark-mode .swagger-ui .opblock-put       {{ background: var(--amber-bg) !important; border-color: var(--amber-border) !important; }}
+    html.dark-mode .swagger-ui .opblock-patch     {{ background: var(--amber-bg) !important; border-color: var(--amber-border) !important; }}
+    html.dark-mode .swagger-ui .opblock-delete    {{ background: var(--red-bg)   !important; border-color: var(--red-border)   !important; }}
+    html.dark-mode .swagger-ui .opblock-summary-path        {{ color: var(--slate) !important; }}
+    html.dark-mode .swagger-ui .opblock-summary-description {{ color: var(--text2) !important; }}
+    html.dark-mode .swagger-ui .opblock-body      {{ background: var(--bg3) !important; }}
+    html.dark-mode .swagger-ui .opblock-section-header      {{ background: var(--bg2) !important; }}
+    html.dark-mode .swagger-ui .opblock-section-header h4   {{ color: var(--text2) !important; }}
+    html.dark-mode .swagger-ui .scheme-container  {{ background: var(--bg2) !important; }}
+    html.dark-mode .swagger-ui .responses-inner   {{ background: var(--bg3) !important; }}
+    html.dark-mode .swagger-ui table.parameters th {{ background: var(--bg3) !important; color: var(--text3) !important; }}
+    html.dark-mode .swagger-ui table.parameters td {{ background: var(--bg2) !important; color: var(--text)  !important; }}
+    html.dark-mode .swagger-ui .model-box         {{ background: var(--bg3) !important; }}
+    html.dark-mode .swagger-ui .model             {{ color: var(--text) !important; }}
+    html.dark-mode .swagger-ui select             {{ background: var(--bg3) !important; color: var(--text) !important; }}
+    html.dark-mode .swagger-ui input[type=text],
+    html.dark-mode .swagger-ui input[type=password],
+    html.dark-mode .swagger-ui textarea           {{ background: var(--bg2) !important; color: var(--text) !important; border-color: var(--border2) !important; }}
+    html.dark-mode .swagger-ui .models            {{ background: var(--bg2) !important; }}
+    html.dark-mode .swagger-ui section.models .model-container {{ background: var(--bg3) !important; }}
+    html.dark-mode .swagger-ui .dialog-ux .modal-ux         {{ background: var(--bg2) !important; color: var(--text) !important; }}
+    html.dark-mode .swagger-ui .dialog-ux .modal-ux-header  {{ background: var(--bg2) !important; }}
+    html.dark-mode .swagger-ui .auth-container    {{ background: var(--bg3) !important; }}
+    html.dark-mode .swagger-ui .parameter__name   {{ color: var(--accent) !important; }}
+    html.dark-mode .swagger-ui .parameter__type   {{ color: var(--text3) !important; }}
+
+    /* ── Fondo raíz de Swagger ── */
     #swagger-ui                                 {{ background: transparent !important; }}
     #swagger-ui .swagger-ui                     {{ background: transparent !important; }}
     #swagger-ui .swagger-ui .wrapper            {{ background: transparent !important; padding: 0 !important; max-width: 100% !important; }}
@@ -925,6 +962,17 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
   <script>
+    /* ── Eliminar dark-mode de Swagger UI antes de que lo aplique ── */
+    (function killDarkMode() {{
+      document.documentElement.classList.remove('dark-mode');
+      const obs = new MutationObserver(function() {{
+        if (document.documentElement.classList.contains('dark-mode')) {{
+          document.documentElement.classList.remove('dark-mode');
+        }}
+      }});
+      obs.observe(document.documentElement, {{ attributes: true, attributeFilter: ['class'] }});
+    }})();
+
     let _activeTag = 'all';
 
     function waitForSwaggerDOM(selector, callback, maxWait) {{
