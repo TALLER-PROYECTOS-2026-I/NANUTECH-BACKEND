@@ -501,7 +501,7 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
     #swagger-ui .swagger-ui .opblock-patch  .opblock-summary-method {{ background: #B45309     !important; color:#fff !important; }}
     #swagger-ui .swagger-ui .opblock-delete .opblock-summary-method {{ background: var(--red)  !important; color:#fff !important; }}
 
-    /* Body */
+    /* Body — CAMBIADO: era negro nativo de Swagger, ahora usa paleta clara */
     #swagger-ui .swagger-ui .opblock-body {{
       background: var(--bg3) !important;
       border-top: 1px solid var(--border) !important;
@@ -604,6 +604,8 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
     #swagger-ui .swagger-ui .response-col_description {{
       color: var(--text2) !important;
     }}
+
+    /* Code blocks — slate2 es el único negro permitido, solo para sintaxis */
     #swagger-ui .swagger-ui .highlight-code pre {{
       background: var(--slate2) !important; color: #e2e8f0 !important;
       border: none !important; border-radius: var(--radius-sm) !important;
@@ -644,6 +646,53 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
     /* Required asterisk */
     #swagger-ui .swagger-ui .parameter__name.required::after {{
       color: var(--red) !important;
+    }}
+
+    /* ── FIX negro nativo Swagger: model-box, ejemplo JSON, modal Authorize ── */
+    #swagger-ui .swagger-ui .model-box          {{ background: var(--bg3) !important; }}
+    #swagger-ui .swagger-ui .model              {{ color: var(--text) !important; }}
+    #swagger-ui .swagger-ui .model-title        {{ color: var(--slate) !important; }}
+    #swagger-ui .swagger-ui .prop-type          {{ color: var(--blue) !important; }}
+    #swagger-ui .swagger-ui .prop-format        {{ color: var(--text3) !important; }}
+    #swagger-ui .swagger-ui .example            {{ background: var(--bg3) !important; color: var(--text) !important; }}
+    #swagger-ui .swagger-ui .example__section   {{ background: var(--bg3) !important; }}
+
+    /* Modal Authorize — ahora totalmente claro */
+    #swagger-ui .swagger-ui .dialog-ux          {{ background: rgba(15,23,42,0.45) !important; }}
+    #swagger-ui .swagger-ui .dialog-ux .modal-ux {{
+      background: var(--bg2) !important; color: var(--text) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius-lg) !important;
+      box-shadow: var(--shadow-lg) !important;
+    }}
+    #swagger-ui .swagger-ui .dialog-ux .modal-ux-header {{
+      background: var(--bg2) !important;
+      border-bottom: 1px solid var(--border) !important;
+      padding: 16px 20px !important;
+    }}
+    #swagger-ui .swagger-ui .dialog-ux .modal-ux-header h3 {{
+      color: var(--slate) !important; font-size: 16px !important; font-weight: 700 !important;
+    }}
+    #swagger-ui .swagger-ui .dialog-ux .modal-ux-content {{ background: var(--bg2) !important; padding: 16px 20px !important; }}
+    #swagger-ui .swagger-ui .auth-container {{
+      background: var(--bg3) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius) !important;
+      padding: 14px 16px !important;
+      margin-bottom: 12px !important;
+    }}
+    #swagger-ui .swagger-ui .auth-container h4  {{ color: var(--slate) !important; font-size: 14px !important; font-weight: 700 !important; }}
+    #swagger-ui .swagger-ui .auth-container p   {{ color: var(--text2) !important; font-size: 13px !important; }}
+    #swagger-ui .swagger-ui .auth-container code {{
+      background: var(--bg2) !important; color: var(--accent) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 4px !important; padding: 1px 5px !important;
+      font-family: var(--mono) !important;
+    }}
+    #swagger-ui .swagger-ui .close-modal svg {{ fill: var(--text2) !important; }}
+    #swagger-ui .swagger-ui .auth-btn-wrapper .btn-done {{
+      background: var(--accent) !important; color: #fff !important;
+      border-color: var(--accent) !important;
     }}
 
     /* ═══════════════════════════════════════════
@@ -832,19 +881,25 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
       }}, 150);
     }}
 
+    /* ── FIX STATS: recalcula solo los endpoints visibles ── */
     function countStats() {{
-      waitForSwaggerDOM('#swagger-ui .opblock', function(ops) {{
-        let get = 0, post = 0, pp = 0;
-        ops.forEach(function(op) {{
-          if (op.classList.contains('opblock-get'))   get++;
-          if (op.classList.contains('opblock-post'))  post++;
-          if (op.classList.contains('opblock-patch') || op.classList.contains('opblock-put')) pp++;
-        }});
-        document.getElementById('totalEndpoints').textContent = ops.length;
-        document.getElementById('totalGet').textContent   = get;
-        document.getElementById('totalPost').textContent  = post;
-        document.getElementById('totalPatch').textContent = pp;
+      const ops = Array.from(document.querySelectorAll('#swagger-ui .opblock'))
+                       .filter(function(op) {{ return op.style.display !== 'none'; }});
+      let get = 0, post = 0, pp = 0;
+      ops.forEach(function(op) {{
+        if (op.classList.contains('opblock-get'))                                          get++;
+        if (op.classList.contains('opblock-post'))                                         post++;
+        if (op.classList.contains('opblock-patch') || op.classList.contains('opblock-put')) pp++;
       }});
+      document.getElementById('totalEndpoints').textContent = ops.length || '—';
+      document.getElementById('totalGet').textContent       = get || '—';
+      document.getElementById('totalPost').textContent      = post || '—';
+      document.getElementById('totalPatch').textContent     = pp || '—';
+    }}
+
+    /* Primer conteo: espera a que Swagger renderice */
+    function countStatsWhenReady() {{
+      waitForSwaggerDOM('#swagger-ui .opblock', function() {{ countStats(); }});
     }}
 
     function applyFilter(tag) {{
@@ -854,6 +909,8 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
         const text = h ? h.textContent.toLowerCase().trim() : '';
         section.style.display = text.includes(tag.toLowerCase()) ? '' : 'none';
       }});
+      /* ── FIX: recalcular tras filtrar ── */
+      setTimeout(countStats, 60);
     }}
 
     function filterTag(tag) {{
@@ -882,6 +939,8 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
         }});
         section.style.display = any ? '' : 'none';
       }});
+      /* ── FIX: recalcular tras búsqueda ── */
+      setTimeout(countStats, 60);
     }});
 
     const ui = SwaggerUIBundle({{
@@ -908,10 +967,17 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
       }},
 
       onComplete: function() {{
-        countStats();
+        countStatsWhenReady();
         if (_activeTag !== 'all') applyFilter(_activeTag);
 
-        // Personalizar placeholder del input de token en el modal Authorize
+        /* ── FIX: re-contar cuando el usuario expande/colapsa una sección ── */
+        document.getElementById('swagger-ui').addEventListener('click', function(e) {{
+          if (e.target.closest('.opblock-tag')) {{
+            setTimeout(countStats, 350);
+          }}
+        }});
+
+        /* Personalizar placeholder del input de token en el modal Authorize */
         new MutationObserver(function() {{
           document.querySelectorAll(
             '#swagger-ui .auth-container input[type=text], ' +
