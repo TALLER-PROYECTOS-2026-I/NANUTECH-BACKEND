@@ -403,14 +403,16 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
     #swagger-ui .swagger-ui .info        {{ display: none !important; }}
     #swagger-ui .swagger-ui .filter-container {{ display: none !important; }}
 
-    /* Scheme container */
+    /* Scheme container — rediseñado */
     #swagger-ui .swagger-ui .scheme-container {{
       background: var(--bg2) !important;
       border: 1px solid var(--border) !important;
-      border-radius: var(--radius) !important;
-      padding: 12px 18px !important;
+      border-radius: var(--radius-lg) !important;
+      padding: 14px 20px !important;
       box-shadow: var(--shadow-sm) !important;
       margin-bottom: 20px !important;
+      display: flex !important;
+      align-items: center !important;
     }}
     #swagger-ui .swagger-ui select {{
       background: var(--bg3) !important; color: var(--text) !important;
@@ -437,18 +439,20 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
     }}
     #swagger-ui .swagger-ui .btn.authorize svg {{ fill: #fff !important; }}
 
-    /* Operation blocks */
+    /* Operation blocks — rediseñados con más personalidad */
     #swagger-ui .swagger-ui .opblock {{
       border-radius: var(--radius) !important;
       border: 1px solid var(--border) !important;
       background: var(--bg2) !important;
-      box-shadow: var(--shadow-sm) !important;
-      margin-bottom: 8px !important;
+      box-shadow: none !important;
+      margin-bottom: 6px !important;
       overflow: hidden !important;
-      transition: box-shadow 0.15s !important;
+      transition: box-shadow 0.15s, border-color 0.15s !important;
     }}
+    #swagger-ui .swagger-ui .opblock:last-child {{ margin-bottom: 0 !important; }}
     #swagger-ui .swagger-ui .opblock:hover {{
-      box-shadow: var(--shadow) !important;
+      box-shadow: var(--shadow-sm) !important;
+      border-color: var(--border2) !important;
     }}
     #swagger-ui .swagger-ui .opblock.is-open {{
       box-shadow: var(--shadow) !important;
@@ -548,24 +552,60 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
       color: var(--red) !important;
     }}
 
-    /* Tags / sections */
+    /* ── Fondo raíz de Swagger — esto es lo que causa el negro ── */
+    #swagger-ui                                 {{ background: transparent !important; }}
+    #swagger-ui .swagger-ui                     {{ background: transparent !important; }}
+    #swagger-ui .swagger-ui .wrapper            {{ background: transparent !important; padding: 0 !important; max-width: 100% !important; }}
+    #swagger-ui .swagger-ui .block              {{ background: transparent !important; }}
+
+    /* Tags / sections — rediseñadas con paleta clara */
+    #swagger-ui .swagger-ui .opblock-tag-section {{
+      background: var(--bg2) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius-lg) !important;
+      margin-bottom: 12px !important;
+      overflow: hidden !important;
+      box-shadow: var(--shadow-sm) !important;
+      transition: box-shadow 0.15s !important;
+    }}
+    #swagger-ui .swagger-ui .opblock-tag-section:hover {{
+      box-shadow: var(--shadow) !important;
+    }}
     #swagger-ui .swagger-ui .opblock-tag {{
+      background: var(--bg2) !important;
       border-bottom: 1px solid var(--border) !important;
-      padding: 12px 2px !important; margin-bottom: 12px !important;
+      padding: 14px 20px !important;
+      margin-bottom: 0 !important;
+      cursor: pointer !important;
+      transition: background 0.13s !important;
     }}
     #swagger-ui .swagger-ui .opblock-tag:hover {{
-      background: transparent !important;
+      background: var(--accent-light) !important;
     }}
-    #swagger-ui .swagger-ui .opblock-tag-section {{ margin-bottom: 20px !important; }}
     #swagger-ui .swagger-ui .opblock-tag h3 {{
-      color: var(--slate) !important; font-size: 17px !important;
-      font-weight: 700 !important; letter-spacing: -0.3px !important;
+      color: var(--slate) !important; font-size: 15px !important;
+      font-weight: 700 !important; letter-spacing: -0.2px !important;
+      display: flex !important; align-items: center !important; gap: 10px !important;
+    }}
+    #swagger-ui .swagger-ui .opblock-tag h3::before {{
+      content: '' !important;
+      display: inline-block !important;
+      width: 8px !important; height: 8px !important;
+      border-radius: 50% !important;
+      background: var(--accent) !important;
+      flex-shrink: 0 !important;
     }}
     #swagger-ui .swagger-ui .opblock-tag small {{
       color: var(--text3) !important; font-size: 12px !important;
-      font-weight: 400 !important;
+      font-weight: 400 !important; margin-left: 4px !important;
     }}
     #swagger-ui .swagger-ui .expand-operation svg {{ fill: var(--text3) !important; }}
+
+    /* Contenedor de los opblocks dentro de cada sección */
+    #swagger-ui .swagger-ui .opblock-tag-section > div:not(.opblock-tag) {{
+      background: var(--bg3) !important;
+      padding: 12px 16px !important;
+    }}
 
     /* Buttons */
     #swagger-ui .swagger-ui .btn {{
@@ -656,6 +696,22 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
     #swagger-ui .swagger-ui .prop-format        {{ color: var(--text3) !important; }}
     #swagger-ui .swagger-ui .example            {{ background: var(--bg3) !important; color: var(--text) !important; }}
     #swagger-ui .swagger-ui .example__section   {{ background: var(--bg3) !important; }}
+
+    /* ── FIX negro en toda la zona de contenido de Swagger ── */
+    #swagger-ui .swagger-ui .information-container {{ background: transparent !important; }}
+    #swagger-ui .swagger-ui .no-margin             {{ background: transparent !important; }}
+    #swagger-ui .swagger-ui section                {{ background: transparent !important; }}
+    #swagger-ui .swagger-ui .errors-wrapper        {{ background: var(--red-bg) !important; border: 1px solid var(--red-border) !important; border-radius: var(--radius) !important; }}
+    #swagger-ui .swagger-ui .loading-container     {{ background: transparent !important; }}
+
+    /* Texto que queda blanco sobre negro cuando no se sobreescribe */
+    #swagger-ui .swagger-ui .opblock-tag h3,
+    #swagger-ui .swagger-ui .opblock-tag h3 a,
+    #swagger-ui .swagger-ui .opblock-tag h3 span  {{ color: var(--slate) !important; }}
+    #swagger-ui .swagger-ui .opblock-tag a         {{ color: var(--text2) !important; text-decoration: none !important; }}
+
+    /* Línea separadora entre secciones — era blanca sobre negro, ahora invisible */
+    #swagger-ui .swagger-ui .opblock-tag           {{ border-color: var(--border) !important; }}
 
     /* Modal Authorize — ahora totalmente claro */
     #swagger-ui .swagger-ui .dialog-ux          {{ background: rgba(15,23,42,0.45) !important; }}
