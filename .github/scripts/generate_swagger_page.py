@@ -1079,7 +1079,7 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
         return request;
       }},
 
-      /* ── AUTO-TOKEN: captura accessToken de cualquier respuesta de login ── */
+      /* ── AUTO-TOKEN: captura accessToken de la respuesta de login ── */
       responseInterceptor: function(response) {{
         try {{
           if (response.status === 200 && response.url && response.url.includes('/auth/login')) {{
@@ -1087,23 +1087,28 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
               ? JSON.parse(response.body)
               : response.body;
 
-            /* Soporta: body.accessToken  /  body.session.accessToken  /  body.token */
-            const token = (body && (
-              body.accessToken ||
+            /*
+              Tu API devuelve: body.session.accessToken
+              También soporta: body.accessToken / body.token / body.access_token
+            */
+            const rawToken = (body && (
               (body.session && body.session.accessToken) ||
+              body.accessToken ||
               body.token ||
               body.access_token
             )) || null;
 
-            if (token) {{
-              /* Guardar en Swagger UI — mismo mecanismo que el botón Authorize */
-              ui.preauthorizeApiKey('BearerAuth', token);
-
-              /* Toast de confirmación */
-              showTokenToast(token);
+            if (rawToken) {{
+              /*
+                Tu securityDefinition es apiKey in:header name:Authorization
+                → Swagger UI manda el valor TAL CUAL en el header Authorization.
+                → Por eso guardamos 'Bearer <token>' completo.
+              */
+              ui.preauthorizeApiKey('BearerAuth', 'Bearer ' + rawToken);
+              showTokenToast(rawToken);
             }}
           }}
-        }} catch(e) {{ /* silencioso */ }}
+        }} catch(e) {{ /* silencioso — no romper el flujo */ }}
         return response;
       }},
 
@@ -1111,24 +1116,40 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
         countStatsWhenReady();
         if (_activeTag !== 'all') applyFilter(_activeTag);
 
-        /* ── ACORDEÓN: cerrar sección abierta al abrir otra ── */
+        /* ── ACORDEÓN: al abrir una sección, cerrar todas las demás ──
+           Swagger 2.0 no usa display:none — detectamos por aria-expanded
+           en el botón expand o por la presencia de opblocks renderizados. */
         document.getElementById('swagger-ui').addEventListener('click', function(e) {{
           const clickedTag = e.target.closest('.opblock-tag');
           if (!clickedTag) return;
 
+          /* Esperar a que Swagger procese el click y expanda/colapse */
           setTimeout(function() {{
             const allSections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
+
             allSections.forEach(function(section) {{
               const tag = section.querySelector('.opblock-tag');
               if (!tag || tag === clickedTag) return;
-              /* Si la sección tiene contenido visible (expandido), colapsarla */
-              const content = section.querySelector('.opblock-tag-section > div:not(.opblock-tag)');
-              if (content && content.style.display !== 'none') {{
-                tag.click();
+
+              /* Detectar si está expandida: tiene opblocks visibles en el DOM */
+              const hasVisibleOps = section.querySelectorAll('.opblock').length > 0;
+
+              /* Detectar por aria-expanded en el botón dentro del tag */
+              const expandBtn = tag.querySelector('[aria-expanded]');
+              const isExpanded = expandBtn
+                ? expandBtn.getAttribute('aria-expanded') === 'true'
+                : hasVisibleOps;
+
+              if (isExpanded) {{
+                /* Simular click para colapsar */
+                const btn = tag.querySelector('button, [role="button"], h3');
+                if (btn) btn.click();
+                else tag.click();
               }}
             }});
-            countStats();
-          }}, 50);
+
+            setTimeout(countStats, 100);
+          }}, 80);
         }});
 
         /* Personalizar placeholder del input de token en el modal Authorize */
