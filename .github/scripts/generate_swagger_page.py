@@ -226,6 +226,15 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
       50%       {{ opacity: 0.5; transform: scale(0.7); }}
     }}
 
+    @keyframes slideInToast {{
+      from {{ opacity: 0; transform: translateY(12px); }}
+      to   {{ opacity: 1; transform: translateY(0); }}
+    }}
+    @keyframes fadeOutToast {{
+      from {{ opacity: 1; transform: translateY(0); }}
+      to   {{ opacity: 0; transform: translateY(8px); }}
+    }}
+
     /* ═══════════════════════════════════════════
        LAYOUT
     ═══════════════════════════════════════════ */
@@ -1070,15 +1079,56 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
         return request;
       }},
 
+      /* ── AUTO-TOKEN: captura accessToken de cualquier respuesta de login ── */
+      responseInterceptor: function(response) {{
+        try {{
+          if (response.status === 200 && response.url && response.url.includes('/auth/login')) {{
+            const body = typeof response.body === 'string'
+              ? JSON.parse(response.body)
+              : response.body;
+
+            /* Soporta: body.accessToken  /  body.session.accessToken  /  body.token */
+            const token = (body && (
+              body.accessToken ||
+              (body.session && body.session.accessToken) ||
+              body.token ||
+              body.access_token
+            )) || null;
+
+            if (token) {{
+              /* Guardar en Swagger UI — mismo mecanismo que el botón Authorize */
+              ui.preauthorizeApiKey('BearerAuth', token);
+
+              /* Toast de confirmación */
+              showTokenToast(token);
+            }}
+          }}
+        }} catch(e) {{ /* silencioso */ }}
+        return response;
+      }},
+
       onComplete: function() {{
         countStatsWhenReady();
         if (_activeTag !== 'all') applyFilter(_activeTag);
 
-        /* ── FIX: re-contar cuando el usuario expande/colapsa una sección ── */
+        /* ── ACORDEÓN: cerrar sección abierta al abrir otra ── */
         document.getElementById('swagger-ui').addEventListener('click', function(e) {{
-          if (e.target.closest('.opblock-tag')) {{
-            setTimeout(countStats, 350);
-          }}
+          const clickedTag = e.target.closest('.opblock-tag');
+          if (!clickedTag) return;
+
+          setTimeout(function() {{
+            const allSections = document.querySelectorAll('#swagger-ui .opblock-tag-section');
+            allSections.forEach(function(section) {{
+              const tag = section.querySelector('.opblock-tag');
+              if (!tag || tag === clickedTag) return;
+              /* Si la sección tiene contenido visible (expandido), colapsarla */
+              const content = section.querySelector('.opblock-tag-section > div:not(.opblock-tag)');
+              if (content && content.style.display !== 'none') {{
+                tag.click();
+              }}
+            }});
+            countStats();
+          }}, 50);
         }});
 
         /* Personalizar placeholder del input de token en el modal Authorize */
@@ -1095,6 +1145,54 @@ def generate_html(meta: dict, swagger_json_name: str) -> str:
         }}).observe(document.getElementById('swagger-ui'), {{ childList: true, subtree: true }});
       }}
     }});
+
+    /* ── Toast de confirmación de token guardado ── */
+    function showTokenToast(token) {{
+      const existing = document.getElementById('token-toast');
+      if (existing) existing.remove();
+
+      const short = token.substring(0, 24) + '…';
+      const toast = document.createElement('div');
+      toast.id = 'token-toast';
+      toast.innerHTML = `
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <polyline points="9 12 11 14 15 10"/>
+        </svg>
+        <div>
+          <strong style="display:block;margin-bottom:2px;">Token guardado automáticamente</strong>
+          <span style="font-family:var(--mono);font-size:10px;opacity:0.8;">${{short}}</span>
+        </div>
+        <button onclick="this.parentElement.remove()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;font-size:16px;line-height:1;padding:0 2px;">×</button>
+      `;
+      Object.assign(toast.style, {{
+        position: 'fixed',
+        bottom: '24px',
+        right: '24px',
+        zIndex: '9999',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        background: 'var(--green-bg)',
+        color: 'var(--green)',
+        border: '1px solid var(--green-border)',
+        borderRadius: 'var(--radius)',
+        padding: '12px 16px',
+        fontSize: '13px',
+        fontFamily: 'var(--font)',
+        fontWeight: '500',
+        boxShadow: 'var(--shadow-lg)',
+        maxWidth: '360px',
+        animation: 'slideInToast 0.25s ease',
+      }});
+      document.body.appendChild(toast);
+      setTimeout(function() {{
+        if (toast.parentElement) {{
+          toast.style.animation = 'fadeOutToast 0.3s ease forwards';
+          setTimeout(function() {{ toast.remove(); }}, 300);
+        }}
+      }}, 5000);
+    }}
   </script>
 </body>
 </html>"""
