@@ -96,7 +96,9 @@ def parse_sarif(sarif_path: Path) -> list[dict]:
 
 def scan_sarif_files(path: Path) -> list[Path]:
     """Encuentra todos los archivos .sarif en un archivo o directorio."""
-    if path.is_file():
+    if not path.exists():
+        return []
+    if path.is_file() and path.suffix == ".sarif":
         return [path]
     return sorted(path.rglob("*.sarif"))
 
@@ -961,7 +963,7 @@ def main():
         print(f"🔍 Hallazgos totales: {len(findings)}")
 
     counts     = count_by_level(findings)
-    build_date = datetime.datetime.utcnow().strftime("%d %b %Y %H:%M UTC")
+    build_date = datetime.datetime.now(datetime.timezone.utc).strftime("%d %b %Y %H:%M UTC")
 
     html = generate_html(
         findings   = findings,
